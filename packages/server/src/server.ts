@@ -29,12 +29,16 @@ async function startAutoPrune() {
 
 async function start() {
   try {
+    // Listen immediately so Fly.io sees the port open right away
+    const port = Number(process.env.PORT) || Number(Env.PORT) || 3000;
+    app.listen(port, '0.0.0.0', () => {
+      logger.info(\`Server running on http://0.0.0.0:\${port}\`);
+    });
+
+    // After that, initialize the database and background tasks
     await initialiseDatabase();
     startAutoPrune();
     logStartupInfo();
-    app.listen(Env.PORT, '0.0.0.0', () => {
-      logger.info(`Server running on port ${Env.PORT}`);
-    });
   } catch (error) {
     logger.error('Failed to start server:', error);
     process.exit(1);
