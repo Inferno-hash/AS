@@ -1,0 +1,55 @@
+# flyctl launch added from .gitignore
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+**/out
+**/.next
+**/next-env.d.ts
+**/.wrangler
+**/.env
+**/metadata.json
+**/data
+
+# flyctl launch added from packages/frontend/.gitignore
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+packages/frontend/node_modules
+packages/frontend/.pnp
+packages/frontend/**/.pnp.*
+packages/frontend/**/.yarn/*
+!packages/frontend/**/.yarn/patches
+!packages/frontend/**/.yarn/plugins
+!packages/frontend/**/.yarn/releases
+!packages/frontend/**/.yarn/versions
+
+# testing
+packages/frontend/coverage
+
+# next.js
+packages/frontend/.next
+packages/frontend/out
+
+# production
+packages/frontend/build
+
+# misc
+packages/frontend/**/.DS_Store
+packages/frontend/**/*.pem
+
+# debug
+packages/frontend/**/npm-debug.log*
+packages/frontend/**/yarn-debug.log*
+packages/frontend/**/yarn-error.log*
+packages/frontend/**/.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+packages/frontend/**/.env*
+
+# vercel
+packages/frontend/**/.vercel
+
+# typescript
+packages/frontend/**/*.tsbuildinfo
+packages/frontend/**/next-env.d.ts
+fly.toml
