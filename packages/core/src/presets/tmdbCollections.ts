@@ -7,6 +7,7 @@ export class TmdbCollectionsPreset extends Preset {
     const supportedResources = [
       constants.CATALOG_RESOURCE,
       constants.META_RESOURCE,
+      constants.STREAM_RESOURCE,
     ];
 
     const options: Option[] = [
@@ -29,6 +30,15 @@ export class TmdbCollectionsPreset extends Preset {
         description: 'Enable search in the catalogs',
         type: 'boolean',
         default: true,
+        required: false,
+      },
+      {
+        id: 'enableCollectionFromMovie',
+        name: 'Discover and open collection from movie details page',
+        description:
+          'Adds a button to movies details page that links to its collection',
+        type: 'boolean',
+        default: false,
         required: false,
       },
       {
@@ -124,6 +134,7 @@ export class TmdbCollectionsPreset extends Preset {
     const config = this.urlEncodeJSON({
       enableAdultContent: options.enableAdultContent ?? false,
       enableSearch: options.enableSearch ?? true,
+      enableCollectionFromMovie: options.enableCollectionFromMovie ?? false,
       language: options.language,
       catalogList: ['popular', 'topRated', 'newReleases'],
       discoverOnly: { popular: false, topRated: false, newReleases: false },
