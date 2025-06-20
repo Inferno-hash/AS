@@ -10,6 +10,8 @@ import {
 import { Manifest } from '@aiostreams/core';
 import { createLogger } from '@aiostreams/core';
 import { stremioManifestRateLimiter } from '../../middlewares/ratelimit';
+// Adjust this path if your file lives elsewhere—this assumes manifest.ts is in packages/server/src/routes
+import pkg from '../../../../package.json' assert { type: 'json' };
 
 const logger = createLogger('server');
 const router = Router();
@@ -23,22 +25,25 @@ const manifest = async (config?: UserData): Promise<Manifest> => {
   if (config) {
     addonId = addonId += `.${config.uuid?.substring(0, 12)}`;
   }
+
   let catalogs: Manifest['catalogs'] = [];
   let resources: Manifest['resources'] = [];
   let addonCatalogs: Manifest['addonCatalogs'] = [];
+
   if (config) {
     const aiostreams = new AIOStreams(config, false);
-
     await aiostreams.initialise();
 
     catalogs = aiostreams.getCatalogs();
     resources = aiostreams.getResources();
     addonCatalogs = aiostreams.getAddonCatalogs();
   }
+
   return {
     name: config?.addonName || Env.ADDON_NAME,
     id: addonId,
-    version: Env.VERSION === 'unknown' ? '0.0.0' : Env.VERSION,
+    // ← use version from root package.json here
+    version: pkg.version || '0.0.0',
     description: config?.addonDescription || Env.DESCRIPTION,
     catalogs,
     resources,
