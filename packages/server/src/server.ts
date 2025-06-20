@@ -32,7 +32,7 @@ async function start() {
     await initialiseDatabase();
     startAutoPrune();
     logStartupInfo();
-    app.listen(Env.PORT, () => {
+    app.listen(Env.PORT, '0.0.0.0' , () => {
       logger.info(`Server running on port ${Env.PORT}`);
     });
   } catch (error) {
