@@ -159,6 +159,13 @@ function Content() {
             ...service,
             credentials: filterCredentialsInExport ? {} : service.credentials,
           })),
+          proxy: {
+            ...userData?.proxy,
+            credentials: filterCredentialsInExport
+              ? undefined
+              : userData?.proxy?.credentials,
+            url: filterCredentialsInExport ? undefined : userData?.proxy?.url,
+          },
           presets: userData?.presets?.map((preset) => {
             const presetMeta = status?.settings.presets.find(
               (p) => p.ID === preset.type

@@ -644,10 +644,6 @@ async function validateProxy(
       throw new Error('Proxy credentials are required');
     }
 
-    proxy.credentials = decodeURIComponent(proxy.credentials);
-    proxy.url = proxy.url.startsWith('aioEncrypt')
-      ? decodeURIComponent(proxy.url)
-      : proxy.url;
     if (isEncrypted(proxy.credentials) && decryptCredentials) {
       const { success, data, error } = decryptString(proxy.credentials);
       if (!success) {
