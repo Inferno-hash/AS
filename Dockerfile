@@ -22,9 +22,14 @@ COPY packages/core     ./packages/core
 COPY packages/frontend ./packages/frontend
 COPY scripts           ./scripts
 
-# ─── New: generate resources/metadata.json ───────────────────────────────
+# Install git temporarily to generate commit hash
+RUN apk add --no-cache git
+
+# Generate metadata.json
 RUN npm run metadata
-# ─────────────────────────────────────────────────────────────────────────
+
+# Optional: remove git to reduce final image size (still in builder stage)
+RUN apk del git
 
 # Build the project.
 RUN npm run build
