@@ -77,8 +77,28 @@ class StreamParser {
       return parsedStream;
     }
 
+    const normaliseText = (text: string) => {
+      return text
+        .replace(
+          /(mkv|mp4|avi|mov|wmv|flv|webm|m4v|mpg|mpeg|3gp|3g2|m2ts|ts|vob|ogv|ogm|divx|xvid|rm|rmvb|asf|mxf|mka|mks|mk3d|webm|f4v|f4p|f4a|f4b)$/i,
+          ''
+        )
+        .replace(/[^\p{L}\p{N}+]/gu, '')
+
+        .toLowerCase()
+        .trim();
+    };
+
     parsedStream.filename = this.getFilename(stream, parsedStream);
     parsedStream.folderName = this.getFolder(stream, parsedStream);
+    if (
+      parsedStream.folderName &&
+      parsedStream.filename &&
+      normaliseText(parsedStream.folderName) ===
+        normaliseText(parsedStream.filename)
+    ) {
+      parsedStream.folderName = undefined;
+    }
     parsedStream.size = this.getSize(stream, parsedStream);
     parsedStream.folderSize = this.getFolderSize(stream, parsedStream);
     parsedStream.indexer = this.getIndexer(stream, parsedStream);
@@ -93,26 +113,28 @@ class StreamParser {
     parsedStream.age = this.getAge(stream, parsedStream);
     parsedStream.message = this.getMessage(stream, parsedStream);
 
+    const folderParsed = parsedStream.folderName
+      ? FileParser.parse(parsedStream.folderName)
+      : undefined;
+    const fileParsed = parsedStream.filename
+      ? FileParser.parse(parsedStream.filename)
+      : undefined;
+
     parsedStream.parsedFile = {
       visualTags: [],
       audioTags: [],
       audioChannels: [],
-      ...(parsedStream.filename ? FileParser.parse(parsedStream.filename) : {}),
+      ...folderParsed,
+      ...fileParsed,
+      title: folderParsed?.title || fileParsed?.title,
       languages: Array.from(
         new Set([
-          ...(parsedStream.parsedFile?.languages ?? []),
+          ...(folderParsed?.languages ?? []),
+          ...(fileParsed?.languages ?? []),
           ...this.getLanguages(stream, parsedStream),
         ])
       ),
     };
-
-    if (parsedStream.folderName && parsedStream.parsedFile) {
-      const parsedFolder = FileParser.parse(parsedStream.folderName);
-      parsedStream.parsedFile = {
-        ...parsedStream.parsedFile,
-        title: parsedFolder.title, // prefer titles from the folder name if it exists
-      };
-    }
 
     parsedStream.torrent = {
       infoHash:

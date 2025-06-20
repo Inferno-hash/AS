@@ -1070,8 +1070,12 @@ const logStartupInfo = () => {
 
   // Maintenance & Cleanup
   logSection('MAINTENANCE', '🧹', () => {
-    logKeyValue('Prune Interval:', formatDuration(Env.PRUNE_INTERVAL));
-    logKeyValue('Prune Max Age:', `${Env.PRUNE_MAX_DAYS} days`);
+    if (Env.PRUNE_MAX_DAYS > 0) {
+      logKeyValue('Prune Interval:', formatDuration(Env.PRUNE_INTERVAL));
+      logKeyValue('Prune Max Age:', `${Env.PRUNE_MAX_DAYS} days`);
+    } else {
+      logKeyValue('Pruning :', '❌ DISABLED');
+    }
   });
 
   // Footer

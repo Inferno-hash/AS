@@ -30,7 +30,9 @@ async function startAutoPrune() {
 async function start() {
   try {
     await initialiseDatabase();
-    startAutoPrune();
+    if (Env.PRUNE_MAX_DAYS >= 0) {
+      startAutoPrune();
+    }
     logStartupInfo();
     app.listen(Env.PORT, () => {
       logger.info(`Server running on port ${Env.PORT}`);

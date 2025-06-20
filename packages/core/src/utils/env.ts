@@ -291,8 +291,8 @@ export const Env = cleanEnv(process.env, {
     desc: 'Interval for pruning inactive users in seconds',
   }),
   PRUNE_MAX_DAYS: num({
-    default: 30,
-    desc: 'Maximum days of inactivity before pruning',
+    default: -1,
+    desc: 'Maximum days of inactivity before pruning, set to -1 to disable',
   }),
 
   RECURSION_THRESHOLD_LIMIT: num({
