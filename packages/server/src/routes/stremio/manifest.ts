@@ -10,8 +10,10 @@ import {
 import { Manifest } from '@aiostreams/core';
 import { createLogger } from '@aiostreams/core';
 import { stremioManifestRateLimiter } from '../../middlewares/ratelimit';
-// Adjust this path if your file lives elsewhere—this assumes manifest.ts is in packages/server/src/routes
-import pkg from '../../../../package.json' assert { type: 'json' };
+
+// Adjusted to five levels up from packages/server/src/routes/stremio/manifest.ts
+// to reach the repo root package.json
+const pkg = require('../../../../../package.json');
 
 const logger = createLogger('server');
 const router = Router();
@@ -42,7 +44,7 @@ const manifest = async (config?: UserData): Promise<Manifest> => {
   return {
     name: config?.addonName || Env.ADDON_NAME,
     id: addonId,
-    // ← use version from root package.json here
+    // now reading version dynamically from root package.json
     version: pkg.version || '0.0.0',
     description: config?.addonDescription || Env.DESCRIPTION,
     catalogs,
