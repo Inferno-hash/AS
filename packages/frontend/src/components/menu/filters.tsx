@@ -1962,21 +1962,24 @@ function Content() {
                       <span className="font-medium">Single Result</span>
                       <p className="text-sm text-[--muted] mt-1">
                         Keeps only one result from your highest priority service
-                        and highest priority addon
+                        and highest priority addon. If it is a P2P or uncached
+                        result, it prioritises the number of seeders over addon
+                        priority.
                       </p>
                     </div>
                     <div>
                       <span className="font-medium">Per Service</span>
                       <p className="text-sm text-[--muted] mt-1">
-                        Keeps only one result from your highest priority addon
-                        for each service
+                        This keeps one result per service, and choses each
+                        result using the same criteria above.
                       </p>
                     </div>
                     <div>
                       <span className="font-medium">Per Addon</span>
                       <p className="text-sm text-[--muted] mt-1">
-                        Keeps only one result from your highest priority service
-                        for each addon
+                        This keeps one result per addon, and choses each result
+                        from your highest priority service, and for P2P/uncached
+                        results it looks at the number of seeders.
                       </p>
                     </div>
                   </div>

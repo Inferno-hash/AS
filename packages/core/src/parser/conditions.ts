@@ -13,7 +13,7 @@ export abstract class BaseConditionParser {
         logical: true,
         add: false,
         concatenate: false,
-        conditional: false,
+        conditional: true,
         divide: false,
         factorial: false,
         multiply: false,
@@ -71,6 +71,25 @@ export abstract class BaseConditionParser {
           ? stream.regexMatched?.name === regexName
           : stream.regexMatched
       );
+    };
+
+    // gets all streams that have a regex matched with an index in the range of min and max
+    this.parser.functions.regexMatchedInRange = function (
+      streams: ParsedStream[],
+      min: number,
+      max: number
+    ) {
+      return streams.filter((stream) => {
+        if (!stream.regexMatched) {
+          return false;
+        } else if (
+          stream.regexMatched.index < min ||
+          stream.regexMatched.index > max
+        ) {
+          return false;
+        }
+        return true;
+      });
     };
 
     this.parser.functions.indexer = function (
@@ -348,6 +367,19 @@ export abstract class BaseConditionParser {
       }
       return streams.length;
     };
+
+    this.parser.functions.not = function (
+      streams: ParsedStream[],
+      originalStreams: ParsedStream[]
+    ) {
+      if (!Array.isArray(originalStreams)) {
+        throw new Error(
+          "Please use one of 'totalStreams' or 'previousStreams' as the second argument"
+        );
+      }
+      const streamIds = new Set(streams.map((stream) => stream.id));
+      return originalStreams.filter((stream) => !streamIds.has(stream.id));
+    };
   }
 
   protected async evaluateCondition(condition: string): Promise<any> {
@@ -425,6 +457,12 @@ export class SelectConditionParser extends BaseConditionParser {
       throw new Error(
         `Filter condition failed: ${error instanceof Error ? error.message : String(error)}`
       );
+    }
+
+    // if the result is a boolean value, convert it to the appropriate type
+    // true = all streams, false = no streams
+    if (typeof selectedStreams === 'boolean') {
+      selectedStreams = selectedStreams ? streams : [];
     }
 
     // attempt to parse the result

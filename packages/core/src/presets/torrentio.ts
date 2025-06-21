@@ -283,22 +283,29 @@ export class TorrentioPreset extends Preset {
     let providers = options.providers;
 
     if (!providers) {
-      providers = TorrentioPreset.defaultProviders;
+      providers = TorrentioPreset.defaultProviders.map(
+        (provider) => provider.value
+      );
     }
 
-    const configString = services.length
-      ? this.urlEncodeKeyValuePairs([
-          ...services.map((service) => [
-            service,
-            this.getServiceCredential(service, userData, {
-              [constants.PUTIO_SERVICE]: (credentials: any) =>
-                `${credentials.clientId}@${credentials.token}`,
-            }),
-          ]),
-          ['providers', providers.join(',')],
-        ])
-      : '';
+    let config: string[][] = [];
 
+    // add services to config
+    if (services.length) {
+      // generate a [serviceId, credential] array for each service and push it to config
+      config = services.map((service) => [
+        service,
+        this.getServiceCredential(service, userData, {
+          [constants.PUTIO_SERVICE]: (credentials: any) =>
+            `${credentials.clientId}@${credentials.token}`,
+        }),
+      ]);
+    }
+
+    // add providers to config
+    config.push(['providers', providers.join(',')]);
+
+    const configString = this.urlEncodeKeyValuePairs(config);
     return `${url}${configString ? '/' + configString : ''}/manifest.json`;
   }
 }

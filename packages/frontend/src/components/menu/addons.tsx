@@ -1132,7 +1132,7 @@ function CatalogSettingsCard() {
         });
         toast.success('Catalogs fetched successfully');
       } else {
-        toast.error(response.error || 'Failed to fetch catalogs');
+        toast.error(response.error?.message || 'Failed to fetch catalogs');
       }
     } catch (error) {
       toast.error('Failed to fetch catalogs');

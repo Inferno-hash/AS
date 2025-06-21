@@ -238,7 +238,7 @@ function Content() {
           userData.addonName
         );
         if (!res.success) {
-          toast.error(res.error || 'Failed to format stream');
+          toast.error(res.error?.message || 'Failed to format stream');
           return;
         }
         data = res.data;
@@ -250,7 +250,7 @@ function Content() {
           userData.addonName
         );
         if (!res.success) {
-          toast.error(res.error || 'Failed to format stream');
+          toast.error(res.error?.message || 'Failed to format stream');
           return;
         }
         data = res.data;

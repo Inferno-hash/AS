@@ -766,18 +766,33 @@ export class AIOStreams {
         // in this case, stremio assumes we only support that resource for the specified id prefix and then
         // will not send a request to AIOStreams for other id prefixes even though our other addon that didn't specify
         // an id prefix technically says it supports all ids
+
+        // leaving idPrefixes as null/undefined causes various odd issues with stremio even though it says it is optional.
+        // therefore, we set it as normal, but if there comes an addon that doesn't support any id prefixes, we set it to null
+        // this fixes issues in most cases as most addons do provide idPrefixes
         if (existing) {
           existing.types = [...new Set([...existing.types, ...resource.types])];
-          // if (resource.idPrefixes) {
-          //   existing.idPrefixes = existing.idPrefixes || [];
-          //   existing.idPrefixes = [
-          //     ...new Set([...existing.idPrefixes, ...resource.idPrefixes]),
-          //   ];
-          // }
+          if (
+            existing.idPrefixes &&
+            existing.idPrefixes.length > 0 &&
+            resource.idPrefixes &&
+            resource.idPrefixes.length > 0
+          ) {
+            existing.idPrefixes = [
+              ...new Set([...existing.idPrefixes, ...resource.idPrefixes]),
+            ];
+          } else {
+            // if an addon for this type does not provide idPrefixes, we set it to null
+            // to ensure it works with at least some platforms on stremio rather than none.
+            existing.idPrefixes = null;
+          }
         } else {
           this.finalResources.push({
             ...resource,
-            idPrefixes: undefined,
+            // explicitly set to null
+            idPrefixes: resource.idPrefixes?.length
+              ? resource.idPrefixes
+              : null,
             // idPrefixes: resource.idPrefixes
             //   ? [...resource.idPrefixes]
             //   : undefined,

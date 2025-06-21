@@ -23,11 +23,14 @@ class AIOStreamsStreamParser extends StreamParser {
       );
       throw new Error('Invalid stream');
     }
+    const addonName = this.addon?.name?.trim();
     return {
       id: this.getRandomId(),
       addon: {
         ...this.addon,
-        name: `${this.addon.name} | ${aioStream.streamData?.addon ?? ''}`,
+        name: addonName
+          ? `${addonName} | ${aioStream.streamData?.addon ?? ''}`
+          : (aioStream.streamData?.addon ?? ''),
       },
       error: aioStream.streamData?.error,
       type: aioStream.streamData?.type ?? 'http',
@@ -68,7 +71,8 @@ export class AIOStreamsPreset extends Preset {
       {
         id: 'name',
         name: 'Name',
-        description: 'What to call this addon',
+        description:
+          "What to call this addon. Leave empty if you don't want to include the name of this addon in the stream results.",
         type: 'string',
         required: true,
         default: 'AIOStreams',
@@ -126,7 +130,9 @@ export class AIOStreamsPreset extends Preset {
     options: Record<string, any>
   ): Promise<Addon[]> {
     if (!options.manifestUrl.endsWith('/manifest.json')) {
-      throw new Error('Invalid manifest URL');
+      throw new Error(
+        `${options.name} has an invalid Manifest URL. It must be a valid link to a manifest.json`
+      );
     }
     return [this.generateAddon(userData, options)];
   }

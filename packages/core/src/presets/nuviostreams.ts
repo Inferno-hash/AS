@@ -31,6 +31,8 @@ class NuvioStreamsStreamParser extends StreamParser {
     parsedStream.filename = stream.description?.split('\n')[0];
     parsedStream.folderName = undefined;
 
+    parsedStream.size = this.getSize(stream, parsedStream);
+
     parsedStream.message = stream.name
       ?.replace(/\d+p?/gi, '')
       ?.trim()

@@ -54,7 +54,10 @@ class MediaFusionStreamParser extends StreamParser {
     if (file && file.includes('┈➤')) {
       return file.split('┈➤')[1].trim();
     }
-    return file?.trim();
+    if (file) {
+      return file.trim();
+    }
+    return super.getFilename(stream, currentParsedStream);
   }
 
   protected override getIndexer(
@@ -302,15 +305,18 @@ export class MediaFusionPreset extends Preset {
       timeout: options.timeout || this.METADATA.TIMEOUT,
       presetType: this.METADATA.ID,
       presetInstanceId: '',
-
-      headers: {
-        'User-Agent': this.METADATA.USER_AGENT,
-        encoded_user_data: this.generateEncodedUserData(
-          userData,
-          options,
-          serviceId
-        ),
-      },
+      headers: options.url?.endsWith('/manifest.json')
+        ? {
+            'User-Agent': this.METADATA.USER_AGENT,
+          }
+        : {
+            'User-Agent': this.METADATA.USER_AGENT,
+            encoded_user_data: this.generateEncodedUserData(
+              userData,
+              options,
+              serviceId
+            ),
+          },
     };
   }
 
@@ -329,19 +335,7 @@ export class MediaFusionPreset extends Preset {
   ) {
     let pikpakCredentials = undefined;
     if (serviceId === constants.PIKPAK_SERVICE) {
-      pikpakCredentials = this.getServiceCredential(serviceId, userData, {
-        [constants.PIKPAK_SERVICE]: (credentials) => {
-          if (!credentials.email || !credentials.password) {
-            throw new Error(
-              `Missing email or password for ${serviceId}. Please add an email and password.`
-            );
-          }
-          return {
-            email: credentials.email,
-            password: credentials.password,
-          };
-        },
-      });
+      pikpakCredentials = this.getServiceCredential(serviceId, userData);
     }
     const encodedUserData = this.base64EncodeJSON(
       {
