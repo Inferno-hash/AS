@@ -2,7 +2,7 @@ import { Parser } from 'expr-eval';
 import { ParsedStream, ParsedStreams, ParsedStreamSchema } from '../db';
 import bytes from 'bytes';
 
-export abstract class BaseConditionParser {
+export abstract class StreamExpressionEngine {
   protected parser: Parser;
 
   constructor() {
@@ -11,7 +11,7 @@ export abstract class BaseConditionParser {
       operators: {
         comparison: true,
         logical: true,
-        add: false,
+        add: true,
         concatenate: false,
         conditional: true,
         divide: false,
@@ -19,7 +19,7 @@ export abstract class BaseConditionParser {
         multiply: false,
         power: false,
         remainder: false,
-        subtract: false,
+        subtract: true,
         sin: false,
         cos: false,
         tan: false,
@@ -46,8 +46,8 @@ export abstract class BaseConditionParser {
         length: false,
         in: false,
         random: false,
-        min: false,
-        max: false,
+        min: true,
+        max: true,
         assignment: false,
         fndef: false,
         cbrt: false,
@@ -64,12 +64,13 @@ export abstract class BaseConditionParser {
   private setupParserFunctions() {
     this.parser.functions.regexMatched = function (
       streams: ParsedStream[],
-      regexName?: string
+      ...regexNames: string[]
     ) {
+      if (regexNames.length === 0) {
+        return streams.filter((stream) => stream.regexMatched);
+      }
       return streams.filter((stream) =>
-        regexName
-          ? stream.regexMatched?.name === regexName
-          : stream.regexMatched
+        regexNames.some((regexName) => stream.regexMatched?.name === regexName)
       );
     };
 
@@ -94,121 +95,189 @@ export abstract class BaseConditionParser {
 
     this.parser.functions.indexer = function (
       streams: ParsedStream[],
-      indexer: string
+      ...indexers: string[]
     ) {
       if (!Array.isArray(streams) || streams.some((stream) => !stream.type)) {
         throw new Error('Your streams input must be an array of streams');
-      } else if (typeof indexer !== 'string') {
-        throw new Error('Indexer must be a string');
+      } else if (
+        indexers.length === 0 ||
+        indexers.some((i) => typeof i !== 'string')
+      ) {
+        throw new Error('You must provide one or more indexer strings');
       }
-      return streams.filter((stream) => stream.indexer === indexer);
+      return streams.filter((stream) =>
+        indexers.includes(stream.indexer || 'Unknown')
+      );
     };
 
     this.parser.functions.resolution = function (
       streams: ParsedStream[],
-      resolution: string
+      ...resolutions: string[]
     ) {
       if (!Array.isArray(streams) || streams.some((stream) => !stream.type)) {
         throw new Error('Your streams input must be an array of streams');
-      } else if (typeof resolution !== 'string') {
-        throw new Error('Resolution must be a string');
+      } else if (
+        resolutions.length === 0 ||
+        resolutions.some((r) => typeof r !== 'string')
+      ) {
+        throw new Error('You must provide one or more resolution strings');
       }
-      return streams.filter(
-        (stream) => (stream.parsedFile?.resolution || 'Unknown') === resolution
+
+      return streams.filter((stream) =>
+        resolutions
+          .map((r) => r.toLowerCase())
+          .includes(stream.parsedFile?.resolution?.toLowerCase() || 'unknown')
       );
     };
 
     this.parser.functions.quality = function (
       streams: ParsedStream[],
-      quality: string
+      ...qualities: string[]
     ) {
       if (!Array.isArray(streams) || streams.some((stream) => !stream.type)) {
         throw new Error('Your streams input must be an array of streams');
-      } else if (typeof quality !== 'string') {
-        throw new Error('Quality must be a string');
+      } else if (
+        qualities.length === 0 ||
+        qualities.some((q) => typeof q !== 'string')
+      ) {
+        throw new Error('You must provide one or more quality strings');
       }
-      return streams.filter(
-        (stream) => (stream.parsedFile?.quality || 'Unknown') === quality
+      return streams.filter((stream) =>
+        qualities
+          .map((q) => q.toLowerCase())
+          .includes(stream.parsedFile?.quality?.toLowerCase() || 'unknown')
       );
     };
 
     this.parser.functions.encode = function (
       streams: ParsedStream[],
-      encode: string
+      ...encodes: string[]
     ) {
       if (!Array.isArray(streams) || streams.some((stream) => !stream.type)) {
         throw new Error('Your streams input must be an array of streams');
-      } else if (typeof encode !== 'string') {
-        throw new Error('Encode must be a string');
+      } else if (
+        encodes.length === 0 ||
+        encodes.some((e) => typeof e !== 'string')
+      ) {
+        throw new Error('You must provide one or more encode strings');
       }
-      return streams.filter((stream) => stream.parsedFile?.encode === encode);
+      return streams.filter((stream) =>
+        encodes
+          .map((encode) => encode.toLowerCase())
+          .includes(stream.parsedFile?.encode?.toLowerCase() || 'unknown')
+      );
     };
 
     this.parser.functions.type = function (
       streams: ParsedStream[],
-      type: string
+      ...types: string[]
     ) {
       if (!Array.isArray(streams)) {
         throw new Error('Your streams input must be an array of streams');
-      } else if (typeof type !== 'string') {
-        throw new Error('Type must be a string');
+      } else if (
+        types.length === 0 ||
+        types.some((t) => typeof t !== 'string')
+      ) {
+        throw new Error('You must provide one or more type string parameters');
       }
-      return streams.filter((stream) => stream.type === type);
+      return streams.filter((stream) =>
+        types.map((t) => t.toLowerCase()).includes(stream.type.toLowerCase())
+      );
     };
 
     this.parser.functions.visualTag = function (
       streams: ParsedStream[],
-      visualTag: string
+      ...visualTags: string[]
     ) {
       if (!Array.isArray(streams) || streams.some((stream) => !stream.type)) {
         throw new Error('Your streams input must be an array of streams');
-      } else if (typeof visualTag !== 'string') {
-        throw new Error('Visual type must be a string');
+      } else if (
+        visualTags.length === 0 ||
+        visualTags.some((v) => typeof v !== 'string')
+      ) {
+        throw new Error(
+          'You must provide one or more visual tag string parameters'
+        );
       }
       return streams.filter((stream) =>
-        stream.parsedFile?.visualTags.includes(visualTag)
+        stream.parsedFile?.visualTags.some((v) =>
+          visualTags.map((vt) => vt.toLowerCase()).includes(v.toLowerCase())
+        )
       );
     };
 
     this.parser.functions.audioTag = function (
       streams: ParsedStream[],
-      audioTag: string
+      ...audioTags: string[]
     ) {
       if (!Array.isArray(streams) || streams.some((stream) => !stream.type)) {
         throw new Error('Your streams input must be an array of streams');
-      } else if (typeof audioTag !== 'string') {
-        throw new Error('Audio tag must be a string');
+      } else if (
+        audioTags.length === 0 ||
+        audioTags.some((a) => typeof a !== 'string')
+      ) {
+        throw new Error(
+          'You must provide one or more audio tag string parameters'
+        );
       }
       return streams.filter((stream) =>
-        stream.parsedFile?.audioTags.includes(audioTag)
+        audioTags
+          .map((a) => a.toLowerCase())
+          .some((a) =>
+            stream.parsedFile?.audioTags
+              .map((at) => at.toLowerCase())
+              .includes(a)
+          )
       );
     };
 
     this.parser.functions.audioChannels = function (
       streams: ParsedStream[],
-      audioChannels: string
+      ...audioChannels: string[]
     ) {
       if (!Array.isArray(streams) || streams.some((stream) => !stream.type)) {
         throw new Error('Your streams input must be an array of streams');
-      } else if (typeof audioChannels !== 'string') {
-        throw new Error('Audio channels must be a string');
+      } else if (
+        audioChannels.length === 0 ||
+        audioChannels.some((a) => typeof a !== 'string')
+      ) {
+        throw new Error(
+          'You must provide one or more audio channel string parameters'
+        );
       }
       return streams.filter((stream) =>
-        stream.parsedFile?.audioChannels?.includes(audioChannels)
+        audioChannels
+          .map((a) => a.toLowerCase())
+          .some((a) =>
+            stream.parsedFile?.audioChannels
+              ?.map((ac) => ac.toLowerCase())
+              .includes(a)
+          )
       );
     };
 
     this.parser.functions.language = function (
       streams: ParsedStream[],
-      language: string
+      ...languages: string[]
     ) {
       if (!Array.isArray(streams) || streams.some((stream) => !stream.type)) {
         throw new Error('Your streams input must be an array of streams');
-      } else if (typeof language !== 'string') {
-        throw new Error('Language must be a string');
+      } else if (
+        languages.length === 0 ||
+        languages.some((l) => typeof l !== 'string')
+      ) {
+        throw new Error(
+          'You must provide one or more language string parameters'
+        );
       }
       return streams.filter((stream) =>
-        stream.parsedFile?.languages?.includes(language)
+        languages
+          .map((l) => l.toLowerCase())
+          .some((l) =>
+            stream.parsedFile?.languages
+              ?.map((lang) => lang.toLowerCase())
+              .includes(l)
+          )
       );
     };
 
@@ -280,30 +349,47 @@ export abstract class BaseConditionParser {
 
     this.parser.functions.service = function (
       streams: ParsedStream[],
-      service: string
+      ...services: string[]
     ) {
       if (!Array.isArray(streams) || streams.some((stream) => !stream.type)) {
         throw new Error('Your streams input must be an array of streams');
       } else if (
-        typeof service !== 'string' ||
-        ![
-          'realdebrid',
-          'debridlink',
-          'alldebrid',
-          'torbox',
-          'pikpak',
-          'seedr',
-          'offcloud',
-          'premiumize',
-          'easynews',
-          'easydebrid',
-        ].includes(service)
+        services.length === 0 ||
+        services.some((s) => typeof s !== 'string')
+      ) {
+        throw new Error(
+          'You must provide one or more service string parameters'
+        );
+      } else if (
+        services.length === 0 ||
+        services.some((s) => typeof s !== 'string')
+      ) {
+        throw new Error(
+          'You must provide one or more service string parameters'
+        );
+      } else if (
+        !services.every((s) =>
+          [
+            'realdebrid',
+            'debridlink',
+            'alldebrid',
+            'torbox',
+            'pikpak',
+            'seedr',
+            'offcloud',
+            'premiumize',
+            'easynews',
+            'easydebrid',
+          ].includes(s)
+        )
       ) {
         throw new Error(
           'Service must be a string and one of: realdebrid, debridlink, alldebrid, torbox, pikpak, seedr, offcloud, premiumize, easynews, easydebrid'
         );
       }
-      return streams.filter((stream) => stream.service?.id === service);
+      return streams.filter((stream) =>
+        services.some((s) => stream.service?.id === s)
+      );
     };
 
     this.parser.functions.cached = function (streams: ParsedStream[]) {
@@ -326,30 +412,38 @@ export abstract class BaseConditionParser {
 
     this.parser.functions.releaseGroup = function (
       streams: ParsedStream[],
-      releaseGroup: string
+      ...releaseGroups: string[]
     ) {
       if (!Array.isArray(streams)) {
         throw new Error(
           "Please use one of 'totalStreams' or 'previousStreams' as the first argument"
         );
-      } else if (typeof releaseGroup !== 'string') {
-        throw new Error('Release group must be a string');
+      } else if (
+        releaseGroups.length === 0 ||
+        releaseGroups.some((r) => typeof r !== 'string')
+      ) {
+        throw new Error(
+          'You must provide one or more release group string parameters'
+        );
       }
-      return streams.filter(
-        (stream) => stream.parsedFile?.releaseGroup === releaseGroup
+      return streams.filter((stream) =>
+        releaseGroups.some((r) => stream.parsedFile?.releaseGroup === r)
       );
     };
 
     this.parser.functions.addon = function (
       streams: ParsedStream[],
-      addon: string
+      ...addons: string[]
     ) {
       if (!Array.isArray(streams) || streams.some((stream) => !stream.type)) {
         throw new Error('Your streams input must be an array of streams');
-      } else if (typeof addon !== 'string') {
-        throw new Error('Addon must be a string');
+      } else if (
+        addons.length === 0 ||
+        addons.some((a) => typeof a !== 'string')
+      ) {
+        throw new Error('You must provide one or more addon string parameters');
       }
-      return streams.filter((stream) => stream.addon.name === addon);
+      return streams.filter((stream) => addons.includes(stream.addon.name));
     };
 
     this.parser.functions.library = function (streams: ParsedStream[]) {
@@ -368,17 +462,35 @@ export abstract class BaseConditionParser {
       return streams.length;
     };
 
-    this.parser.functions.not = function (
+    this.parser.functions.negate = function (
       streams: ParsedStream[],
       originalStreams: ParsedStream[]
     ) {
-      if (!Array.isArray(originalStreams)) {
+      if (!Array.isArray(originalStreams) || !Array.isArray(streams)) {
         throw new Error(
-          "Please use one of 'totalStreams' or 'previousStreams' as the second argument"
+          "Both arguments of the 'negate' function must be arrays of streams"
         );
       }
       const streamIds = new Set(streams.map((stream) => stream.id));
       return originalStreams.filter((stream) => !streamIds.has(stream.id));
+    };
+
+    this.parser.functions.merge = function (
+      ...streamArrays: ParsedStream[][]
+    ): ParsedStream[] {
+      const seen = new Set<string>();
+      const merged: ParsedStream[] = [];
+
+      for (const array of streamArrays) {
+        for (const stream of array) {
+          if (!seen.has(stream.id)) {
+            seen.add(stream.id);
+            merged.push(stream);
+          }
+        }
+      }
+
+      return merged;
     };
   }
 
@@ -398,9 +510,84 @@ export abstract class BaseConditionParser {
       }
     });
   }
+
+  protected createTestStream(
+    overrides: Partial<ParsedStream> = {}
+  ): ParsedStream {
+    const defaultStream: ParsedStream = {
+      id: '1',
+      type: 'http',
+      addon: {
+        instanceId: 'test-instance',
+        presetType: 'test-preset',
+        presetInstanceId: 'test-preset-instance',
+        manifestUrl: 'https://example.com/manifest.json',
+        enabled: true,
+        name: 'Test Addon',
+        timeout: 30000,
+      },
+      service: {
+        id: 'realdebrid',
+        cached: true,
+      },
+      indexer: 'Test Indexer',
+      parsedFile: {
+        title: 'Test Title',
+        year: '2024',
+        season: 1,
+        episode: 1,
+        seasons: [1],
+        resolution: '1080p',
+        quality: 'BluRay',
+        encode: 'x264',
+        releaseGroup: 'TEST',
+        seasonEpisode: ['S01', 'E01'],
+        visualTags: ['HDR'],
+        audioTags: ['AAC'],
+        audioChannels: ['2.0'],
+        languages: ['English'],
+      },
+      size: 1073741824, // 1GB in bytes
+      folderSize: 2147483648, // 2GB in bytes
+      library: false,
+      url: 'https://example.com/stream.mkv',
+      filename: 'test.mkv',
+      folderName: 'Test Folder',
+      duration: 7200, // 2 hours in seconds
+      age: '1 day',
+      message: 'Test message',
+      torrent: {
+        infoHash: 'test-hash',
+        fileIdx: 0,
+        seeders: 100,
+        sources: ['https://tracker.example.com'],
+      },
+      countryWhitelist: ['USA'],
+      notWebReady: false,
+      bingeGroup: 'test-group',
+      requestHeaders: { 'User-Agent': 'Test' },
+      responseHeaders: { 'Content-Type': 'video/mp4' },
+      videoHash: 'test-video-hash',
+      subtitles: [],
+      proxied: false,
+      regexMatched: {
+        name: 'test-regex',
+        pattern: 'test',
+        index: 0,
+      },
+      keywordMatched: false,
+      ytId: undefined,
+      externalUrl: undefined,
+      error: undefined,
+      originalName: 'Original Test Name',
+      originalDescription: 'Original Test Description',
+    };
+
+    return { ...defaultStream, ...overrides };
+  }
 }
 
-export class GroupConditionParser extends BaseConditionParser {
+export class GroupConditionEvaluator extends StreamExpressionEngine {
   private previousStreams: ParsedStream[];
   private totalStreams: ParsedStream[];
   private previousGroupTimeTaken: number;
@@ -428,17 +615,17 @@ export class GroupConditionParser extends BaseConditionParser {
     this.parser.consts.totalTimeTaken = this.totalTimeTaken;
   }
 
-  async parse(condition: string) {
+  async evaluate(condition: string) {
     return await this.evaluateCondition(condition);
   }
 
-  static async testParse(condition: string) {
-    const parser = new GroupConditionParser([], [], 0, 0, 'movie');
-    return await parser.parse(condition);
+  static async testEvaluate(condition: string) {
+    const parser = new GroupConditionEvaluator([], [], 0, 0, 'movie');
+    return await parser.evaluate(condition);
   }
 }
 
-export class SelectConditionParser extends BaseConditionParser {
+export class StreamSelector extends StreamExpressionEngine {
   constructor() {
     super();
   }
@@ -451,13 +638,7 @@ export class SelectConditionParser extends BaseConditionParser {
     this.parser.consts.streams = streams;
     let selectedStreams: ParsedStream[] = [];
 
-    try {
-      selectedStreams = await this.evaluateCondition(condition);
-    } catch (error) {
-      throw new Error(
-        `Filter condition failed: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+    selectedStreams = await this.evaluateCondition(condition);
 
     // if the result is a boolean value, convert it to the appropriate type
     // true = all streams, false = no streams
@@ -474,22 +655,18 @@ export class SelectConditionParser extends BaseConditionParser {
       );
     }
     return selectedStreams;
-    // // If the result is an array of streams, return those that should be filtered out
-    // // use ParsedResultSchema to validate
-    // if (selectedStreams.length > 0) {
-    //   // Filter out the selected streams from the input array
-    //   return streams.filter((stream) => !selectedStreams.includes(stream));
-    // }
-
-    // // If the result is not a stream array, return the original streams
-    // return streams;
   }
 
-  static async testSelect(
-    streams: ParsedStream[],
-    condition: string
-  ): Promise<ParsedStream[]> {
-    const parser = new SelectConditionParser();
+  static async testSelect(condition: string): Promise<ParsedStream[]> {
+    const parser = new StreamSelector();
+    const streams = [
+      parser.createTestStream({ type: 'debrid' }),
+      parser.createTestStream({ type: 'debrid' }),
+      parser.createTestStream({ type: 'debrid' }),
+      parser.createTestStream({ type: 'usenet' }),
+      parser.createTestStream({ type: 'p2p' }),
+      parser.createTestStream({ type: 'p2p' }),
+    ];
     return await parser.select(streams, condition);
   }
 }

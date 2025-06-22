@@ -991,7 +991,7 @@ function AddonGroupCard() {
         Optionally assign your addons to groups. Streams are only fetched from
         your first group initially, and only if a certain condition is met, will
         streams be fetched from the next group, and so on. Leaving this blank
-        will mean streams are fetched from all addons. You can also check the{' '}
+        will mean streams are fetched from all addons. Check the{' '}
         <a
           href="https://github.com/Viren070/AIOStreams/wiki/Groups"
           target="_blank"

@@ -16,9 +16,9 @@ import { Env } from './env';
 import { createLogger, maskSensitiveInfo } from './logger';
 import { ZodError } from 'zod';
 import {
-  GroupConditionParser,
-  SelectConditionParser,
-} from '../parser/conditions';
+  GroupConditionEvaluator,
+  StreamSelector,
+} from '../parser/streamExpression';
 import { RPDB } from './rpdb';
 import { FeatureControl } from './feature';
 import { compileRegex } from './regex';
@@ -259,12 +259,12 @@ export async function validateConfig(
 
   if (Env.ADDON_PASSWORD && config.addonPassword !== Env.ADDON_PASSWORD) {
     throw new Error(
-      'The password in the config does not match the password in the environment variables'
+      'Invalid addon password. Please enter the value of the ADDON_PASSWORD environment variable '
     );
   }
   const validations = {
-    'excluded filter conditions': [
-      config.excludedFilterConditions,
+    'excluded stream expressions': [
+      config.excludedStreamExpressions,
       Env.MAX_CONDITION_FILTERS,
     ],
     'excluded keywords': [config.excludedKeywords, Env.MAX_KEYWORD_FILTERS],
@@ -296,7 +296,14 @@ export async function validateConfig(
         );
       }
       instanceIds.add(preset.instanceId);
-      validatePreset(preset);
+      try {
+        validatePreset(preset);
+      } catch (error) {
+        if (!skipErrorsFromAddonsOrProxies) {
+          throw error;
+        }
+        logger.warn(`Invalid preset ${preset.instanceId}: ${error}`);
+      }
     }
   }
 
@@ -307,12 +314,12 @@ export async function validateConfig(
   }
 
   // validate excluded filter condition
-  if (config.excludedFilterConditions) {
-    for (const condition of config.excludedFilterConditions) {
+  if (config.excludedStreamExpressions) {
+    for (const condition of config.excludedStreamExpressions) {
       try {
-        await SelectConditionParser.testSelect([], condition);
+        await StreamSelector.testSelect(condition);
       } catch (error) {
-        throw new Error(`Invalid excluded filter condition: ${error}`);
+        throw new Error(`Invalid excluded stream expression: ${error}`);
       }
     }
   }
@@ -488,14 +495,10 @@ function validatePreset(preset: PresetObject) {
 
   const optionMetas = presetMeta.OPTIONS;
 
-  for (const [optionId, optionValue] of Object.entries(preset.options)) {
-    const optionMeta = optionMetas.find((option) => option.id === optionId);
-    if (!optionMeta) {
-      continue;
-      // throw new Error(`Option ${optionId} not found in preset ${preset.id}`);
-    }
+  for (const optionMeta of optionMetas) {
+    const optionValue = preset.options[optionMeta.id];
     try {
-      preset.options[optionId] = validateOption(optionMeta, optionValue);
+      preset.options[optionMeta.id] = validateOption(optionMeta, optionValue);
     } catch (error) {
       throw new Error(
         `The value for option '${optionMeta.name}' in preset '${presetMeta.NAME}' is invalid: ${error}`
@@ -517,7 +520,7 @@ async function validateGroup(group: Group) {
   // we must be able to parse the condition
   let result;
   try {
-    result = await GroupConditionParser.testParse(group.condition);
+    result = await GroupConditionEvaluator.testEvaluate(group.condition);
   } catch (error: any) {
     throw new Error(
       `Your group condition - '${group.condition}' - is invalid: ${error.message}`
@@ -535,6 +538,12 @@ function validateOption(
   value: any,
   decryptValues: boolean = false
 ): any {
+  if (value === undefined) {
+    if (option.required) {
+      throw new Error(`Option ${option.id} is required, got ${value}`);
+    }
+    return value;
+  }
   if (option.type === 'multi-select') {
     if (!Array.isArray(value)) {
       throw new Error(
@@ -603,10 +612,6 @@ function validateOption(
         `Option ${option.id} must be a string, got ${typeof value}`
       );
     }
-  }
-
-  if (option.required && value === undefined) {
-    throw new Error(`Option ${option.id} is required, got ${value}`);
   }
 
   return value;

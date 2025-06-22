@@ -168,6 +168,7 @@ function Content() {
       const dataStr = JSON.stringify(
         {
           ...userData,
+          uuid: filterCredentialsInExport ? undefined : userData.uuid,
           tmdbAccessToken: filterCredentialsInExport
             ? undefined
             : userData.tmdbAccessToken,

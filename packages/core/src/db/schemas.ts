@@ -43,7 +43,7 @@ const StreamProxyConfig = z.object({
   enabled: z.boolean().optional(),
   id: z.enum(constants.PROXY_SERVICES).optional(),
   url: z.string().optional(),
-  credentials: z.string().min(1).optional(),
+  credentials: z.string().optional(),
   publicIp: z.string().ip().optional(),
   proxiedAddons: z.array(z.string().min(1)).optional(),
   proxiedServices: z.array(z.string().min(1)).optional(),
@@ -331,7 +331,9 @@ export const UserDataSchema = z.object({
   excludeUncachedFromServices: z.array(z.string().min(1)).optional(),
   excludeUncachedFromStreamTypes: z.array(StreamTypes).optional(),
   excludeUncachedMode: z.enum(['or', 'and']).optional(),
-  excludedFilterConditions: z.array(z.string().min(1).max(1000)).optional(),
+  excludedStreamExpressions: z.array(z.string().min(1).max(1000)).optional(),
+  requiredStreamExpressions: z.array(z.string().min(1).max(1000)).optional(),
+  preferredStreamExpressions: z.array(z.string().min(1).max(1000)).optional(),
   groups: z
     .array(
       z.object({
@@ -652,12 +654,13 @@ export const ParsedStreamSchema = z.object({
   message: z.string().max(1000).optional(),
   regexMatched: z
     .object({
-      name: z.string().min(1).optional(),
+      name: z.string().optional(),
       pattern: z.string().min(1).optional(),
       index: z.number(),
     })
     .optional(),
   keywordMatched: z.boolean().optional(),
+  streamExpressionMatched: z.number().optional(),
   size: z.number().optional(),
   folderSize: z.number().optional(),
   type: StreamTypes,
@@ -728,12 +731,13 @@ export const AIOStream = StreamSchema.extend({
     message: z.string().max(1000).optional(),
     regexMatched: z
       .object({
-        name: z.string().min(1).optional(),
+        name: z.string().optional(),
         pattern: z.string().min(1).optional(),
         index: z.number(),
       })
       .optional(),
     keywordMatched: z.boolean().optional(),
+    streamExpressionMatched: z.number().optional(),
     size: z.number().optional(),
     folderSize: z.number().optional(),
     type: StreamTypes.optional(),

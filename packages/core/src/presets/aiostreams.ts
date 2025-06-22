@@ -54,6 +54,7 @@ class AIOStreamsStreamParser extends StreamParser {
       torrent: aioStream.streamData?.torrent,
       parsedFile: aioStream.streamData?.parsedFile,
       keywordMatched: aioStream.streamData?.keywordMatched,
+      streamExpressionMatched: aioStream.streamData?.streamExpressionMatched,
       regexMatched: aioStream.streamData?.regexMatched,
       originalName: aioStream.name ?? undefined,
       originalDescription: (aioStream.description || stream.title) ?? undefined,

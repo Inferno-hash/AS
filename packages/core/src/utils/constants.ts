@@ -566,6 +566,7 @@ const SORT_CRITERIA = [
   'cached',
   'library',
   'keyword',
+  'streamExpressionMatched',
 ] as const;
 
 export const MIN_SIZE = 0;
@@ -715,6 +716,15 @@ export const SORT_CRITERIA_DETAILS = {
       'Streams that do not match any of your keywords are preferred',
     descendingDescription:
       'Streams that match any of your keywords are preferred',
+  },
+  streamExpressionMatched: {
+    name: 'Stream Expression Matched',
+    defaultDirection: 'desc',
+    description: 'Whether the stream matches any of your stream expressions',
+    ascendingDescription:
+      'Streams that do not match your stream expressions are preferred while the ones that do are ranked by the order of your stream expressions',
+    descendingDescription:
+      'Streams that match your stream expressions are preferred and ranked by the order of your stream expressions',
   },
 } as const;
 

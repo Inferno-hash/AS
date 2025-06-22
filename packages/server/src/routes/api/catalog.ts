@@ -22,6 +22,13 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     try {
       validatedUserData = await validateConfig(userData, false, true);
     } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes('Invalid addon password')
+      ) {
+        error.message =
+          'Please make sure the addon password is provided and correct by attempting to create/save a user first';
+      }
       next(
         new APIError(
           constants.ErrorCode.USER_INVALID_CONFIG,

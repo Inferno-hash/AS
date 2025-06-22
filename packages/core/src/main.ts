@@ -46,9 +46,9 @@ import {
 } from './utils/regex';
 import { isMatch } from 'super-regex';
 import {
-  GroupConditionParser,
-  SelectConditionParser,
-} from './parser/conditions';
+  StreamSelector,
+  GroupConditionEvaluator,
+} from './parser/streamExpression';
 import { RPDB } from './utils/rpdb';
 import { FeatureControl } from './utils/feature';
 const logger = createLogger('core');
@@ -139,7 +139,7 @@ export class AIOStreams {
     // step 5
     // sort the streams based on the sort criteria.
 
-    await this.precomputeSortRegexes(deduplicatedStreams);
+    await this.precomputePreferredFilters(deduplicatedStreams);
 
     const sortedStreams = this.sortStreams(
       deduplicatedStreams,
@@ -161,10 +161,14 @@ export class AIOStreams {
     const limitedStreams = this.limitStreams(sortedStreams);
 
     // step 7
+    // apply filter conditions last
+    const postFilteredStreams =
+      await this.applyFilterConditions(limitedStreams);
+    // step 8
     // proxify streaming links if a proxy is provided
 
     const proxifiedStreams = this.applyModifications(
-      await this.proxifyStreams(limitedStreams)
+      await this.proxifyStreams(postFilteredStreams)
     );
 
     let finalStreams = proxifiedStreams;
@@ -1183,14 +1187,14 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
         if (!group.condition || !group.addons.length) continue;
 
         try {
-          const parser = new GroupConditionParser(
+          const evaluator = new GroupConditionEvaluator(
             previousGroupStreams,
             parsedStreams,
             previousGroupTimeTaken,
             totalTimeTaken,
             type
           );
-          const shouldFetch = await parser.parse(group.condition);
+          const shouldFetch = await evaluator.evaluate(group.condition);
           if (shouldFetch) {
             logger.info(`Condition met for group ${i + 1}, fetching streams`);
 
@@ -1257,10 +1261,12 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
           addon.presetType
         )}`
       );
-    } else if (FeatureControl.disabledHosts.has(manifestUrl.host)) {
+    } else if (
+      FeatureControl.disabledHosts.has(manifestUrl.host.split(':')[0])
+    ) {
       throw new Error(
         `Addon ${this.getAddonName(addon)} is disabled: ${FeatureControl.disabledHosts.get(
-          manifestUrl.host
+          manifestUrl.host.split(':')[0]
         )}`
       );
     }
@@ -1306,7 +1312,23 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
       requiredSeeders: { total: 0, details: {} },
       excludedSeeders: { total: 0, details: {} },
       excludedFilterCondition: { total: 0, details: {} },
+      requiredFilterCondition: { total: 0, details: {} },
       size: { total: 0, details: {} },
+    };
+
+    const includedReasons: Record<string, SkipReason> = {
+      resolution: { total: 0, details: {} },
+      quality: { total: 0, details: {} },
+      encode: { total: 0, details: {} },
+      visualTag: { total: 0, details: {} },
+      audioTag: { total: 0, details: {} },
+      audioChannel: { total: 0, details: {} },
+      language: { total: 0, details: {} },
+      streamType: { total: 0, details: {} },
+      size: { total: 0, details: {} },
+      seeders: { total: 0, details: {} },
+      regex: { total: 0, details: {} },
+      keywords: { total: 0, details: {} },
     };
 
     const start = Date.now();
@@ -1485,17 +1507,23 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
           )
         : undefined;
 
-    const excludedKeywordsPattern = this.userData.excludedKeywords
-      ? await formRegexFromKeywords(this.userData.excludedKeywords)
-      : undefined;
+    const excludedKeywordsPattern =
+      this.userData.excludedKeywords &&
+      this.userData.excludedKeywords.length > 0
+        ? await formRegexFromKeywords(this.userData.excludedKeywords)
+        : undefined;
 
-    const requiredKeywordsPattern = this.userData.requiredKeywords
-      ? await formRegexFromKeywords(this.userData.requiredKeywords)
-      : undefined;
+    const requiredKeywordsPattern =
+      this.userData.requiredKeywords &&
+      this.userData.requiredKeywords.length > 0
+        ? await formRegexFromKeywords(this.userData.requiredKeywords)
+        : undefined;
 
-    const includedKeywordsPattern = this.userData.includedKeywords
-      ? await formRegexFromKeywords(this.userData.includedKeywords)
-      : undefined;
+    const includedKeywordsPattern =
+      this.userData.includedKeywords &&
+      this.userData.includedKeywords.length > 0
+        ? await formRegexFromKeywords(this.userData.includedKeywords)
+        : undefined;
 
     // test many regexes against many attributes and return true if at least one regex matches any attribute
     // and false if no regex matches any attribute
@@ -1606,6 +1634,9 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
 
       // carry out include checks first
       if (this.userData.includedStreamTypes?.includes(stream.type)) {
+        includedReasons.streamType.total++;
+        includedReasons.streamType.details[stream.type] =
+          (includedReasons.streamType.details[stream.type] || 0) + 1;
         return true;
       }
 
@@ -1614,6 +1645,14 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
           file?.resolution || ('Unknown' as any)
         )
       ) {
+        const resolution = this.userData.includedResolutions.find(
+          (resolution) => (file?.resolution || 'Unknown') === resolution
+        );
+        if (resolution) {
+          includedReasons.resolution.total++;
+          includedReasons.resolution.details[resolution] =
+            (includedReasons.resolution.details[resolution] || 0) + 1;
+        }
         return true;
       }
 
@@ -1622,6 +1661,14 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
           file?.quality || ('Unknown' as any)
         )
       ) {
+        const quality = this.userData.includedQualities.find(
+          (quality) => (file?.quality || 'Unknown') === quality
+        );
+        if (quality) {
+          includedReasons.quality.total++;
+          includedReasons.quality.details[quality] =
+            (includedReasons.quality.details[quality] || 0) + 1;
+        }
         return true;
       }
 
@@ -1632,6 +1679,16 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
           )
         )
       ) {
+        const tag = this.userData.includedVisualTags.find((tag) =>
+          (file?.visualTags.length ? file.visualTags : ['Unknown']).includes(
+            tag
+          )
+        );
+        if (tag) {
+          includedReasons.visualTag.total++;
+          includedReasons.visualTag.details[tag] =
+            (includedReasons.visualTag.details[tag] || 0) + 1;
+        }
         return true;
       }
 
@@ -1640,6 +1697,14 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
           (file?.audioTags.length ? file.audioTags : ['Unknown']).includes(tag)
         )
       ) {
+        const tag = this.userData.includedAudioTags.find((tag) =>
+          (file?.audioTags.length ? file.audioTags : ['Unknown']).includes(tag)
+        );
+        if (tag) {
+          includedReasons.audioTag.total++;
+          includedReasons.audioTag.details[tag] =
+            (includedReasons.audioTag.details[tag] || 0) + 1;
+        }
         return true;
       }
 
@@ -1651,6 +1716,15 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
           ).includes(channel)
         )
       ) {
+        const channel = this.userData.includedAudioChannels.find((channel) =>
+          (file?.audioChannels.length
+            ? file.audioChannels
+            : ['Unknown']
+          ).includes(channel)
+        );
+        includedReasons.audioChannel.total++;
+        includedReasons.audioChannel.details[channel!] =
+          (includedReasons.audioChannel.details[channel!] || 0) + 1;
         return true;
       }
 
@@ -1659,6 +1733,12 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
           (file?.languages.length ? file.languages : ['Unknown']).includes(lang)
         )
       ) {
+        const lang = this.userData.includedLanguages.find((lang) =>
+          (file?.languages.length ? file.languages : ['Unknown']).includes(lang)
+        );
+        includedReasons.language.total++;
+        includedReasons.language.details[lang!] =
+          (includedReasons.language.details[lang!] || 0) + 1;
         return true;
       }
 
@@ -1667,6 +1747,14 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
           (encode) => (file?.encode || 'Unknown') === encode
         )
       ) {
+        const encode = this.userData.includedEncodes.find(
+          (encode) => (file?.encode || 'Unknown') === encode
+        );
+        if (encode) {
+          includedReasons.encode.total++;
+          includedReasons.encode.details[encode] =
+            (includedReasons.encode.details[encode] || 0) + 1;
+        }
         return true;
       }
 
@@ -1674,6 +1762,10 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
         includedRegexPatterns &&
         (await testRegexes(stream, includedRegexPatterns))
       ) {
+        includedReasons.regex.total++;
+        includedReasons.regex.details[includedRegexPatterns[0].source] =
+          (includedReasons.regex.details[includedRegexPatterns[0].source] ||
+            0) + 1;
         return true;
       }
 
@@ -1681,6 +1773,10 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
         includedKeywordsPattern &&
         (await testRegexes(stream, [includedKeywordsPattern]))
       ) {
+        includedReasons.keywords.total++;
+        includedReasons.keywords.details[includedKeywordsPattern.source] =
+          (includedReasons.keywords.details[includedKeywordsPattern.source] ||
+            0) + 1;
         return true;
       }
 
@@ -1706,12 +1802,18 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
           includedSeederRange[0] &&
           (stream.torrent?.seeders ?? 0) > includedSeederRange[0]
         ) {
+          includedReasons.seeder.total++;
+          includedReasons.seeder.details[includedSeederRange[0]] =
+            (includedReasons.seeder.details[includedSeederRange[0]] || 0) + 1;
           return true;
         }
         if (
           includedSeederRange[1] &&
           (stream.torrent?.seeders ?? 0) < includedSeederRange[1]
         ) {
+          includedReasons.seeder.total++;
+          includedReasons.seeder.details[includedSeederRange[1]] =
+            (includedReasons.seeder.details[includedSeederRange[1]] || 0) + 1;
           return true;
         }
       }
@@ -2148,43 +2250,6 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
 
     let filteredStreams = streams.filter((_, index) => filterResults[index]);
 
-    if (this.userData.excludedFilterConditions) {
-      const parser = new SelectConditionParser();
-      const streamsToRemove = new Set<string>(); // Track actual stream objects to be removed
-
-      for (const condition of this.userData.excludedFilterConditions) {
-        try {
-          // Always select from the current filteredStreams (not yet modified by this loop)
-          const selectedStreams = await parser.select(
-            filteredStreams.filter((stream) => !streamsToRemove.has(stream.id)),
-            condition
-          );
-
-          // Track these stream objects for removal
-          selectedStreams.forEach((stream) => streamsToRemove.add(stream.id));
-
-          // Update skip reasons for this condition (only count newly selected streams)
-          if (selectedStreams.length > 0) {
-            skipReasons.excludedFilterCondition.total += selectedStreams.length;
-            skipReasons.excludedFilterCondition.details[condition] =
-              selectedStreams.length;
-          }
-        } catch (error) {
-          logger.error(
-            `Failed to apply excluded filter condition "${condition}": ${error instanceof Error ? error.message : String(error)}`
-          );
-          // Continue with the next condition instead of breaking the entire loop
-        }
-      }
-
-      logger.verbose(`Streams to remove: ${streamsToRemove.size}`);
-
-      // Remove all marked streams at once, after processing all conditions
-      filteredStreams = filteredStreams.filter(
-        (stream) => !streamsToRemove.has(stream.id)
-      );
-    }
-
     // Log filter summary
     const totalFiltered = streams.length - filteredStreams.length;
     if (totalFiltered > 0) {
@@ -2213,9 +2278,27 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
         }
       }
 
+      const includedDetails: string[] = [];
+      for (const [reason, stats] of Object.entries(includedReasons)) {
+        if (stats.total > 0) {
+          const formattedReason = reason
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/^./, (str) => str.toUpperCase());
+          includedDetails.push(`\n  📌 ${formattedReason} (${stats.total})`);
+          for (const [detail, count] of Object.entries(stats.details)) {
+            includedDetails.push(`    • ${count}× ${detail}`);
+          }
+        }
+      }
+
       if (filterDetails.length > 0) {
         summary.push('\n  🔎 Filter Details:');
         summary.push(...filterDetails);
+      }
+
+      if (includedDetails.length > 0) {
+        summary.push('\n  🔎 Included Details:');
+        summary.push(...includedDetails);
       }
 
       summary.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -2226,6 +2309,99 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
     return filteredStreams;
   }
 
+  private async applyFilterConditions(
+    streams: ParsedStream[]
+  ): Promise<ParsedStream[]> {
+    const skipReasons: Record<
+      string,
+      { total: number; details: Record<string, number> }
+    > = {
+      excludedFilterCondition: {
+        total: 0,
+        details: {},
+      },
+      requiredFilterCondition: {
+        total: 0,
+        details: {},
+      },
+    };
+    if (this.userData.excludedStreamExpressions) {
+      const selector = new StreamSelector();
+      const streamsToRemove = new Set<string>(); // Track actual stream objects to be removed
+
+      for (const expression of this.userData.excludedStreamExpressions) {
+        try {
+          // Always select from the current filteredStreams (not yet modified by this loop)
+          const selectedStreams = await selector.select(
+            streams.filter((stream) => !streamsToRemove.has(stream.id)),
+            expression
+          );
+
+          // Track these stream objects for removal
+          selectedStreams.forEach((stream) => streamsToRemove.add(stream.id));
+
+          // Update skip reasons for this condition (only count newly selected streams)
+          if (selectedStreams.length > 0) {
+            skipReasons.excludedFilterCondition.total += selectedStreams.length;
+            skipReasons.excludedFilterCondition.details[expression] =
+              selectedStreams.length;
+          }
+        } catch (error) {
+          logger.error(
+            `Failed to apply excluded stream expression "${expression}": ${error instanceof Error ? error.message : String(error)}`
+          );
+          // Continue with the next condition instead of breaking the entire loop
+        }
+      }
+
+      logger.verbose(
+        `Total streams selected by excluded conditions: ${streamsToRemove.size}`
+      );
+
+      // Remove all marked streams at once, after processing all conditions
+      streams = streams.filter((stream) => !streamsToRemove.has(stream.id));
+    }
+
+    if (
+      this.userData.requiredStreamExpressions &&
+      this.userData.requiredStreamExpressions.length > 0
+    ) {
+      const selector = new StreamSelector();
+      const streamsToKeep = new Set<string>(); // Track actual stream objects to be removed
+
+      for (const expression of this.userData.requiredStreamExpressions) {
+        try {
+          const selectedStreams = await selector.select(
+            streams.filter((stream) => !streamsToKeep.has(stream.id)),
+            expression
+          );
+
+          // Track these stream objects for removal
+          selectedStreams.forEach((stream) => streamsToKeep.add(stream.id));
+
+          // Update skip reasons for this condition (only count newly selected streams)
+          if (selectedStreams.length > 0) {
+            skipReasons.requiredFilterCondition.total +=
+              streams.length - selectedStreams.length;
+            skipReasons.requiredFilterCondition.details[expression] =
+              streams.length - selectedStreams.length;
+          }
+        } catch (error) {
+          logger.error(
+            `Failed to apply required stream expression "${expression}": ${error instanceof Error ? error.message : String(error)}`
+          );
+          // Continue with the next condition instead of breaking the entire loop
+        }
+      }
+
+      logger.verbose(
+        `Total streams selected by required conditions: ${streamsToKeep.size}`
+      );
+      // remove all streams that are not in the streamsToKeep set
+      streams = streams.filter((stream) => streamsToKeep.has(stream.id));
+    }
+    return streams;
+  }
   private deduplicateStreams(streams: ParsedStream[]): ParsedStream[] {
     let deduplicator = this.userData.deduplicator;
     if (!deduplicator || !deduplicator.enabled) {
@@ -2348,17 +2524,13 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
               const aProviderIndex =
                 this.userData.services?.findIndex(
                   (service) => service.id === a.service?.id
-                ) ?? -1;
+                ) ?? Infinity;
               const bProviderIndex =
                 this.userData.services?.findIndex(
                   (service) => service.id === b.service?.id
-                ) ?? -1;
+                ) ?? Infinity;
 
-              if (
-                aProviderIndex &&
-                bProviderIndex &&
-                aProviderIndex !== bProviderIndex
-              ) {
+              if (aProviderIndex !== bProviderIndex) {
                 return aProviderIndex - bProviderIndex;
               }
 
@@ -2373,14 +2545,12 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
 
               // now look at the addon index
 
-              const aAddonIndex =
-                this.userData.presets.findIndex(
-                  (preset) => preset.instanceId === a.addon.presetInstanceId
-                ) ?? -1;
-              const bAddonIndex =
-                this.userData.presets.findIndex(
-                  (preset) => preset.instanceId === b.addon.presetInstanceId
-                ) ?? -1;
+              const aAddonIndex = this.userData.presets.findIndex(
+                (preset) => preset.instanceId === a.addon.presetInstanceId
+              );
+              const bAddonIndex = this.userData.presets.findIndex(
+                (preset) => preset.instanceId === b.addon.presetInstanceId
+              );
 
               // the addon index MUST exist, its not possible for it to not exist
               if (aAddonIndex !== bAddonIndex) {
@@ -2391,11 +2561,11 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
               const aTypeIndex =
                 this.userData.preferredStreamTypes?.findIndex(
                   (type) => type === a.type
-                ) ?? 0;
+                ) ?? Infinity;
               const bTypeIndex =
                 this.userData.preferredStreamTypes?.findIndex(
                   (type) => type === b.type
-                ) ?? 0;
+                ) ?? Infinity;
 
               if (aTypeIndex !== bTypeIndex) {
                 return aTypeIndex - bTypeIndex;
@@ -2425,14 +2595,12 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
               )
             ).map((serviceStreams) => {
               return serviceStreams.sort((a, b) => {
-                const aAddonIndex =
-                  this.userData.presets.findIndex(
-                    (preset) => preset.instanceId === a.addon.presetInstanceId
-                  ) ?? -1;
-                const bAddonIndex =
-                  this.userData.presets.findIndex(
-                    (preset) => preset.instanceId === b.addon.presetInstanceId
-                  ) ?? -1;
+                const aAddonIndex = this.userData.presets.findIndex(
+                  (preset) => preset.instanceId === a.addon.presetInstanceId
+                );
+                const bAddonIndex = this.userData.presets.findIndex(
+                  (preset) => preset.instanceId === b.addon.presetInstanceId
+                );
                 if (aAddonIndex !== bAddonIndex) {
                   return aAddonIndex - bAddonIndex;
                 }
@@ -2441,11 +2609,11 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
                 const aTypeIndex =
                   this.userData.preferredStreamTypes?.findIndex(
                     (type) => type === a.type
-                  ) ?? 0;
+                  ) ?? Infinity;
                 const bTypeIndex =
                   this.userData.preferredStreamTypes?.findIndex(
                     (type) => type === b.type
-                  ) ?? 0;
+                  ) ?? Infinity;
                 if (aTypeIndex !== bTypeIndex) {
                   return aTypeIndex - bTypeIndex;
                 }
@@ -2483,11 +2651,11 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
                 const aServiceIndex =
                   this.userData.services?.findIndex(
                     (service) => service.id === a.service?.id
-                  ) ?? -1;
+                  ) ?? Infinity;
                 const bServiceIndex =
                   this.userData.services?.findIndex(
                     (service) => service.id === b.service?.id
-                  ) ?? -1;
+                  ) ?? Infinity;
                 if (aServiceIndex !== bServiceIndex) {
                   return aServiceIndex - bServiceIndex;
                 }
@@ -2515,7 +2683,7 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
     return deduplicatedStreams;
   }
 
-  private async precomputeSortRegexes(streams: ParsedStream[]) {
+  private async precomputePreferredFilters(streams: ParsedStream[]) {
     const preferredRegexPatterns =
       FeatureControl.isRegexAllowed(this.userData) &&
       this.userData.preferredRegexPatterns
@@ -2598,7 +2766,52 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
         }
       });
     }
-    logger.info(`Precomputed sort regexes in ${getTimeTakenSincePoint(start)}`);
+
+    if (this.userData.preferredStreamExpressions?.length) {
+      const selector = new StreamSelector();
+      const streamToConditionIndex = new Map<string, number>();
+
+      // Go through each preferred filter condition, from highest to lowest priority.
+      for (
+        let i = 0;
+        i < this.userData.preferredStreamExpressions.length;
+        i++
+      ) {
+        const expression = this.userData.preferredStreamExpressions[i];
+
+        // From the streams that haven't been matched to a higher-priority condition yet...
+        const availableStreams = streams.filter(
+          (stream) => !streamToConditionIndex.has(stream.id)
+        );
+
+        // ...select the ones that match the current condition.
+        try {
+          const selectedStreams = await selector.select(
+            availableStreams,
+            expression
+          );
+
+          // And for each of those, record that this is the best condition they've matched so far.
+          for (const stream of selectedStreams) {
+            streamToConditionIndex.set(stream.id, i);
+          }
+        } catch (error) {
+          logger.error(
+            `Failed to apply preferred stream expression "${expression}": ${
+              error instanceof Error ? error.message : String(error)
+            }`
+          );
+        }
+      }
+
+      // Now, apply the results to the original streams list.
+      for (const stream of streams) {
+        stream.streamExpressionMatched = streamToConditionIndex.get(stream.id);
+      }
+    }
+    logger.info(
+      `Precomputed preferred filters in ${getTimeTakenSincePoint(start)}`
+    );
   }
 
   private sortStreams(streams: ParsedStream[], type: string): ParsedStream[] {
@@ -2854,7 +3067,8 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
             multiplier *
             -(stream.regexMatched ? stream.regexMatched.index : Infinity)
           );
-
+        case 'streamExpressionMatched':
+          return multiplier * -(stream.streamExpressionMatched ?? Infinity);
         case 'keyword':
           return multiplier * (stream.keywordMatched ? 1 : 0);
 

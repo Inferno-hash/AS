@@ -121,12 +121,34 @@ class StreamParser {
       : undefined;
 
     parsedStream.parsedFile = {
-      visualTags: [],
-      audioTags: [],
-      audioChannels: [],
-      ...folderParsed,
-      ...fileParsed,
       title: folderParsed?.title || fileParsed?.title,
+      year: fileParsed?.year || folderParsed?.year,
+      season: fileParsed?.season || folderParsed?.season,
+      episode: fileParsed?.episode || folderParsed?.episode,
+      seasons: fileParsed?.seasons || folderParsed?.seasons,
+      resolution: fileParsed?.resolution || folderParsed?.resolution,
+      quality: fileParsed?.quality || folderParsed?.quality,
+      encode: fileParsed?.encode || folderParsed?.encode,
+      releaseGroup: fileParsed?.releaseGroup || folderParsed?.releaseGroup,
+      seasonEpisode: fileParsed?.seasonEpisode || folderParsed?.seasonEpisode,
+      visualTags: Array.from(
+        new Set([
+          ...(folderParsed?.visualTags ?? []),
+          ...(fileParsed?.visualTags ?? []),
+        ])
+      ),
+      audioTags: Array.from(
+        new Set([
+          ...(folderParsed?.audioTags ?? []),
+          ...(fileParsed?.audioTags ?? []),
+        ])
+      ),
+      audioChannels: Array.from(
+        new Set([
+          ...(folderParsed?.audioChannels ?? []),
+          ...(fileParsed?.audioChannels ?? []),
+        ])
+      ),
       languages: Array.from(
         new Set([
           ...(folderParsed?.languages ?? []),
