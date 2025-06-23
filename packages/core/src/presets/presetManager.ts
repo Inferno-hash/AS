@@ -33,6 +33,7 @@ import { StreamingCatalogsPreset } from './streamingCatalogs';
 import { AnimeCatalogsPreset } from './animeCatalogs';
 import { DoctorWhoUniversePreset } from './doctorWhoUniverse';
 import { WebStreamrPreset } from './webstreamr';
+import { TMDBAddonPreset } from './tmdb';
 
 const PRESET_LIST: string[] = [
   'custom',
@@ -56,6 +57,7 @@ const PRESET_LIST: string[] = [
   'dmm-cast',
   'orion',
   'opensubtitles',
+  'tmdb-addon',
   'debridio-tmdb',
   'debridio-tvdb',
   'streaming-catalogs',
@@ -158,6 +160,8 @@ export class PresetManager {
         return DcUniversePreset;
       case 'doctor-who-universe':
         return DoctorWhoUniversePreset;
+      case 'tmdb-addon':
+        return TMDBAddonPreset;
       default:
         throw new Error(`Preset ${id} not found`);
     }

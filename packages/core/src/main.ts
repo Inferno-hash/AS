@@ -1326,7 +1326,7 @@ ${errorStreams.length > 0 ? `  âŒ Errors     : ${errorStreams.map((s) => `    â
       language: { total: 0, details: {} },
       streamType: { total: 0, details: {} },
       size: { total: 0, details: {} },
-      seeders: { total: 0, details: {} },
+      seeder: { total: 0, details: {} },
       regex: { total: 0, details: {} },
       keywords: { total: 0, details: {} },
     };
@@ -2325,7 +2325,10 @@ ${errorStreams.length > 0 ? `  âŒ Errors     : ${errorStreams.map((s) => `    â
         details: {},
       },
     };
-    if (this.userData.excludedStreamExpressions) {
+    if (
+      this.userData.excludedStreamExpressions &&
+      this.userData.excludedStreamExpressions.length > 0
+    ) {
       const selector = new StreamSelector();
       const streamsToRemove = new Set<string>(); // Track actual stream objects to be removed
 

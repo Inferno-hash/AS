@@ -425,7 +425,7 @@ const ManifestResourceSchema = z.union([
 const ManifestExtraSchema = z.object({
   name: z.string().min(1),
   isRequired: z.boolean().optional(),
-  options: z.array(z.string()).optional(),
+  options: z.array(z.string().or(z.null())).or(z.null()).optional(),
   optionsLimit: z.number().min(1).optional(),
 });
 const ManifestCatalogSchema = z.object({

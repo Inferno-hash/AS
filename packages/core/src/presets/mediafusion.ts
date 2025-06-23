@@ -111,7 +111,11 @@ export class MediaFusionPreset extends Preset {
       constants.SEEDR_SERVICE,
     ];
 
-    const supportedResources = [constants.STREAM_RESOURCE];
+    const supportedResources = [
+      constants.STREAM_RESOURCE,
+      constants.CATALOG_RESOURCE,
+      constants.META_RESOURCE,
+    ];
 
     const options: Option[] = [
       ...baseOptions(

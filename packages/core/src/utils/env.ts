@@ -1093,6 +1093,19 @@ export const Env = cleanEnv(process.env, {
     desc: 'Default WebStreamr user agent',
   }),
 
+  TMDB_ADDON_URL: url({
+    default: 'https://tmdb.elfhosted.com',
+    desc: 'TMDB Addon URL',
+  }),
+  DEFAULT_TMDB_ADDON_TIMEOUT: num({
+    default: undefined,
+    desc: 'Default TMDB Addon timeout',
+  }),
+  DEFAULT_TMDB_ADDON_USER_AGENT: userAgent({
+    default: undefined,
+    desc: 'Default TMDB Addon user agent',
+  }),
+
   // Rate limiting settings
   DISABLE_RATE_LIMITS: bool({
     default: false,

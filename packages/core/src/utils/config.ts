@@ -574,12 +574,32 @@ function validateOption(
         `Option ${option.id} must be a number, got ${typeof value}`
       );
     }
+    if (option.constraints?.min && value < option.constraints.min) {
+      throw new Error(
+        `Option ${option.id} must be at least ${option.constraints.min}, got ${value}`
+      );
+    }
+    if (option.constraints?.max && value > option.constraints.max) {
+      throw new Error(
+        `Option ${option.id} must be at most ${option.constraints.max}, got ${value}`
+      );
+    }
   }
 
   if (option.type === 'string') {
     if (typeof value !== 'string') {
       throw new Error(
         `Option ${option.id} must be a string, got ${typeof value}`
+      );
+    }
+    if (option.constraints?.min && value.length < option.constraints.min) {
+      throw new Error(
+        `Option ${option.id} must be at least ${option.constraints.min} characters, got ${value.length}`
+      );
+    }
+    if (option.constraints?.max && value.length > option.constraints.max) {
+      throw new Error(
+        `Option ${option.id} must be at most ${option.constraints.max} characters, got ${value.length}`
       );
     }
   }
