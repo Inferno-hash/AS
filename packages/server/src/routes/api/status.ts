@@ -12,13 +12,14 @@ import { FeatureControl } from '@aiostreams/core';
 const router = Router();
 
 router.get('/', async (req: Request, res: Response) => {
+  const userCount = await UserRepository.getUserCount();
   const info: StatusResponse = {
     version: Env.VERSION,
     tag: Env.TAG,
     commit: Env.GIT_COMMIT,
     buildTime: Env.BUILD_TIME,
     commitTime: Env.BUILD_COMMIT_TIME,
-    users: await UserRepository.getUserCount(),
+    users: Env.EXPOSE_USER_COUNT ? userCount : null,
     settings: {
       baseUrl: Env.BASE_URL,
       addonName: Env.ADDON_NAME,

@@ -24,8 +24,10 @@ class FileParser {
   static parse(filename: string): ParsedFile {
     const parsed = PTT.parse(filename);
     // prevent the title from being parsed for info
-    filename = filename.replace(parsed.title, '').trim();
-    filename = filename.replace(/\s+/g, '.').replace(/^\.+|\.+$/g, '');
+    if (parsed.title && parsed.title.length > 4) {
+      filename = filename.replace(parsed.title, '').trim();
+      filename = filename.replace(/\s+/g, '.').replace(/^\.+|\.+$/g, '');
+    }
     const resolution = matchPattern(filename, PARSE_REGEX.resolutions);
     const quality = matchPattern(filename, PARSE_REGEX.qualities);
     const encode = matchPattern(filename, PARSE_REGEX.encodes);

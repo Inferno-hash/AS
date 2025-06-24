@@ -295,6 +295,11 @@ export const Env = cleanEnv(process.env, {
     desc: 'Maximum days of inactivity before pruning, set to -1 to disable',
   }),
 
+  EXPOSE_USER_COUNT: bool({
+    default: false,
+    desc: 'Expose the number of users through the status endpoint',
+  }),
+
   RECURSION_THRESHOLD_LIMIT: num({
     default: 60,
     desc: 'Maximum number of requests to the same URL',
@@ -1104,6 +1109,19 @@ export const Env = cleanEnv(process.env, {
   DEFAULT_TMDB_ADDON_USER_AGENT: userAgent({
     default: undefined,
     desc: 'Default TMDB Addon user agent',
+  }),
+
+  TORRENTS_DB_URL: url({
+    default: 'https://torrentsdb.com',
+    desc: 'Torrents DB URL',
+  }),
+  DEFAULT_TORRENTS_DB_TIMEOUT: num({
+    default: undefined,
+    desc: 'Default Torrents DB timeout',
+  }),
+  DEFAULT_TORRENTS_DB_USER_AGENT: userAgent({
+    default: undefined,
+    desc: 'Default Torrents DB user agent',
   }),
 
   // Rate limiting settings

@@ -1,4 +1,4 @@
-import { Stream, ParsedStream, Addon } from '../db';
+import { Stream, ParsedStream, Addon, ParsedFile } from '../db';
 import { constants, createLogger, FULL_LANGUAGE_MAPPING } from '../utils';
 import FileParser from './file';
 const logger = createLogger('parser');
@@ -113,50 +113,7 @@ class StreamParser {
     parsedStream.age = this.getAge(stream, parsedStream);
     parsedStream.message = this.getMessage(stream, parsedStream);
 
-    const folderParsed = parsedStream.folderName
-      ? FileParser.parse(parsedStream.folderName)
-      : undefined;
-    const fileParsed = parsedStream.filename
-      ? FileParser.parse(parsedStream.filename)
-      : undefined;
-
-    parsedStream.parsedFile = {
-      title: folderParsed?.title || fileParsed?.title,
-      year: fileParsed?.year || folderParsed?.year,
-      season: fileParsed?.season || folderParsed?.season,
-      episode: fileParsed?.episode || folderParsed?.episode,
-      seasons: fileParsed?.seasons || folderParsed?.seasons,
-      resolution: fileParsed?.resolution || folderParsed?.resolution,
-      quality: fileParsed?.quality || folderParsed?.quality,
-      encode: fileParsed?.encode || folderParsed?.encode,
-      releaseGroup: fileParsed?.releaseGroup || folderParsed?.releaseGroup,
-      seasonEpisode: fileParsed?.seasonEpisode || folderParsed?.seasonEpisode,
-      visualTags: Array.from(
-        new Set([
-          ...(folderParsed?.visualTags ?? []),
-          ...(fileParsed?.visualTags ?? []),
-        ])
-      ),
-      audioTags: Array.from(
-        new Set([
-          ...(folderParsed?.audioTags ?? []),
-          ...(fileParsed?.audioTags ?? []),
-        ])
-      ),
-      audioChannels: Array.from(
-        new Set([
-          ...(folderParsed?.audioChannels ?? []),
-          ...(fileParsed?.audioChannels ?? []),
-        ])
-      ),
-      languages: Array.from(
-        new Set([
-          ...(folderParsed?.languages ?? []),
-          ...(fileParsed?.languages ?? []),
-          ...this.getLanguages(stream, parsedStream),
-        ])
-      ),
-    };
+    parsedStream.parsedFile = this.getParsedFile(stream, parsedStream);
 
     parsedStream.torrent = {
       infoHash:
@@ -420,6 +377,56 @@ class StreamParser {
     }
 
     throw new Error('Invalid stream, missing a required stream property');
+  }
+
+  protected getParsedFile(
+    stream: Stream,
+    parsedStream: ParsedStream
+  ): ParsedFile | undefined {
+    const folderParsed = parsedStream.folderName
+      ? FileParser.parse(parsedStream.folderName)
+      : undefined;
+    const fileParsed = parsedStream.filename
+      ? FileParser.parse(parsedStream.filename)
+      : undefined;
+
+    return {
+      title: folderParsed?.title || fileParsed?.title,
+      year: fileParsed?.year || folderParsed?.year,
+      season: fileParsed?.season || folderParsed?.season,
+      episode: fileParsed?.episode || folderParsed?.episode,
+      seasons: fileParsed?.seasons || folderParsed?.seasons,
+      resolution: fileParsed?.resolution || folderParsed?.resolution,
+      quality: fileParsed?.quality || folderParsed?.quality,
+      encode: fileParsed?.encode || folderParsed?.encode,
+      releaseGroup: fileParsed?.releaseGroup || folderParsed?.releaseGroup,
+      seasonEpisode: fileParsed?.seasonEpisode || folderParsed?.seasonEpisode,
+      visualTags: Array.from(
+        new Set([
+          ...(folderParsed?.visualTags ?? []),
+          ...(fileParsed?.visualTags ?? []),
+        ])
+      ),
+      audioTags: Array.from(
+        new Set([
+          ...(folderParsed?.audioTags ?? []),
+          ...(fileParsed?.audioTags ?? []),
+        ])
+      ),
+      audioChannels: Array.from(
+        new Set([
+          ...(folderParsed?.audioChannels ?? []),
+          ...(fileParsed?.audioChannels ?? []),
+        ])
+      ),
+      languages: Array.from(
+        new Set([
+          ...(folderParsed?.languages ?? []),
+          ...(fileParsed?.languages ?? []),
+          ...this.getLanguages(stream, parsedStream),
+        ])
+      ),
+    };
   }
 
   /**

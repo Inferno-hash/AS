@@ -807,7 +807,7 @@ const StatusResponseSchema = z.object({
   commit: z.string(),
   buildTime: z.string(),
   commitTime: z.string(),
-  users: z.number(),
+  users: z.number().or(z.null()),
   settings: z.object({
     baseUrl: z.string().url().optional(),
     addonName: z.string(),

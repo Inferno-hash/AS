@@ -34,6 +34,7 @@ import { AnimeCatalogsPreset } from './animeCatalogs';
 import { DoctorWhoUniversePreset } from './doctorWhoUniverse';
 import { WebStreamrPreset } from './webstreamr';
 import { TMDBAddonPreset } from './tmdb';
+import { TorrentsDbPreset } from './torrentsDb';
 
 const PRESET_LIST: string[] = [
   'custom',
@@ -42,21 +43,21 @@ const PRESET_LIST: string[] = [
   'mediafusion',
   'stremthruTorz',
   'stremthruStore',
-  'torbox',
   'jackettio',
   'peerflix',
+  'orion',
+  'torrents-db',
+  'streamfusion',
+  'debridio',
+  'torbox',
   'easynews',
   'easynewsPlus',
   'easynewsPlusPlus',
+  'dmm-cast',
   'nuvio-streams',
   'webstreamr',
-  'debridio',
   'debridio-tv',
   'debridio-watchtower',
-  'streamfusion',
-  'dmm-cast',
-  'orion',
-  'opensubtitles',
   'tmdb-addon',
   'debridio-tmdb',
   'debridio-tvdb',
@@ -70,6 +71,7 @@ const PRESET_LIST: string[] = [
   'star-wars-universe',
   'dc-universe',
   'doctor-who-universe',
+  'opensubtitles',
   'aiostreams',
 ];
 
@@ -162,6 +164,8 @@ export class PresetManager {
         return DoctorWhoUniversePreset;
       case 'tmdb-addon':
         return TMDBAddonPreset;
+      case 'torrents-db':
+        return TorrentsDbPreset;
       default:
         throw new Error(`Preset ${id} not found`);
     }

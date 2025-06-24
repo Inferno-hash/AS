@@ -81,16 +81,27 @@ export class StremioTransformer {
             }
           : formatter.format(stream);
         const identifyingAttributes = [
+          Env.ADDON_ID,
+          stream.addon.name,
+          stream.service?.id,
+          stream.library,
+          stream.proxied,
           stream.parsedFile?.resolution,
           stream.parsedFile?.quality,
           stream.parsedFile?.encode,
-          stream.parsedFile?.audioTags,
-          stream.parsedFile?.visualTags,
-          stream.parsedFile?.languages,
+          stream.parsedFile?.audioTags.length
+            ? stream.parsedFile?.audioTags
+            : undefined,
+          stream.parsedFile?.visualTags.length
+            ? stream.parsedFile?.visualTags
+            : undefined,
+          stream.parsedFile?.languages.length
+            ? stream.parsedFile?.languages
+            : undefined,
           stream.parsedFile?.releaseGroup,
           stream.indexer,
         ].filter(Boolean);
-        const bingeGroup = `${stream.proxied ? 'proxied.' : ''}${identifyingAttributes.join('|')}`;
+        const bingeGroup = `${identifyingAttributes.join('|')}`;
         return {
           name,
           description,
