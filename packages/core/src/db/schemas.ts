@@ -444,17 +444,17 @@ const AddonCatalogDefinitionSchema = z.object({
 export const ManifestSchema = z
   .object({
     id: z.string().min(1),
-    name: z.string().min(1),
-    description: z.string().min(1),
-    version: z.string().min(1),
+    name: z.string(),
+    description: z.string(),
+    version: z.string(),
     types: z.array(z.string()),
     idPrefixes: z.array(z.string().min(1)).or(z.null()).optional(),
     resources: z.array(ManifestResourceSchema),
     catalogs: z.array(ManifestCatalogSchema),
     addonCatalogs: z.array(AddonCatalogDefinitionSchema).optional(),
-    background: z.string().min(1).or(z.null()).optional(),
+    background: z.string().or(z.null()).optional(),
     logo: z.string().or(z.null()).optional(),
-    contactEmail: z.string().min(1).or(z.null()).optional(),
+    contactEmail: z.string().or(z.null()).optional(),
     behaviorHints: z
       .object({
         adult: z.boolean().optional(),

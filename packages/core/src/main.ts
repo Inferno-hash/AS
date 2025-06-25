@@ -228,6 +228,7 @@ export class AIOStreams {
     // remove uneccessary info that is already present in the original stream above
     copy.parsedFile = undefined;
     copy.size = undefined;
+    copy.folderSize = undefined;
     copy.torrent = undefined;
     copy.indexer = undefined;
     copy.age = undefined;
@@ -772,7 +773,7 @@ export class AIOStreams {
         // an id prefix technically says it supports all ids
 
         // leaving idPrefixes as null/undefined causes various odd issues with stremio even though it says it is optional.
-        // therefore, we set it as normal, but if there comes an addon that doesn't support any id prefixes, we set it to null
+        // therefore, we set it as normal, but if there comes an addon that doesn't support any id prefixes, we set it to undefined
         // this fixes issues in most cases as most addons do provide idPrefixes
         if (existing) {
           existing.types = [...new Set([...existing.types, ...resource.types])];
@@ -786,17 +787,25 @@ export class AIOStreams {
               ...new Set([...existing.idPrefixes, ...resource.idPrefixes]),
             ];
           } else {
-            // if an addon for this type does not provide idPrefixes, we set it to null
+            logger.warn(
+              `Addon ${this.getAddonName(addon)} does not provide idPrefixes for type ${resource.name}, setting idPrefixes to undefined`
+            );
+            // if an addon for this type does not provide idPrefixes, we set it to undefined
             // to ensure it works with at least some platforms on stremio rather than none.
-            existing.idPrefixes = null;
+            existing.idPrefixes = undefined;
           }
         } else {
+          if (!resource.idPrefixes?.length) {
+            logger.warn(
+              `Addon ${this.getAddonName(addon)} does not provide idPrefixes for type ${resource.name}, setting idPrefixes to undefined`
+            );
+          }
           this.finalResources.push({
             ...resource,
             // explicitly set to null
             idPrefixes: resource.idPrefixes?.length
               ? resource.idPrefixes
-              : null,
+              : undefined,
             // idPrefixes: resource.idPrefixes
             //   ? [...resource.idPrefixes]
             //   : undefined,
