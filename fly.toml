@@ -1,6 +1,9 @@
 app = "myaiostreams"
 primary_region = "bom"
 
+[build]
+  image = "ghcr.io/viren070/aiostreams:latest"
+
 [http_service]
 auto_start_machines = true
 auto_stop_machines = true
