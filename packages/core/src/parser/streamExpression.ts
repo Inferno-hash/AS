@@ -492,6 +492,17 @@ export abstract class StreamExpressionEngine {
 
       return merged;
     };
+
+    this.parser.functions.slice = function (
+      streams: ParsedStream[],
+      start: number,
+      end: number
+    ) {
+      if (!Array.isArray(streams)) {
+        throw new Error('Your streams input must be an array of streams');
+      }
+      return streams.slice(start, end);
+    };
   }
 
   protected async evaluateCondition(condition: string): Promise<any> {
