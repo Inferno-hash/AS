@@ -65,7 +65,7 @@ Because all addons are routed through AIOStreams, you only have to **configure y
 - **Accurate Title Matching**: Leverages the TMDB API to precisely match titles, years, and season/episode numbers, ensuring you always get the right content. This can be granularly applied to specific addons or content types.
 - **Powerful Conditional Engine**: Create dynamic rules with a simple yet powerful expression language.
     - *Example*: Only exclude 720p streams if more than five 1080p streams are available: `count(resolution(streams, '1080p')) > 5 ? resolution(streams, '720p') : false`.
-    - Check the wiki for a [full function reference](https://github.com/Viren070/AIOStreams/Wiki/Groups).
+    - Check the wiki for a [full function reference](https://github.com/Viren070/AIOStreams/wiki/Stream-Expression-Language).
 - **Customisable Deduplication**: Choose how duplicate streams are detected: by filename, infohash, and a unique "smart detect" hash generated from certain file attributes.
 - **Sophisticated Sorting**:
     - Build your perfect sort order using any combination of criteria.
@@ -136,7 +136,7 @@ For detailed instructions, check out the Wiki:
 AIOStreams is a passion project developed and maintained for free. If you find it useful, please consider supporting its development.
 
 - ⭐ **Star the Repository** on [GitHub](https://github.com/Viren070/AIOStreams).
-- ⭐ **Star the Addon** in the [Stremio Community Catalog](https://beta.stremio-addons.net/aiostreams).
+- ⭐ **Star the Addon** in the [Stremio Community Catalog](https://beta.stremio-addons.net/addons/aiostreams).
 - 🤝 **Contribute**: Report issues, suggest features, or submit pull requests.
 - ☕ **Donate**:
   - **[Ko-fi](https://ko-fi.com/viren070)**

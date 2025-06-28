@@ -387,6 +387,7 @@ export const UserDataSchema = z.object({
     .optional(),
   deduplicator: DeduplicatorOptions.optional(),
   precacheNextEpisode: z.boolean().optional(),
+  alwaysPrecache: z.boolean().optional(),
   services: ServiceList.optional(),
   presets: PresetList,
   catalogModifications: z.array(CatalogModification).optional(),
@@ -531,7 +532,7 @@ export type Stream = z.infer<typeof StreamSchema>;
 const TrailerSchema = z
   .object({
     source: z.string().min(1),
-    type: z.enum(['Trailer']),
+    type: z.enum(['Trailer', 'Clip']),
   })
   .passthrough();
 

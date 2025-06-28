@@ -43,6 +43,10 @@ export function makeRequest(
     }
   }
 
+  if (headers.get('User-Agent') === 'none') {
+    headers.delete('User-Agent');
+  }
+
   // block recursive requests
   const key = `${url}-${forwardIp}`;
   const currentCount = urlCount.get(key, false) ?? 0;
@@ -62,7 +66,7 @@ export function makeRequest(
   logger.debug(
     `Making a ${useProxy ? 'proxied' : 'direct'} request to ${makeUrlLogSafe(
       url
-    )} with forwarded ip ${maskSensitiveInfo(forwardIp ?? 'none')}`
+    )} with forwarded ip ${maskSensitiveInfo(forwardIp ?? 'none')} and headers ${maskSensitiveInfo(JSON.stringify(headers))}`
   );
   let response = fetch(url, {
     dispatcher: useProxy ? new ProxyAgent(Env.ADDON_PROXY!) : undefined,

@@ -35,6 +35,8 @@ import { DoctorWhoUniversePreset } from './doctorWhoUniverse';
 import { WebStreamrPreset } from './webstreamr';
 import { TMDBAddonPreset } from './tmdb';
 import { TorrentsDbPreset } from './torrentsDb';
+import { USATVPreset } from './usaTv';
+import { ArgentinaTVPreset } from './argentinaTv';
 
 const PRESET_LIST: string[] = [
   'custom',
@@ -56,6 +58,8 @@ const PRESET_LIST: string[] = [
   'dmm-cast',
   'nuvio-streams',
   'webstreamr',
+  'usa-tv',
+  'argentina-tv',
   'debridio-tv',
   'debridio-watchtower',
   'tmdb-addon',
@@ -166,6 +170,10 @@ export class PresetManager {
         return TMDBAddonPreset;
       case 'torrents-db':
         return TorrentsDbPreset;
+      case 'usa-tv':
+        return USATVPreset;
+      case 'argentina-tv':
+        return ArgentinaTVPreset;
       default:
         throw new Error(`Preset ${id} not found`);
     }
