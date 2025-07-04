@@ -13,6 +13,7 @@ import { formRegexFromKeywords } from '../utils/regex';
 import { safeRegexTest } from '../utils/regex';
 import { StreamType } from '../utils/constants';
 import { StreamSelector } from '../parser/streamExpression';
+import StreamUtils from './utils';
 
 const logger = createLogger('filterer');
 
@@ -80,6 +81,7 @@ class StreamFilterer {
       seeder: { total: 0, details: {} },
       regex: { total: 0, details: {} },
       keywords: { total: 0, details: {} },
+      streamExpression: { total: 0, details: {} },
     };
 
     const start = Date.now();
@@ -997,19 +999,40 @@ class StreamFilterer {
       return true;
     };
 
-    const filterResults = await Promise.all(streams.map(shouldKeepStream));
+    const includedStreamsByExpression =
+      await this.applyIncludedStreamExpressions(streams);
+    if (includedStreamsByExpression.length > 0) {
+      logger.info(
+        `${includedStreamsByExpression.length} streams were included by stream expressions`
+      );
+    }
 
-    let filteredStreams = streams.filter((_, index) => filterResults[index]);
+    const filterableStreams = streams.filter(
+      (stream) => !includedStreamsByExpression.some((s) => s.id === stream.id)
+    );
+
+    const filterResults = await Promise.all(
+      filterableStreams.map(shouldKeepStream)
+    );
+
+    let filteredStreams = filterableStreams.filter(
+      (_, index) => filterResults[index]
+    );
+
+    const finalStreams = StreamUtils.mergeStreams([
+      ...includedStreamsByExpression,
+      ...filteredStreams,
+    ]);
 
     // Log filter summary
-    const totalFiltered = streams.length - filteredStreams.length;
+    const totalFiltered = streams.length - finalStreams.length;
     if (totalFiltered > 0) {
       const summary = [
         '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
         `  🔍 Filter Summary`,
         '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
         `  📊 Total Streams : ${streams.length}`,
-        `  ✔️ Kept         : ${filteredStreams.length}`,
+        `  ✔️ Kept         : ${finalStreams.length}`,
         `  ❌ Filtered     : ${totalFiltered}`,
       ];
 
@@ -1057,7 +1080,25 @@ class StreamFilterer {
     }
 
     logger.info(`Applied filters in ${getTimeTakenSincePoint(start)}`);
-    return filteredStreams;
+    return finalStreams;
+  }
+
+  public async applyIncludedStreamExpressions(
+    streams: ParsedStream[]
+  ): Promise<ParsedStream[]> {
+    const selector = new StreamSelector();
+    const streamsToKeep = new Set<string>();
+    if (
+      !this.userData.includedStreamExpressions ||
+      this.userData.includedStreamExpressions.length === 0
+    ) {
+      return [];
+    }
+    for (const expression of this.userData.includedStreamExpressions) {
+      const selectedStreams = await selector.select(streams, expression);
+      selectedStreams.forEach((stream) => streamsToKeep.add(stream.id));
+    }
+    return streams.filter((stream) => streamsToKeep.has(stream.id));
   }
 
   public async applyStreamExpressionFilters(

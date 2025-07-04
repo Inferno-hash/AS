@@ -47,12 +47,13 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       name: catalog.name,
       type: catalog.type,
       addonName: aio.getAddon(catalog.id.split('.')[0])?.name,
+
       hideable: catalog.extra
+        ? catalog.extra.every((e) => !e.isRequired)
+        : true,
+      searchable: catalog.extra
         ? catalog.extra?.findIndex(
-            (extra) =>
-              extra.name === 'genre' &&
-              extra.options?.length &&
-              extra.options.length > 0
+            (e) => e.name === 'search' && !e.isRequired
           ) !== -1
         : false,
     }));

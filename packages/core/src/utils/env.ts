@@ -314,6 +314,11 @@ export const Env = cleanEnv(process.env, {
     desc: 'Default user agent for the addon',
   }),
 
+  HOSTNAME_USER_AGENT_OVERRIDES: str({
+    default: '*.strem.fun:Stremio',
+    desc: 'Comma separated list of hostname:useragent pairs. Takes priority over any other user agent settings.',
+  }),
+
   DEFAULT_MAX_CACHE_SIZE: num({
     default: 100000,
     desc: 'Default max cache size for a cache instance',
@@ -349,6 +354,12 @@ export const Env = cleanEnv(process.env, {
     default: 604800, // 7 days
     desc: 'Cache TTL for RPDB API key validity',
   }),
+
+  PRECACHE_NEXT_EPISODE_MIN_INTERVAL: num({
+    default: 86400, // 24 hours
+    desc: 'Minimum interval for precaching the next episode of the current episode in seconds. i.e. the minimum wait before attempting to precache the same next episode again.',
+  }),
+
   // configuration settings
 
   MAX_ADDONS: num({
@@ -360,7 +371,7 @@ export const Env = cleanEnv(process.env, {
     default: 30,
     desc: 'Max number of keyword filters',
   }),
-  MAX_CONDITION_FILTERS: num({
+  MAX_STREAM_EXPRESSION_FILTERS: num({
     default: 30,
     desc: 'Max number of condition filters',
   }),
@@ -379,8 +390,20 @@ export const Env = cleanEnv(process.env, {
   }),
 
   DEFAULT_TIMEOUT: num({
-    default: 15000,
+    default: 10000,
     desc: 'Default timeout for the addon',
+  }),
+  CATALOG_TIMEOUT: num({
+    default: 30000,
+    desc: 'Timeout for catalog requests',
+  }),
+  META_TIMEOUT: num({
+    default: 30000,
+    desc: 'Timeout for meta requests',
+  }),
+  MANIFEST_TIMEOUT: num({
+    default: 3000,
+    desc: 'Timeout for manifest requests',
   }),
 
   FORCE_PUBLIC_PROXY_HOST: host({
@@ -691,7 +714,7 @@ export const Env = cleanEnv(process.env, {
     desc: 'Default Torrentio timeout',
   }),
   DEFAULT_TORRENTIO_USER_AGENT: userAgent({
-    default: 'Stremio',
+    default: undefined,
     desc: 'Default Torrentio user agent',
   }),
 
@@ -1148,6 +1171,45 @@ export const Env = cleanEnv(process.env, {
   DEFAULT_ARGENTINA_TV_USER_AGENT: userAgent({
     default: undefined,
     desc: 'Default Argentina TV user agent',
+  }),
+
+  SUBDL_URL: url({
+    default: 'https://subdl.strem.top',
+    desc: 'SubDL URL',
+  }),
+  DEFAULT_SUBDL_TIMEOUT: num({
+    default: undefined,
+    desc: 'Default SubDL timeout',
+  }),
+  DEFAULT_SUBDL_USER_AGENT: userAgent({
+    default: undefined,
+    desc: 'Default SubDL user agent',
+  }),
+
+  SUBSOURCE_URL: url({
+    default: 'https://subsource.strem.top',
+    desc: 'SubSource URL',
+  }),
+  DEFAULT_SUBSOURCE_TIMEOUT: num({
+    default: undefined,
+    desc: 'Default SubSource timeout',
+  }),
+  DEFAULT_SUBSOURCE_USER_AGENT: userAgent({
+    default: undefined,
+    desc: 'Default SubSource user agent',
+  }),
+
+  OPENSUBTITLES_V3_PLUS_URL: url({
+    default: 'https://opensubtitles.stremio.homes',
+    desc: 'OpenSubtitles V3 Plus URL',
+  }),
+  DEFAULT_OPENSUBTITLES_V3_PLUS_TIMEOUT: num({
+    default: undefined,
+    desc: 'Default OpenSubtitles V3 Plus timeout',
+  }),
+  DEFAULT_OPENSUBTITLES_V3_PLUS_USER_AGENT: userAgent({
+    default: undefined,
+    desc: 'Default OpenSubtitles V3 Plus user agent',
   }),
 
   // Rate limiting settings

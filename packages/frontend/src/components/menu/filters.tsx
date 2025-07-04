@@ -1459,6 +1459,34 @@ function Content() {
                   }}
                 />
                 <TextInputs
+                  label="Included Stream Expressions"
+                  itemName="Expression"
+                  help="The expressions to apply to the streams. Streams selected by any of these expressions will be included in the results."
+                  placeholder="addon(type(streams, 'debrid'), 'TorBox')"
+                  values={userData.includedStreamExpressions || []}
+                  onValuesChange={(values) => {
+                    setUserData((prev) => ({
+                      ...prev,
+                      includedStreamExpressions: values,
+                    }));
+                  }}
+                  onValueChange={(value, index) => {
+                    setUserData((prev) => ({
+                      ...prev,
+                      includedStreamExpressions: [
+                        ...(prev.includedStreamExpressions || []).slice(
+                          0,
+                          index
+                        ),
+                        value,
+                        ...(prev.includedStreamExpressions || []).slice(
+                          index + 1
+                        ),
+                      ],
+                    }));
+                  }}
+                />
+                <TextInputs
                   label="Preferred Stream Expressions"
                   itemName="Expression"
                   help="The expressions to apply to the streams. Streams selected by these expressions will be preferred over other streams and ranked by the order they are in this list."

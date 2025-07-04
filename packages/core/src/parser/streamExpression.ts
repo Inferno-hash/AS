@@ -200,7 +200,10 @@ export abstract class StreamExpressionEngine {
         );
       }
       return streams.filter((stream) =>
-        stream.parsedFile?.visualTags.some((v) =>
+        (stream.parsedFile?.visualTags.length
+          ? stream.parsedFile.visualTags
+          : ['Unknown']
+        ).some((v) =>
           visualTags.map((vt) => vt.toLowerCase()).includes(v.toLowerCase())
         )
       );
@@ -224,7 +227,10 @@ export abstract class StreamExpressionEngine {
         audioTags
           .map((a) => a.toLowerCase())
           .some((a) =>
-            stream.parsedFile?.audioTags
+            (stream.parsedFile?.audioTags.length
+              ? stream.parsedFile.audioTags
+              : ['Unknown']
+            )
               .map((at) => at.toLowerCase())
               .includes(a)
           )
@@ -249,7 +255,10 @@ export abstract class StreamExpressionEngine {
         audioChannels
           .map((a) => a.toLowerCase())
           .some((a) =>
-            stream.parsedFile?.audioChannels
+            (stream.parsedFile?.audioChannels.length
+              ? stream.parsedFile.audioChannels
+              : ['Unknown']
+            )
               ?.map((ac) => ac.toLowerCase())
               .includes(a)
           )
@@ -274,7 +283,10 @@ export abstract class StreamExpressionEngine {
         languages
           .map((l) => l.toLowerCase())
           .some((l) =>
-            stream.parsedFile?.languages
+            (stream.parsedFile?.languages.length
+              ? stream.parsedFile.languages
+              : ['Unknown']
+            )
               ?.map((lang) => lang.toLowerCase())
               .includes(l)
           )

@@ -106,18 +106,6 @@ export class NuvioStreamsPreset extends Preset {
         label: 'Showbox',
       },
       {
-        value: 'xprime',
-        label: 'XPrime',
-      },
-      {
-        value: 'hollymoviehd',
-        label: 'HollyMovieHD',
-      },
-      {
-        value: 'cuevana',
-        label: 'Cuevana',
-      },
-      {
         value: 'soapertv',
         label: 'Soapertv',
       },
@@ -126,12 +114,28 @@ export class NuvioStreamsPreset extends Preset {
         label: 'Vidzee',
       },
       {
-        value: 'hianime',
-        label: 'HiAnime',
-      },
-      {
         value: 'vidsrc',
         label: 'Vidsrc',
+      },
+      {
+        value: 'mp4hydra',
+        label: 'MP4Hydra',
+      },
+      {
+        value: 'uhdmovies',
+        label: 'UHDMovies - 4K',
+      },
+      {
+        value: 'moviesmod',
+        label: 'MoviesMod',
+      },
+      {
+        value: 'dramadrip',
+        label: 'DramaDrip - Asian Dramas',
+      },
+      {
+        value: 'topmovies',
+        label: 'TopMovies - Bollywood/Indian',
       },
     ];
 

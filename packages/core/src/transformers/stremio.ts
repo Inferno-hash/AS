@@ -148,6 +148,7 @@ export class StremioTransformer {
             message: stream.message,
             regexMatched: stream.regexMatched,
             keywordMatched: stream.keywordMatched,
+            id: stream.id,
           },
         };
       })
@@ -268,6 +269,7 @@ export class StremioTransformer {
           title: errorTitle,
           description: errorDescription,
         },
+        id: `error.${errorTitle}`,
       },
     };
   }

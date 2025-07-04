@@ -186,6 +186,18 @@ export class Cache<K, V> {
     this.cache.clear();
   }
 
+  getTTL(key: K): number {
+    // return the time left in seconds until the item expires
+    const item = this.cache.get(key);
+    if (item) {
+      return Math.max(
+        0,
+        Math.floor((item.lastAccessed + item.ttl - Date.now()) / 1000)
+      );
+    }
+    return 0;
+  }
+
   private evict(): void {
     let oldestKey: K | undefined;
     let oldestTime = Infinity;

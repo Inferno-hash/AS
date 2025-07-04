@@ -1,7 +1,7 @@
 import { ParsedStream } from '../db/schemas';
 
 class StreamUtils {
-  public createDownloadableStream(stream: ParsedStream): ParsedStream {
+  public static createDownloadableStream(stream: ParsedStream): ParsedStream {
     const copy = structuredClone(stream);
     copy.url = undefined;
     copy.externalUrl = stream.url;
@@ -18,7 +18,18 @@ class StreamUtils {
     copy.duration = undefined;
     copy.folderName = undefined;
     copy.filename = undefined;
+    copy.regexMatched = undefined;
+    copy.addon.name = '';
     return copy;
+  }
+
+  // ensure we have a unique list of streams after merging
+  public static mergeStreams(streams: ParsedStream[]): ParsedStream[] {
+    const mergedStreams = new Map<string, ParsedStream>();
+    for (const stream of streams) {
+      mergedStreams.set(stream.id, stream);
+    }
+    return Array.from(mergedStreams.values());
   }
 }
 

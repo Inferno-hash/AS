@@ -215,6 +215,7 @@ const OptionDefinition = z.object({
           'patreon',
           'buymeacoffee',
           'github-sponsors',
+          'donate',
         ]),
         url: z.string().url(),
       })
@@ -251,10 +252,12 @@ const CatalogModification = z.object({
   shuffle: z.boolean().optional(), // shuffle the catalog
   persistShuffleFor: z.number().min(0).max(24).optional(), // persist the shuffle for a given amount of time (in hours)
   onlyOnDiscover: z.boolean().optional(), // only show the catalog on the discover page
+  disableSearch: z.boolean().optional(), // disable the search for the catalog
   enabled: z.boolean().optional(), // enable or disable the catalog
   rpdb: z.boolean().optional(), // use rpdb for posters if supported
   overrideType: z.string().min(1).optional(), // override the type of the catalog
   hideable: z.boolean().optional(), // hide the catalog from the home page
+  searchable: z.boolean().optional(), // property of whether the catalog is searchable (not a search only catalog)
   addonName: z.string().min(1).optional(), // the name of the addon that provides the catalog
 });
 
@@ -331,9 +334,10 @@ export const UserDataSchema = z.object({
   excludeUncachedFromServices: z.array(z.string().min(1)).optional(),
   excludeUncachedFromStreamTypes: z.array(StreamTypes).optional(),
   excludeUncachedMode: z.enum(['or', 'and']).optional(),
-  excludedStreamExpressions: z.array(z.string().min(1).max(1000)).optional(),
-  requiredStreamExpressions: z.array(z.string().min(1).max(1000)).optional(),
-  preferredStreamExpressions: z.array(z.string().min(1).max(1000)).optional(),
+  excludedStreamExpressions: z.array(z.string().min(1).max(3000)).optional(),
+  requiredStreamExpressions: z.array(z.string().min(1).max(3000)).optional(),
+  preferredStreamExpressions: z.array(z.string().min(1).max(3000)).optional(),
+  includedStreamExpressions: z.array(z.string().min(1).max(3000)).optional(),
   groups: z
     .array(
       z.object({
@@ -628,6 +632,24 @@ export const AddonCatalogResponseSchema = z.object({
 export type AddonCatalogResponse = z.infer<typeof AddonCatalogResponseSchema>;
 export type AddonCatalog = z.infer<typeof AddonCatalogSchema>;
 
+export const ExtrasTypesSchema = z.enum(['skip', 'genre', 'search']);
+
+const ExtraSkipSchema = z.object({
+  skip: z.coerce.number(),
+});
+const ExtraGenreSchema = z.object({
+  genre: z.string(),
+});
+const ExtraSearchSchema = z.object({
+  search: z.string(),
+});
+export const ExtrasSchema = z.union([
+  ExtraSkipSchema,
+  ExtraGenreSchema,
+  ExtraSearchSchema,
+]);
+export type Extras = z.infer<typeof ExtrasSchema>;
+
 const ParsedFileSchema = z.object({
   releaseGroup: z.string().optional(),
   resolution: z.string().optional(),
@@ -754,6 +776,7 @@ export const AIOStream = StreamSchema.extend({
       .optional(),
     duration: z.number().optional(),
     library: z.boolean().optional(),
+    id: z.string().min(1).optional(),
   }),
 });
 
@@ -815,6 +838,7 @@ const StatusResponseSchema = z.object({
     customHtml: z.string().optional(),
     protected: z.boolean(),
     regexFilterAccess: z.enum(['none', 'trusted', 'all']),
+    loggingSensitiveInfo: z.boolean(),
     tmdbApiAvailable: z.boolean(),
     forced: z.object({
       proxy: z.object({

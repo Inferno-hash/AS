@@ -27,6 +27,7 @@ router.get('/', async (req: Request, res: Response) => {
       protected: !!Env.ADDON_PASSWORD,
       tmdbApiAvailable: !!Env.TMDB_ACCESS_TOKEN,
       regexFilterAccess: Env.REGEX_FILTER_ACCESS,
+      loggingSensitiveInfo: Env.LOG_SENSITIVE_INFO,
       forced: {
         proxy: {
           enabled: Env.FORCE_PROXY_ENABLED ?? null,

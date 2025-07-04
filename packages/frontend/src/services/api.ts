@@ -210,6 +210,7 @@ export class UserConfigAPI {
         type: string;
         name: string;
         hideable: boolean;
+        searchable: boolean;
         addonName: string;
       }[]
     >

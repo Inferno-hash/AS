@@ -1,15 +1,11 @@
-import {
-  Addon,
-  ParsedStream,
-  StrictManifestResource,
-  UserData,
-} from '../db/schemas';
+import { Addon, ParsedStream, UserData } from '../db/schemas';
 import { constants, createLogger, getTimeTakenSincePoint } from '../utils';
 import { Wrapper } from '../wrapper';
 import { GroupConditionEvaluator } from '../parser/streamExpression';
 import { getAddonName } from '../utils/general';
 import StreamFilter from './filterer';
 import StreamPrecompute from './precomputer';
+import StreamDeduplicator from './deduplicator';
 
 const logger = createLogger('fetcher');
 
@@ -17,11 +13,12 @@ class StreamFetcher {
   private userData: UserData;
   private filter: StreamFilter;
   private precompute: StreamPrecompute;
-
+  private deduplicate: StreamDeduplicator;
   constructor(userData: UserData) {
     this.userData = userData;
     this.filter = new StreamFilter(userData);
     this.precompute = new StreamPrecompute(userData);
+    this.deduplicate = new StreamDeduplicator(userData);
   }
 
   public async fetch(
@@ -124,7 +121,9 @@ ${errorStreams.length > 0 ? `  âŒ Errors     : ${errorStreams.map((s) => `    â
       const groupErrors = results.flatMap((r) => r.errors);
       allErrors.push(...groupErrors);
 
-      const filteredStreams = await this.filter.filter(groupStreams, type, id);
+      const filteredStreams = await this.deduplicate.deduplicate(
+        await this.filter.filter(groupStreams, type, id)
+      );
       await this.precompute.precompute(filteredStreams);
 
       const groupTime = Date.now() - groupStart;

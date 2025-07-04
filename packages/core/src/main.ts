@@ -13,11 +13,15 @@ import {
   getTimeTakenSincePoint,
   maskSensitiveInfo,
   Cache,
+  CatalogExtras,
 } from './utils';
 import { Wrapper } from './wrapper';
 import { PresetManager } from './presets';
 import {
   AddonCatalog,
+  Extras,
+  ExtrasSchema,
+  ExtrasTypesSchema,
   Meta,
   MetaPreview,
   ParsedStream,
@@ -40,6 +44,7 @@ import { getAddonName } from './utils/general';
 const logger = createLogger('core');
 
 const shuffleCache = Cache.getInstance<string, MetaPreview[]>('shuffle');
+const precacheCache = Cache.getInstance<string, ParsedStream[]>('precache');
 
 export interface AIOStreamsError {
   title?: string;
@@ -64,7 +69,6 @@ export class AIOStreams {
   private skipFailedAddons: boolean = true;
   private proxifier: Proxifier;
   private limiter: StreamLimiter;
-  private streamUtils: StreamUtils;
   private fetcher: Fetcher;
   private filterer: Filterer;
   private deduplicator: Deduplicator;
@@ -84,7 +88,6 @@ export class AIOStreams {
     this.skipFailedAddons = skipFailedAddons;
     this.proxifier = new Proxifier(userData);
     this.limiter = new StreamLimiter(userData);
-    this.streamUtils = new StreamUtils();
     this.fetcher = new Fetcher(userData);
     this.filterer = new Filterer(userData);
     this.deduplicator = new Deduplicator(userData);
@@ -207,15 +210,30 @@ export class AIOStreams {
     // if this.userData.precacheNextEpisode is true, start a new thread to request the next episode, check if
     // all provider streams are uncached, and only if so, then send a request to the first uncached stream in the list.
     if (this.userData.precacheNextEpisode && !preCaching) {
-      setImmediate(() => {
-        this.precacheNextEpisode(type, id).catch((error) => {
-          logger.error('Error during precaching:', {
-            error: error instanceof Error ? error.message : String(error),
-            type,
-            id,
+      // only precache if the same user hasn't previously cached the next episode of the current episode
+      // within the last 24 hours (Env.PRECACHE_NEXT_EPISODE_MIN_INTERVAL)
+      let precache = false;
+      const cacheKey = `precache-${type}-${id}-${this.userData.uuid}`;
+      const cachedNextEpisode = precacheCache.get(cacheKey, false);
+      if (cachedNextEpisode) {
+        logger.info(
+          `The current request for ${type} ${id} has already had the next episode precached within the last ${Env.PRECACHE_NEXT_EPISODE_MIN_INTERVAL} seconds (${precacheCache.getTTL(cacheKey)} seconds left). Skipping precaching.`
+        );
+        precache = false;
+      } else {
+        precache = true;
+      }
+      if (precache) {
+        setImmediate(() => {
+          this.precacheNextEpisode(type, id).catch((error) => {
+            logger.error('Error during precaching:', {
+              error: error instanceof Error ? error.message : String(error),
+              type,
+              id,
+            });
           });
         });
-      });
+      }
     }
 
     if (this.userData.externalDownloads) {
@@ -228,7 +246,7 @@ export class AIOStreams {
         streamsWithExternalDownloads.push(stream);
         if (stream.url) {
           const downloadableStream: ParsedStream =
-            this.streamUtils.createDownloadableStream(stream);
+            StreamUtils.createDownloadableStream(stream);
           streamsWithExternalDownloads.push(downloadableStream);
           count++;
         }
@@ -287,6 +305,14 @@ export class AIOStreams {
       // reset the type from the request (which is the overriden type) to the actual type
       type = modification.type;
     }
+    const parsedExtras = new CatalogExtras(extras);
+    logger.debug(`Parsed extras: ${JSON.stringify(parsedExtras)}`);
+    if (parsedExtras.genre === 'None') {
+      logger.debug(`Genre extra is None, removing genre extra`);
+      parsedExtras.genre = undefined;
+    }
+    const extrasString = parsedExtras.toString();
+
     // step 3
     // get the catalog from the addon
     let catalog;
@@ -294,7 +320,7 @@ export class AIOStreams {
       catalog = await new Wrapper(addon).getCatalog(
         type,
         actualCatalogId,
-        extras
+        extrasString
       );
     } catch (error) {
       return {
@@ -867,14 +893,35 @@ export class AIOStreams {
             catalog.name = modification.name;
           }
           if (modification?.onlyOnDiscover) {
-            // look in the extra list for a extra with name 'genre', and set 'isRequired' to true
+            // A few cases
+            // the catalog already has genres. In which case we set isRequired for the genre extra to true
+            // and also add a new genre with name 'None' to the top - if isRequried was previously false.
+
+            // the catalog does not have genres. In which case we add a new genre extra with only one option 'None'
+            // and set isRequired to true
+
             const genreExtra = catalog.extra?.find((e) => e.name === 'genre');
             if (genreExtra) {
+              if (!genreExtra.isRequired) {
+                // if catalog supports a no genre option, we add none to the top so it is still accessible
+                genreExtra.options?.unshift('None');
+              }
+              // set it to required to hide it from the home page
               genreExtra.isRequired = true;
+            } else {
+              // add a new genre extra with only one option 'None'
+              catalog.extra?.push({
+                name: 'genre',
+                options: ['None'],
+                isRequired: true,
+              });
             }
           }
           if (modification?.overrideType !== undefined) {
             catalog.type = modification.overrideType;
+          }
+          if (modification?.disableSearch) {
+            catalog.extra = catalog.extra?.filter((e) => e.name !== 'search');
           }
           return catalog;
         });
@@ -1070,12 +1117,21 @@ export class AIOStreams {
           try {
             const wrapper = new Wrapper(firstUncachedStream.addon);
             logger.debug(
-              `The following stream was selected for precaching:\n${firstUncachedStream.originalDescription}`
+              `The following stream was selected for precaching:\n${firstUncachedStream.originalName}\n${firstUncachedStream.originalDescription}`
             );
-            const response = await wrapper.makeRequest(firstUncachedStream.url);
+            const response = await wrapper.makeRequest(
+              firstUncachedStream.url,
+              30000
+            );
             if (!response.ok) {
               throw new Error(`${response.status} ${response.statusText}`);
             }
+            const cacheKey = `precache-${type}-${id}-${this.userData.uuid}`;
+            precacheCache.set(
+              cacheKey,
+              nextStreams,
+              Env.PRECACHE_NEXT_EPISODE_MIN_INTERVAL
+            );
             logger.debug(`Response: ${response.status} ${response.statusText}`);
           } catch (error) {
             logger.error(`Error pinging url of first uncached stream`, {

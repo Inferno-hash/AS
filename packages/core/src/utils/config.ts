@@ -265,7 +265,19 @@ export async function validateConfig(
   const validations = {
     'excluded stream expressions': [
       config.excludedStreamExpressions,
-      Env.MAX_CONDITION_FILTERS,
+      Env.MAX_STREAM_EXPRESSION_FILTERS,
+    ],
+    'required stream expressions': [
+      config.requiredStreamExpressions,
+      Env.MAX_STREAM_EXPRESSION_FILTERS,
+    ],
+    'preferred stream expressions': [
+      config.preferredStreamExpressions,
+      Env.MAX_STREAM_EXPRESSION_FILTERS,
+    ],
+    'included stream expressions': [
+      config.includedStreamExpressions,
+      Env.MAX_STREAM_EXPRESSION_FILTERS,
     ],
     'excluded keywords': [config.excludedKeywords, Env.MAX_KEYWORD_FILTERS],
     'included keywords': [config.includedKeywords, Env.MAX_KEYWORD_FILTERS],
@@ -314,13 +326,18 @@ export async function validateConfig(
   }
 
   // validate excluded filter condition
-  if (config.excludedStreamExpressions) {
-    for (const condition of config.excludedStreamExpressions) {
-      try {
-        await StreamSelector.testSelect(condition);
-      } catch (error) {
-        throw new Error(`Invalid excluded stream expression: ${error}`);
-      }
+  const streamExpressions = [
+    ...(config.excludedStreamExpressions ?? []),
+    ...(config.requiredStreamExpressions ?? []),
+    ...(config.preferredStreamExpressions ?? []),
+    ...(config.includedStreamExpressions ?? []),
+  ];
+
+  for (const expression of streamExpressions) {
+    try {
+      await StreamSelector.testSelect(expression);
+    } catch (error) {
+      throw new Error(`Invalid stream expression: ${expression}: ${error}`);
     }
   }
 
@@ -550,6 +567,17 @@ function validateOption(
         `Option ${option.id} must be an array, got ${typeof value}`
       );
     }
+    if (option.constraints?.max && value.length > option.constraints.max) {
+      throw new Error(
+        `Option ${option.id} must be at most ${option.constraints.max} items, got ${value.length}`
+      );
+    }
+    if (option.constraints?.min && value.length < option.constraints.min) {
+      throw new Error(
+        `Option ${option.id} must be at least ${option.constraints.min} items, got ${value.length}`
+      );
+    }
+    return value;
   }
 
   if (option.type === 'select') {
