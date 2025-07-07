@@ -43,9 +43,15 @@ export class StremioTransformer {
   }
 
   async transformStreams(
-    response: AIOStreamsResponse<ParsedStream[]>
+    response: AIOStreamsResponse<{
+      streams: ParsedStream[];
+      statistics: { title: string; description: string }[];
+    }>
   ): Promise<AIOStreamResponse> {
-    const { data: streams, errors } = response;
+    const {
+      data: { streams, statistics },
+      errors,
+    } = response;
 
     let transformedStreams: AIOStream[] = [];
 
@@ -110,6 +116,7 @@ export class StremioTransformer {
             : undefined,
           infoHash:
             stream.type === 'p2p' ? stream.torrent?.infoHash : undefined,
+          fileIdx: stream.type === 'p2p' ? stream.torrent?.fileIdx : undefined,
           ytId: stream.type === 'youtube' ? stream.ytId : undefined,
           externalUrl:
             stream.type === 'external' ? stream.externalUrl : undefined,
@@ -163,6 +170,19 @@ export class StremioTransformer {
             errorDescription: error.description,
           })
         )
+      );
+    }
+
+    if (this.userData.showStatistics) {
+      transformedStreams.push(
+        ...statistics.map((statistic) => ({
+          name: statistic.title,
+          description: statistic.description,
+          externalUrl: 'https://github.com/Viren070/AIOStreams',
+          streamData: {
+            type: constants.STATISTIC_STREAM_TYPE,
+          },
+        }))
       );
     }
 

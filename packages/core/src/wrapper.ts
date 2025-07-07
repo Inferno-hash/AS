@@ -129,7 +129,7 @@ export class Wrapper {
             logger.error(formatZodError(manifest.error));
             logger.error(JSON.stringify(data, null, 2));
             throw new Error(
-              `Failed to parse manifest for ${this.getAddonName(this.addon)}`
+              `Manifest response could not be parsed: ${formatZodError(manifest.error)}`
             );
           }
           return manifest.data;

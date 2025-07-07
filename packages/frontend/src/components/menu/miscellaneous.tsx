@@ -78,6 +78,22 @@ function Content() {
             }}
           />
         </SettingsCard>
+        <SettingsCard
+          title="Show Statistics"
+          description="AIOStreams will return the statistics of stream fetches and response times for each addon if enabled."
+        >
+          <Switch
+            label="Enable"
+            side="right"
+            value={userData.showStatistics}
+            onValueChange={(value) => {
+              setUserData((prev) => ({
+                ...prev,
+                showStatistics: value,
+              }));
+            }}
+          />
+        </SettingsCard>
         <SettingsCard title="Hide Errors">
           <Switch
             label="Hide Errors"

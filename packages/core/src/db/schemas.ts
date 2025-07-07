@@ -372,6 +372,7 @@ export const UserDataSchema = z.object({
   size: SizeFilterOptions.optional(),
   hideErrors: z.boolean().optional(),
   hideErrorsForResources: z.array(ResourceSchema).optional(),
+  showStatistics: z.boolean().optional(),
   tmdbAccessToken: z.string().optional(),
   titleMatching: z
     .object({

@@ -121,7 +121,12 @@ export class AIOStreams {
     id: string,
     type: string,
     preCaching: boolean = false
-  ): Promise<AIOStreamsResponse<ParsedStream[]>> {
+  ): Promise<
+    AIOStreamsResponse<{
+      streams: ParsedStream[];
+      statistics: { title: string; description: string }[];
+    }>
+  > {
     logger.info(`Handling stream request`, { type, id });
 
     // get a list of all addons that support the stream resource with the given type and id.
@@ -156,7 +161,7 @@ export class AIOStreams {
     // get all parsed stream objects and errors from all addons that have the stream resource.
     // and that support the type and match the id prefix
 
-    const { streams, errors } = await this.fetcher.fetch(
+    const { streams, errors, statistics } = await this.fetcher.fetch(
       supportedAddons,
       type,
       id
@@ -257,11 +262,14 @@ export class AIOStreams {
     // step 9
     // return the final list of streams, followed by the error streams.
     logger.info(
-      `Returning ${finalStreams.length} streams and ${errors.length} errors`
+      `Returning ${finalStreams.length} streams and ${errors.length} errors and ${statistics.length} statistic`
     );
     return {
       success: true,
-      data: finalStreams,
+      data: {
+        streams: finalStreams,
+        statistics: statistics,
+      },
       errors: errors,
     };
   }
@@ -992,16 +1000,14 @@ export class AIOStreams {
   private async assignPublicIps() {
     let userIp = this.userData.ip;
     let proxyIp = undefined;
-    if (this.userData.proxy && this.userData.proxy.enabled) {
+    if (this.userData.proxy?.enabled) {
       proxyIp = await this.getProxyIp();
     }
     for (const addon of this.addons) {
       const proxy =
-        this.userData.proxy &&
+        this.userData.proxy?.enabled &&
         (!this.userData.proxy?.proxiedAddons?.length ||
-          this.userData.proxy.proxiedAddons.includes(
-            addon.presetInstanceId || ''
-          ));
+          this.userData.proxy.proxiedAddons.includes(addon.presetInstanceId));
       logger.debug(
         `Using ${proxy ? 'proxy' : 'user'} ip for ${getAddonName(addon)}: ${
           proxy
@@ -1104,7 +1110,7 @@ export class AIOStreams {
       true
     );
     if (nextStreamsResponse.success) {
-      const nextStreams = nextStreamsResponse.data;
+      const nextStreams = nextStreamsResponse.data.streams;
       const serviceStreams = nextStreams.filter((stream) => stream.service);
       if (
         serviceStreams.every((stream) => stream.service?.cached === false) || // only if all streams are uncached

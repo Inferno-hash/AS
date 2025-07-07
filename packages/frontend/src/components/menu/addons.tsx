@@ -575,16 +575,20 @@ function SortableAddonItem({
     let active = true;
 
     if (presetMetadata.ID === 'custom' && preset.options.manifestUrl) {
-      const cached = manifestCache.get(preset.options.manifestUrl);
+      const manifestUrl = preset.options.manifestUrl.replace(
+        /^stremio:\/\//,
+        'https://'
+      );
+      const cached = manifestCache.get(manifestUrl);
       if (cached) {
         setIsConfigurable(cached.behaviorHints?.configurable === true);
         return; // Don't fetch again
       }
 
-      fetch(preset.options.manifestUrl)
+      fetch(manifestUrl)
         .then((r) => r.json())
         .then((manifest) => {
-          manifestCache.set(preset.options.manifestUrl, manifest);
+          manifestCache.set(manifestUrl, manifest);
           if (active) {
             setIsConfigurable(manifest?.behaviorHints?.configurable === true);
           }
@@ -648,10 +652,9 @@ function SortableAddonItem({
 
   const getConfigureUrl = () => {
     if (!preset.options.manifestUrl) return '';
-    return preset.options.manifestUrl.replace(
-      /\/manifest\.json$/,
-      '/configure'
-    );
+    return preset.options.manifestUrl
+      .replace(/^stremio:\/\//, 'https://')
+      .replace(/\/manifest\.json$/, '/configure');
   };
 
   return (

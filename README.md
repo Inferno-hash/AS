@@ -129,8 +129,6 @@ For detailed instructions, check out the Wiki:
 - **[Deployment Guide](https://github.com/Viren070/AIOStreams/wiki/Deployment)**
 - **[Configuration Guide](https://github.com/Viren070/AIOStreams/wiki/Configuration)**
 
----
-
 ## ❤️ Support the Project
 
 AIOStreams is a passion project developed and maintained for free. If you find it useful, please consider supporting its development.
@@ -141,6 +139,14 @@ AIOStreams is a passion project developed and maintained for free. If you find i
 - ☕ **Donate**:
   - **[Ko-fi](https://ko-fi.com/viren070)**
   - **[GitHub Sponsors](https://github.com/sponsors/Viren070)**
+
+---
+
+<h2 align="center"> ⭐ Star History</h2>
+
+<p align="center">
+  <img src="https://api.star-history.com/svg?repos=Viren070/AIOStreams&type=Date" href="https://www.star-history.com/#Viren070/AIOStreams&Date" alt="Filtering and Sorting Rules" width="750"/>
+</p>
 
 ---
 

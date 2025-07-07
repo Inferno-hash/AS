@@ -31,8 +31,16 @@ class StreamFetcher {
       title: string;
       description: string;
     }[];
+    statistics: {
+      title: string;
+      description: string;
+    }[];
   }> {
     const allErrors: {
+      title: string;
+      description: string;
+    }[] = [];
+    const allStatisticStreams: {
       title: string;
       description: string;
     }[] = [];
@@ -46,6 +54,7 @@ class StreamFetcher {
     const fetchFromAddon = async (addon: Addon) => {
       let summaryMsg = '';
       const start = Date.now();
+
       try {
         const streams = await new Wrapper(addon).getStreams(type, id);
         const errorStreams = streams.filter(
@@ -71,14 +80,27 @@ class StreamFetcher {
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   ✔ Status      : ${errorStreams.length > 0 ? 'PARTIAL SUCCESS' : 'SUCCESS'}
   📦 Streams    : ${streams.length}
-${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    • ${s.error?.title || 'Unknown error'}: ${s.error?.description || 'No description'}`).join('\n')}` : ''}
   📋 Details    : ${
     errorStreams.length > 0
-      ? `Found errors:\n${errorStreams.map((s) => `    • ${s.error?.title || 'Unknown error'}: ${s.error?.description || 'No description'}`).join('\n')}`
+      ? `Fetched streams with errors:\n${errorStreams.map((s) => `    • ${s.error?.title || 'Unknown error'}: ${s.error?.description || 'No description'}`).join('\n')}`
       : 'Successfully fetched streams.'
   }
   ⏱️ Time       : ${getTimeTakenSincePoint(start)}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+        let statisticStream = {
+          title: `${errorStreams.length > 0 ? '🟠' : '🟢'} [${getAddonName(addon)}] Scrape Summary`,
+          description: `✔ Status      : ${errorStreams.length > 0 ? 'PARTIAL SUCCESS' : 'SUCCESS'}
+📦 Streams    : ${streams.length}
+📋 Details    : ${
+            errorStreams.length > 0
+              ? `Fetched streams with errors:\n${errorStreams.map((s) => `    • ${s.error?.title || 'Unknown error'}: ${s.error?.description || 'No description'}`).join('\n')}`
+              : 'Successfully fetched streams.'
+          }
+⏱️ Time       : ${getTimeTakenSincePoint(start)}
+`,
+        };
+        allStatisticStreams.push(statisticStream);
+
         return {
           success: true as const,
           streams: streams.filter(
@@ -206,7 +228,11 @@ ${errorStreams.length > 0 ? `  ❌ Errors     : ${errorStreams.map((s) => `    �
     logger.info(
       `Fetched ${allStreams.length} streams from ${addons.length} addons in ${getTimeTakenSincePoint(start)}`
     );
-    return { streams: allStreams, errors: allErrors };
+    return {
+      streams: allStreams,
+      errors: allErrors,
+      statistics: allStatisticStreams,
+    };
   }
 }
 
