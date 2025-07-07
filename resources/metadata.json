@@ -1,8 +1,8 @@
 {
-  "version": "2.5.0",
+  "version": "2.5.1",
   "description": "AIOStreams consolidates multiple Stremio addons and debrid services into a single, easily configurable addon. It allows highly customisable filtering, sorting, and formatting of results and supports proxying all your streams through MediaFlow Proxy or StremThru for improved compatibility and IP restriction bypassing.",
   "tag": "",
-  "commitHash": "b32b57a",
-  "buildTime": "2025-07-04T08:45:55.036Z",
-  "commitTime": "2025-07-04T08:45:22.000Z"
+  "commitHash": "1b00ccb",
+  "buildTime": "2025-07-07T08:22:24.169Z",
+  "commitTime": "2025-07-07T08:21:56.000Z"
 }
