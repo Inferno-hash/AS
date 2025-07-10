@@ -776,15 +776,17 @@ export class AIOStreams {
               ...new Set([...existing.idPrefixes, ...resource.idPrefixes]),
             ];
           } else {
-            logger.warn(
-              `Addon ${getAddonName(addon)} does not provide idPrefixes for type ${resource.name}, setting idPrefixes to undefined`
-            );
+            if (resource.name !== 'catalog') {
+              logger.warn(
+                `Addon ${getAddonName(addon)} does not provide idPrefixes for type ${resource.name}, setting idPrefixes to undefined`
+              );
+            }
             // if an addon for this type does not provide idPrefixes, we set it to undefined
             // to ensure it works with at least some platforms on stremio rather than none.
             existing.idPrefixes = undefined;
           }
         } else {
-          if (!resource.idPrefixes?.length) {
+          if (!resource.idPrefixes?.length && resource.name !== 'catalog') {
             logger.warn(
               `Addon ${getAddonName(addon)} does not provide idPrefixes for type ${resource.name}, setting idPrefixes to undefined`
             );
