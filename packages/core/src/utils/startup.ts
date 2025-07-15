@@ -1155,6 +1155,19 @@ const logStartupInfo = () => {
     }
   });
 
+  // AI Search
+  logKeyValue('AI Search:', Env.AI_SEARCH_URL);
+  if (Env.DEFAULT_AI_SEARCH_TIMEOUT) {
+    logKeyValue(
+      '  Timeout:',
+      formatMilliseconds(Env.DEFAULT_AI_SEARCH_TIMEOUT),
+      '     '
+    );
+  }
+  if (Env.DEFAULT_AI_SEARCH_USER_AGENT) {
+    logKeyValue('  User Agent:', Env.DEFAULT_AI_SEARCH_USER_AGENT, '     ');
+  }
+
   // Additional Features
   const features: string[] = [];
   if (Env.TMDB_ACCESS_TOKEN) features.push('TMDB Integration');

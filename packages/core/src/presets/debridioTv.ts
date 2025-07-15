@@ -60,24 +60,36 @@ export class DebridioTvPreset extends Preset {
         value: 'usa',
       },
       {
+        label: 'Canada',
+        value: 'ca',
+      },
+      {
         label: 'Mexico',
         value: 'mx',
       },
       {
-        label: 'UK',
+        label: 'United Kingdom',
         value: 'uk',
       },
       {
-        label: 'France',
-        value: 'fr',
+        label: 'Australia',
+        value: 'au',
       },
       {
         label: 'Chile',
         value: 'cl',
       },
       {
+        label: 'France',
+        value: 'fr',
+      },
+      {
         label: 'Italy',
         value: 'it',
+      },
+      {
+        label: 'South Africa',
+        value: 'za',
       },
       {
         label: 'Estonia',

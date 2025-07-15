@@ -776,7 +776,7 @@ export class AIOStreams {
               ...new Set([...existing.idPrefixes, ...resource.idPrefixes]),
             ];
           } else {
-            if (resource.name !== 'catalog') {
+            if (resource.name !== 'catalog' && !resource.idPrefixes?.length) {
               logger.warn(
                 `Addon ${getAddonName(addon)} does not provide idPrefixes for type ${resource.name}, setting idPrefixes to undefined`
               );
@@ -862,6 +862,17 @@ export class AIOStreams {
       )}`
     );
 
+    // if meta resouce exists, and aiostreamserror to idPrefixes only if idPrefixes is defined
+    const metaResource = this.finalResources.find((r) => r.name === 'meta');
+    if (metaResource) {
+      if (metaResource.idPrefixes) {
+        metaResource.idPrefixes = [
+          ...metaResource.idPrefixes,
+          'aiostreamserror',
+        ];
+      }
+    }
+
     if (this.userData.catalogModifications) {
       this.finalCatalogs = this.finalCatalogs
         // Sort catalogs based on catalogModifications order, with non-modified catalogs at the end
@@ -920,7 +931,10 @@ export class AIOStreams {
               genreExtra.isRequired = true;
             } else {
               // add a new genre extra with only one option 'None'
-              catalog.extra?.push({
+              if (!catalog.extra) {
+                catalog.extra = [];
+              }
+              catalog.extra.push({
                 name: 'genre',
                 options: ['None'],
                 isRequired: true,

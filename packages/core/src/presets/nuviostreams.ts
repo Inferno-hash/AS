@@ -137,6 +137,10 @@ export class NuvioStreamsPreset extends Preset {
         value: 'topmovies',
         label: 'TopMovies - Bollywood/Indian',
       },
+      {
+        value: 'animepahe',
+        label: 'AnimePahe - Anime',
+      },
     ];
 
     const options: Option[] = [

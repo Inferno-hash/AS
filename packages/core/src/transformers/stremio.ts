@@ -313,7 +313,7 @@ export class StremioTransformer {
       errorDescription = 'Unknown error',
     } = options;
     return {
-      id: `error.${errorTitle}`,
+      id: `aiostreamserror.${encodeURIComponent(JSON.stringify(options))}`,
       name: errorTitle,
       description: errorDescription,
       type: 'movie',

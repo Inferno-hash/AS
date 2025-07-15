@@ -71,11 +71,15 @@ export class WebStreamrPreset extends Preset {
 
     const providers = [
       {
+        label: '🌐 Multi (VixSrc)',
+        value: 'multi',
+      },
+      {
         label: '🇺🇸 English (Soaper, VidSrc)',
         value: 'en',
       },
       {
-        label: '🇩🇪 German (KinoGer, MeineCloud, StreamKiste)',
+        label: '🇩🇪 German (KinoGer, MegaKino, MeineCloud, StreamKiste)',
         value: 'de',
       },
       {
@@ -83,11 +87,11 @@ export class WebStreamrPreset extends Preset {
         value: 'es',
       },
       {
-        label: '🇫🇷 French (Frembed, FrenchCloud)',
+        label: '🇫🇷 French (Frembed, FrenchCloud, Movix)',
         value: 'fr',
       },
       {
-        label: '🇮🇹 Italian (Eurostreaming, MostraGuarda)',
+        label: '🇮🇹 Italian (VixSrc, Eurostreaming, MostraGuarda)',
         value: 'it',
       },
       {
@@ -183,12 +187,23 @@ export class WebStreamrPreset extends Preset {
       options.includeExternalUrls ?? undefined, // ensure its removed if false
     ].filter(Boolean);
 
-    const config = this.urlEncodeJSON({
+    let config = {
       ...checkedOptions.reduce((acc, option) => {
         acc[option] = 'on';
         return acc;
       }, {}),
-    });
+    };
+
+    if (
+      userData.proxy?.enabled &&
+      userData.proxy.id === 'mediaflow' &&
+      userData.proxy.credentials
+    ) {
+      config.mediaFlowProxyUrl = userData.proxy.url;
+      config.mediaFlowProxyPassword = userData.proxy.credentials;
+    }
+
+    config = this.urlEncodeJSON(config);
 
     return `${url}${config ? '/' + config : ''}/manifest.json`;
   }

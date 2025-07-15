@@ -40,6 +40,7 @@ import { ArgentinaTVPreset } from './argentinaTv';
 import { OpenSubtitlesV3PlusPreset } from './opensubtitles-v3-plus';
 import { SubSourcePreset } from './subsource';
 import { SubDLPreset } from './subdl';
+import { AISearchPreset } from './aiSearch';
 
 const PRESET_LIST: string[] = [
   'custom',
@@ -65,6 +66,7 @@ const PRESET_LIST: string[] = [
   'argentina-tv',
   'debridio-tv',
   'debridio-watchtower',
+  'ai-search',
   'tmdb-addon',
   'debridio-tmdb',
   'debridio-tvdb',
@@ -186,6 +188,8 @@ export class PresetManager {
         return SubSourcePreset;
       case 'subdl':
         return SubDLPreset;
+      case 'ai-search':
+        return AISearchPreset;
       default:
         throw new Error(`Preset ${id} not found`);
     }

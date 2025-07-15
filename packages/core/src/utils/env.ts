@@ -1212,6 +1212,19 @@ export const Env = cleanEnv(process.env, {
     desc: 'Default OpenSubtitles V3 Plus user agent',
   }),
 
+  AI_SEARCH_URL: url({
+    default: 'https://stremio.itcon.au',
+    desc: 'AI Search URL',
+  }),
+  DEFAULT_AI_SEARCH_TIMEOUT: num({
+    default: undefined,
+    desc: 'Default AI Search timeout',
+  }),
+  DEFAULT_AI_SEARCH_USER_AGENT: userAgent({
+    default: undefined,
+    desc: 'Default AI Search user agent',
+  }),
+
   // Rate limiting settings
   DISABLE_RATE_LIMITS: bool({
     default: false,
