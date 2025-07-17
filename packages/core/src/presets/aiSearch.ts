@@ -175,6 +175,18 @@ export class AISearchPreset extends Preset {
           max: 30,
         },
       },
+      {
+        id: 'socials',
+        name: '',
+        description: '',
+        type: 'socials',
+        socials: [
+          {
+            id: 'buymeacoffee',
+            url: 'https://buymeacoffee.com/itcon',
+          },
+        ],
+      },
     ];
 
     return {

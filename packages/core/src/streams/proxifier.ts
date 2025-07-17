@@ -2,7 +2,7 @@ import { ParsedStream, UserData } from '../db/schemas';
 import { createLogger } from '../utils';
 import { createProxy } from '../proxy';
 
-const logger = createLogger('proxifier');
+const logger = createLogger('proxy');
 
 class Proxifier {
   private userData: UserData;

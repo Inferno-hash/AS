@@ -41,7 +41,7 @@ class DebridioWatchtowerStreamParser extends StreamParser {
       ])
     );
 
-    parsedStream.message = stream.name
+    parsedStream.indexer = stream.name
       ? (stream.name?.split('\n')?.[0]?.match(/\[([^\]]+)\]/)?.[1] ?? undefined)
       : undefined;
 

@@ -24,6 +24,10 @@ const ACCESS_TOKEN_CACHE_TTL = 2 * 24 * 60 * 60; // 2 day
 export interface Metadata {
   titles: string[];
   year?: string;
+  seasons?: {
+    season_number: number;
+    episode_count: number;
+  }[];
 }
 
 export class TMDBMetadata {
@@ -122,7 +126,11 @@ export class TMDBMetadata {
       return { titles: [], year: undefined };
     }
 
-    let metadata: Metadata = { titles: [], year: undefined };
+    let metadata: Metadata = {
+      titles: [],
+      year: undefined,
+      seasons: undefined,
+    };
 
     const externalId = this.parseExternalId(id);
     if (!externalId) {
@@ -162,6 +170,13 @@ export class TMDBMetadata {
     const year = this.parseReleaseDate(
       type === 'movie' ? detailsData.release_date : detailsData.first_air_date
     );
+    const seasons =
+      type === 'series'
+        ? detailsData.seasons.map((season: any) => ({
+            season_number: season.season_number,
+            episode_count: season.episode_count,
+          }))
+        : undefined;
 
     // Fetch alternative titles
     const altTitlesUrl = new URL(
@@ -193,7 +208,7 @@ export class TMDBMetadata {
     const uniqueTitles = [...new Set(allTitles)];
     metadata.titles = uniqueTitles;
     metadata.year = year;
-
+    metadata.seasons = seasons;
     // Cache the result
     this.metadataCache.set(cacheKey, metadata, TITLE_CACHE_TTL);
     return metadata;

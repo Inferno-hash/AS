@@ -35,6 +35,7 @@ import {
   formatZodError,
   PossibleRecursiveRequestError,
   Env,
+  getTimeTakenSincePoint,
 } from './utils';
 import { PresetManager } from './presets';
 import { StreamParser } from './parser';
@@ -162,13 +163,18 @@ export class Wrapper {
       Env.STREAM_CACHE_TTL != -1,
       Env.STREAM_CACHE_TTL
     );
+    const start = Date.now();
     const Parser = this.addon.presetType
       ? PresetManager.fromId(this.addon.presetType).getParser()
       : StreamParser;
     const parser = new Parser(this.addon);
-    return streams
+    const parsedStreams = streams
       .flatMap((stream: Stream) => parser.parse(stream))
       .filter((stream: any) => !stream.skip);
+    logger.debug(
+      `Parsed ${parsedStreams.length} streams for ${this.getAddonName(this.addon)} in ${getTimeTakenSincePoint(start)}`
+    );
+    return parsedStreams;
   }
 
   async getCatalog(

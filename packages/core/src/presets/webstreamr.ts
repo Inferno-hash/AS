@@ -34,7 +34,7 @@ class WebStreamrStreamParser extends StreamParser {
     stream: Stream,
     currentParsedStream: ParsedStream
   ): string | undefined {
-    const messageRegex = this.getRegexForTextAfterEmojis(['🐢']);
+    const messageRegex = this.getRegexForTextAfterEmojis(['🐢', '🚦']);
 
     let messages = [stream.description?.match(messageRegex)?.[1]];
     if (stream.name?.includes('external')) {
@@ -49,11 +49,8 @@ class WebStreamrStreamParser extends StreamParser {
   ): string | undefined {
     let filename = undefined;
     const resolution = stream.name?.match(/\d+p?/i)?.[0];
-    if (stream.description?.split('\n')?.[0]?.includes('📂')) {
-      filename = stream.description
-        ?.split('\n')?.[0]
-        ?.replace('📂', '')
-        ?.trim();
+    if (!stream.description?.split('\n')?.[0]?.includes('🔗')) {
+      filename = stream.description?.split('\n')?.[0]?.trim();
     }
 
     const str = `${filename ? filename + ' ' : ''}${resolution ? resolution : ''}`;

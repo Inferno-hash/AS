@@ -168,6 +168,7 @@ function Content() {
       const dataStr = JSON.stringify(
         {
           ...userData,
+          ip: filterCredentialsInExport ? undefined : userData.ip,
           uuid: filterCredentialsInExport ? undefined : userData.uuid,
           tmdbAccessToken: filterCredentialsInExport
             ? undefined
@@ -188,6 +189,9 @@ function Content() {
               ? undefined
               : userData?.proxy?.credentials,
             url: filterCredentialsInExport ? undefined : userData?.proxy?.url,
+            publicUrl: filterCredentialsInExport
+              ? undefined
+              : userData?.proxy?.publicUrl,
           },
           presets: userData?.presets?.map((preset) => {
             const presetMeta = status?.settings.presets.find(

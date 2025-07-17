@@ -53,7 +53,7 @@ function getServiceCredentialDefault(
           return Env.DEFAULT_REALDEBRID_API_KEY;
       }
       break;
-    case constants.ALLEDEBRID_SERVICE:
+    case constants.ALLDEBRID_SERVICE:
       switch (credentialId) {
         case 'apiKey':
           return Env.DEFAULT_ALLDEBRID_API_KEY;
@@ -140,7 +140,7 @@ function getServiceCredentialForced(
           return Env.FORCED_REALDEBRID_API_KEY;
       }
       break;
-    case constants.ALLEDEBRID_SERVICE:
+    case constants.ALLDEBRID_SERVICE:
       switch (credentialId) {
         case 'apiKey':
           return Env.FORCED_ALLDEBRID_API_KEY;
@@ -671,6 +671,20 @@ async function validateProxy(
   proxy.url = Env.FORCE_PROXY_URL
     ? (encryptString(Env.FORCE_PROXY_URL).data ?? undefined)
     : (proxy.url ?? undefined);
+  let forcedPublicUrl: string | undefined;
+  if (
+    proxy.url &&
+    (Env.FORCE_PUBLIC_PROXY_HOST !== undefined ||
+      Env.FORCE_PUBLIC_PROXY_PROTOCOL !== undefined ||
+      Env.FORCE_PUBLIC_PROXY_PORT !== undefined)
+  ) {
+    const proxyUrl = new URL(proxy.url);
+    forcedPublicUrl = `${Env.FORCE_PUBLIC_PROXY_PROTOCOL ?? proxyUrl.protocol}://${Env.FORCE_PUBLIC_PROXY_HOST ?? proxyUrl.hostname}:${Env.FORCE_PUBLIC_PROXY_PORT ?? proxyUrl.port}`;
+  }
+  forcedPublicUrl = Env.FORCE_PROXY_PUBLIC_URL;
+  proxy.publicUrl = forcedPublicUrl
+    ? (encryptString(forcedPublicUrl).data ?? undefined)
+    : (proxy.publicUrl ?? undefined);
   proxy.credentials = Env.FORCE_PROXY_CREDENTIALS
     ? (encryptString(Env.FORCE_PROXY_CREDENTIALS).data ?? undefined)
     : (proxy.credentials ?? undefined);
@@ -708,6 +722,15 @@ async function validateProxy(
         );
       }
       proxy.url = data;
+    }
+    if (proxy.publicUrl && isEncrypted(proxy.publicUrl) && decryptCredentials) {
+      const { success, data, error } = decryptString(proxy.publicUrl);
+      if (!success) {
+        throw new Error(
+          `Proxy public URL for ${proxy.id} is encrypted but failed to decrypt: ${error}`
+        );
+      }
+      proxy.publicUrl = data;
     }
 
     // use decrypted proxy config for validation.

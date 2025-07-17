@@ -14,6 +14,8 @@ import {
   maskSensitiveInfo,
   Cache,
   CatalogExtras,
+  TMDBMetadata,
+  Metadata,
 } from './utils';
 import { Wrapper } from './wrapper';
 import { PresetManager } from './presets';
@@ -348,63 +350,87 @@ export class AIOStreams {
     );
 
     // apply catalog modifications
-
-    if (modification) {
-      if (modification.shuffle && !(extras && extras.includes('search'))) {
-        // shuffle the catalog array if it is not a search
-        const cacheKey = `shuffle-${type}-${actualCatalogId}-${extras}-${this.userData.uuid}`;
-        const cachedShuffle = shuffleCache.get(cacheKey, false);
-        if (cachedShuffle) {
-          catalog = cachedShuffle;
-        } else {
-          for (let i = catalog.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [catalog[i], catalog[j]] = [catalog[j], catalog[i]];
-          }
-          if (modification.persistShuffleFor) {
-            shuffleCache.set(
-              cacheKey,
-              catalog,
-              modification.persistShuffleFor * 3600
-            );
-          }
+    if (modification?.shuffle && !(extras && extras.includes('search'))) {
+      // shuffle the catalog array if it is not a search
+      const cacheKey = `shuffle-${type}-${actualCatalogId}-${extras}-${this.userData.uuid}`;
+      const cachedShuffle = shuffleCache.get(cacheKey, false);
+      if (cachedShuffle) {
+        catalog = cachedShuffle;
+      } else {
+        for (let i = catalog.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [catalog[i], catalog[j]] = [catalog[j], catalog[i]];
+        }
+        if (modification.persistShuffleFor) {
+          shuffleCache.set(
+            cacheKey,
+            catalog,
+            modification.persistShuffleFor * 3600
+          );
         }
       }
-      if (modification.rpdb && this.userData.rpdbApiKey) {
-        const rpdb = new RPDB(this.userData.rpdbApiKey);
-        catalog = catalog.map((item) => {
-          const posterUrl = rpdb.getPosterUrl(
-            type,
-            (item as any).imdb_id || item.id
-          );
-          if (posterUrl) {
-            item.poster = posterUrl;
+    }
+
+    const rpdb =
+      modification?.rpdb && this.userData.rpdbApiKey
+        ? new RPDB(this.userData.rpdbApiKey)
+        : undefined;
+    const ourManifestUrl = `${Env.BASE_URL}/stremio/${this.userData.uuid}/${this.userData.encryptedPassword}/manifest.json`;
+
+    catalog = catalog.map((item) => {
+      // Apply RPDB poster modification
+      if (rpdb) {
+        const posterUrl = rpdb.getPosterUrl(
+          type,
+          (item as any).imdb_id || item.id
+        );
+        if (posterUrl) item.poster = posterUrl;
+      }
+
+      // Apply poster enhancement
+      if (this.userData.enhancePosters && Math.random() < 0.2) {
+        item.poster = Buffer.from(
+          constants.DEFAULT_POSTERS[
+            Math.floor(Math.random() * constants.DEFAULT_POSTERS.length)
+          ],
+          'base64'
+        ).toString('utf-8');
+      }
+
+      if (item.links) {
+        item.links = item.links.map((link) => {
+          try {
+            if (link.url.startsWith('stremio:///discover/')) {
+              const linkUrl = new URL(
+                decodeURIComponent(link.url.split('/')[4])
+              );
+              // see if the linked addon is one of our addons and replace the transport url with our manifest url if so
+              const addon = this.addons.find(
+                (a) => new URL(a.manifestUrl).hostname === linkUrl.hostname
+              );
+              if (addon) {
+                const [_, linkType, catalogIdAndQuery] = link.url
+                  .replace('stremio:///discover/', '')
+                  .split('/');
+                const newCatalogId = `${addon.instanceId}.${catalogIdAndQuery}`;
+                const newTransportUrl = encodeURIComponent(ourManifestUrl);
+                link.url = `stremio:///discover/${newTransportUrl}/${linkType}/${newCatalogId}`;
+              }
+            }
+          } catch (error) {
+            logger.error(`Error converting discover deep link`, {
+              error: error instanceof Error ? error.message : String(error),
+              link: link.url,
+            });
+            // Ignore errors, leave link as is
           }
-          return item;
+          return link;
         });
       }
-    }
+      return item;
+    });
 
-    if (this.userData.enhancePosters) {
-      catalog = catalog.map((item) => {
-        if (Math.random() < 0.2) {
-          item.poster = Buffer.from(
-            constants.DEFAULT_POSTERS[
-              Math.floor(Math.random() * constants.DEFAULT_POSTERS.length)
-            ],
-            'base64'
-          ).toString('utf-8');
-        }
-        return item;
-      });
-    }
-
-    // step 4
-    return {
-      success: true,
-      data: catalog,
-      errors: [],
-    };
+    return { success: true, data: catalog, errors: [] };
   }
 
   public async getMeta(
@@ -548,7 +574,7 @@ export class AIOStreams {
     id: string,
     extras?: string
   ): Promise<AIOStreamsResponse<Subtitle[]>> {
-    logger.info(`getSubtitles: ${id}`);
+    logger.info(`Handling subtitle request`, { type, id, extras });
 
     // Find all addons that support subtitles for this type and id prefix
     const supportedAddons = [];
@@ -1108,23 +1134,50 @@ export class AIOStreams {
     }
     const season = match[1];
     const episode = match[2];
+    let episodeCount = undefined;
+    let metadata: Metadata | undefined;
+    try {
+      metadata = await new TMDBMetadata(
+        this.userData.tmdbAccessToken
+      ).getMetadata(id, type as any);
+      if (metadata?.seasons) {
+        episodeCount = metadata.seasons.find(
+          (s) => s.season_number === Number(season)
+        )?.episode_count;
+      }
+    } catch (error) {
+      logger.warning(`Error getting metadata for ${id}`, {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
     const titleId = id.replace(seasonEpisodeRegex, '');
-    const nextEpisodeId = `${titleId}:${season}:${Number(episode) + 1}`;
+    let episodeToPrecache = Number(episode) + 1;
+    let seasonToPrecache = season;
+    if (episodeCount && Number(episode) === episodeCount) {
+      const nextSeason = Number(season) + 1;
+      if (metadata?.seasons?.find((s) => s.season_number === nextSeason)) {
+        logger.debug(
+          `Detected that the current episode is the last episode of the season, precaching first episode of next season instead`
+        );
+        episodeToPrecache = 1;
+        seasonToPrecache = nextSeason.toString();
+      }
+    }
+    const precacheId = `${titleId}:${seasonToPrecache}:${episodeToPrecache}`;
     logger.info(`Pre-caching next episode of ${titleId}`, {
       season,
       episode,
-      nextEpisode: Number(episode) + 1,
-      nextEpisodeId,
+      episodeToPrecache,
+      seasonToPrecache,
+      precacheId,
     });
     // modify userData to remove the excludeUncached filter
     const userData = structuredClone(this.userData);
     userData.excludeUncached = false;
+    userData.groups = undefined;
     this.setUserData(userData);
-    const nextStreamsResponse = await this.getStreams(
-      nextEpisodeId,
-      type,
-      true
-    );
+    const nextStreamsResponse = await this.getStreams(precacheId, type, true);
     if (nextStreamsResponse.success) {
       const nextStreams = nextStreamsResponse.data.streams;
       const serviceStreams = nextStreams.filter((stream) => stream.service);

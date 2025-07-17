@@ -92,6 +92,10 @@ export class DebridioTvPreset extends Preset {
         value: 'za',
       },
       {
+        label: 'New Zealand',
+        value: 'nz',
+      },
+      {
         label: 'Estonia',
         value: 'ee',
       },

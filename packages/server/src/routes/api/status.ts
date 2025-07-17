@@ -13,6 +13,10 @@ const router = Router();
 
 router.get('/', async (req: Request, res: Response) => {
   const userCount = await UserRepository.getUserCount();
+  let forcedPublicProxyUrl = Env.FORCE_PROXY_PUBLIC_URL;
+  if (Env.FORCE_PUBLIC_PROXY_HOST) {
+    forcedPublicProxyUrl = `${Env.FORCE_PUBLIC_PROXY_PROTOCOL}://${Env.FORCE_PUBLIC_PROXY_HOST}:${Env.FORCE_PUBLIC_PROXY_PORT}`;
+  }
   const info: StatusResponse = {
     version: Env.VERSION,
     tag: Env.TAG,
@@ -35,6 +39,9 @@ router.get('/', async (req: Request, res: Response) => {
           url: !!Env.FORCE_PROXY_URL
             ? encryptString(Env.FORCE_PROXY_URL).data
             : null,
+          publicUrl: !!forcedPublicProxyUrl
+            ? encryptString(forcedPublicProxyUrl).data
+            : null,
           publicIp: Env.FORCE_PROXY_PUBLIC_IP ?? null,
           credentials: !!Env.FORCE_PROXY_CREDENTIALS
             ? encryptString(Env.FORCE_PROXY_CREDENTIALS).data
@@ -50,6 +57,7 @@ router.get('/', async (req: Request, res: Response) => {
           url: !!Env.DEFAULT_PROXY_URL
             ? encryptString(Env.DEFAULT_PROXY_URL).data
             : null,
+          publicUrl: Env.DEFAULT_PROXY_PUBLIC_URL ?? null,
           publicIp: Env.DEFAULT_PROXY_PUBLIC_IP ?? null,
           credentials: !!Env.DEFAULT_PROXY_CREDENTIALS
             ? encryptString(Env.DEFAULT_PROXY_CREDENTIALS).data

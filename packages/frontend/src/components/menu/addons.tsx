@@ -671,7 +671,7 @@ function SortableAddonItem({
         />
         <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
           <div className="relative flex-shrink-0 h-8 w-8 hidden sm:block">
-            {presetMetadata.ID === 'custom' ? (
+            {presetMetadata.ID === 'custom' || !presetMetadata.LOGO ? (
               <IoExtensionPuzzle className="w-full h-full object-contain" />
             ) : (
               <Image
