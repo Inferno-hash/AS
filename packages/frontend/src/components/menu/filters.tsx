@@ -79,6 +79,7 @@ import { toast } from 'sonner';
 import { Slider } from '../ui/slider/slider';
 import { TbFilterCode } from 'react-icons/tb';
 import { PasswordInput } from '../ui/password-input';
+import MarkdownLite from '../shared/markdown-lite';
 
 type Resolution = (typeof RESOLUTIONS)[number];
 type Quality = (typeof QUALITIES)[number];
@@ -132,26 +133,17 @@ const tabsRootClass = cn(
 
 const tabsTriggerClass = cn(
   'font-bold text-base px-6 rounded-[--radius-md] w-fit lg:w-full border-none data-[state=active]:bg-[--subtle] data-[state=active]:text-white dark:hover:text-white',
-  'h-10 lg:justify-start px-3'
+  'h-9 lg:justify-start px-3 transition-all duration-200 hover:bg-[--subtle]/50 hover:transform'
 );
 
 const tabsListClass = cn(
   'w-full flex flex-wrap lg:flex-nowrap h-fit xl:h-10',
-  'lg:block'
+  'lg:block p-2 lg:p-0'
 );
 
-interface SizeFilterOptions {
-  global?: {
-    series?: [number, number];
-    movies?: [number, number];
-  };
-  resolution?: {
-    [key: string]: {
-      movies?: [number, number];
-      series?: [number, number];
-    };
-  };
-}
+const tabsContentClass = cn(
+  'space-y-4 animate-in fade-in-0 slide-in-from-right-2 duration-300'
+);
 
 export function FiltersMenu() {
   return (
@@ -168,6 +160,7 @@ function Content() {
   const { status } = useStatus();
   const previousTab = useRef(tab);
   const { userData, setUserData } = useUserData();
+  const allowedRegexModal = useDisclosure(false);
   useEffect(() => {
     if (tab !== previousTab.current) {
       previousTab.current = tab;
@@ -221,6 +214,7 @@ function Content() {
         className={tabsRootClass}
         triggerClass={tabsTriggerClass}
         listClass={tabsListClass}
+        contentClass={tabsContentClass}
       >
         <TabsList className="flex-wrap max-w-full lg:space-y-2">
           <SettingsNavCard>
@@ -231,7 +225,7 @@ function Content() {
               <div></div>
             </div>
 
-            <div className="overflow-x-none lg:overflow-y-hidden overflow-y-scroll h-40 lg:h-auto rounded-[--radius-md] border lg:border-none">
+            <div className="overflow-x-none overflow-y-scroll lg:overflow-y-hidden h-40 lg:h-auto rounded-[--radius-md] border lg:border-none [--webkit-overflow-scrolling:touch]">
               <TabsTrigger value="cache">
                 <FaBolt className="text-lg mr-3" />
                 Cache
@@ -284,7 +278,8 @@ function Content() {
                 <TbFilterCode className="text-lg mr-3" />
                 Stream Expression
               </TabsTrigger>
-              {status?.settings.regexFilterAccess !== 'none' && (
+              {(status?.settings.regexFilterAccess !== 'none' ||
+                status?.settings.allowedRegexPatterns) && (
                 <TabsTrigger value="regex">
                   <BsRegex className="text-lg mr-3" />
                   Regex
@@ -308,7 +303,7 @@ function Content() {
 
         <div className="space-y-0 relative">
           <TabsContent value="cache" className="space-y-4">
-            <PageWrapper>
+            <>
               <HeadingWithPageControls heading="Cache" />
               <div className="space-y-4">
                 <SettingsCard
@@ -516,11 +511,11 @@ function Content() {
                   </div>
                 </SettingsCard>
               </div>
-            </PageWrapper>
+            </>
           </TabsContent>
 
           <TabsContent value="resolution" className="space-y-4">
-            <PageWrapper>
+            <>
               <HeadingWithPageControls heading="Resolution" />
               <FilterSettings<Resolution>
                 filterName="Resolutions"
@@ -559,10 +554,10 @@ function Content() {
                   value: resolution,
                 }))}
               />
-            </PageWrapper>
+            </>
           </TabsContent>
           <TabsContent value="quality" className="space-y-4">
-            <PageWrapper>
+            <>
               <HeadingWithPageControls heading="Quality" />
               <FilterSettings<Quality>
                 filterName="Qualities"
@@ -601,10 +596,10 @@ function Content() {
                   value: quality,
                 }))}
               />
-            </PageWrapper>
+            </>
           </TabsContent>
           <TabsContent value="encode" className="space-y-4">
-            <PageWrapper>
+            <>
               <HeadingWithPageControls heading="Encode" />
               <FilterSettings<Encode>
                 filterName="Encodes"
@@ -643,10 +638,10 @@ function Content() {
                   value: encode,
                 }))}
               />
-            </PageWrapper>
+            </>
           </TabsContent>
           <TabsContent value="stream-type" className="space-y-4">
-            <PageWrapper>
+            <>
               <HeadingWithPageControls heading="Stream Type" />
               <FilterSettings<StreamType>
                 filterName="Stream Types"
@@ -685,10 +680,10 @@ function Content() {
                   value: streamType,
                 }))}
               />
-            </PageWrapper>
+            </>
           </TabsContent>
           <TabsContent value="visual-tag" className="space-y-4">
-            <PageWrapper>
+            <>
               <HeadingWithPageControls heading="Visual Tag" />
               <FilterSettings<VisualTag>
                 filterName="Visual Tags"
@@ -727,10 +722,10 @@ function Content() {
                   value: visualTag,
                 }))}
               />
-            </PageWrapper>
+            </>
           </TabsContent>
           <TabsContent value="audio-tag" className="space-y-4">
-            <PageWrapper>
+            <>
               <HeadingWithPageControls heading="Audio Tag" />
               <FilterSettings<AudioTag>
                 filterName="Audio Tags"
@@ -767,10 +762,10 @@ function Content() {
                   value: audioTag,
                 }))}
               />
-            </PageWrapper>
+            </>
           </TabsContent>
           <TabsContent value="audio-channel" className="space-y-4">
-            <PageWrapper>
+            <>
               <HeadingWithPageControls heading="Audio Channel" />
               <FilterSettings<AudioChannel>
                 filterName="Audio Channels"
@@ -807,10 +802,10 @@ function Content() {
                   value: audioChannel,
                 }))}
               />
-            </PageWrapper>
+            </>
           </TabsContent>
           <TabsContent value="language" className="space-y-4">
-            <PageWrapper>
+            <>
               <HeadingWithPageControls heading="Language" />
               <FilterSettings<Language>
                 filterName="Languages"
@@ -850,10 +845,10 @@ function Content() {
                   value: language,
                 }))}
               />
-            </PageWrapper>
+            </>
           </TabsContent>
           <TabsContent value="seeders" className="space-y-4">
-            <PageWrapper>
+            <>
               <HeadingWithPageControls heading="Seeders" />
               <SettingsCard
                 title="Seeder Filters"
@@ -1109,10 +1104,10 @@ function Content() {
                   </div>
                 </div>
               </SettingsCard>
-            </PageWrapper>
+            </>
           </TabsContent>
           <TabsContent value="title-matching" className="space-y-4">
-            <PageWrapper>
+            <>
               <HeadingWithPageControls heading="Matching" />
               <div className="space-y-4">
                 <SettingsCard
@@ -1129,22 +1124,6 @@ function Content() {
                         titleMatching: {
                           ...(prev.titleMatching || {}),
                           enabled: value,
-                        },
-                      }));
-                    }}
-                  />
-
-                  <Switch
-                    label="Match Year"
-                    side="right"
-                    disabled={!userData.titleMatching?.enabled}
-                    value={userData.titleMatching?.matchYear ?? false}
-                    onValueChange={(value) => {
-                      setUserData((prev) => ({
-                        ...prev,
-                        titleMatching: {
-                          ...prev.titleMatching,
-                          matchYear: value,
                         },
                       }));
                     }}
@@ -1226,6 +1205,93 @@ function Content() {
                 </SettingsCard>
 
                 <SettingsCard
+                  title="Year Matching"
+                  description="Any streams which don't specifically match the requested year will be filtered out. You can optionally choose to only apply it to specific request types and addons"
+                >
+                  <Switch
+                    label="Enable"
+                    side="right"
+                    value={userData.yearMatching?.enabled ?? false}
+                    onValueChange={(value) => {
+                      setUserData((prev) => ({
+                        ...prev,
+                        yearMatching: {
+                          ...prev.yearMatching,
+                          enabled: value,
+                        },
+                      }));
+                    }}
+                  />
+
+                  <NumberInput
+                    label="Year Tolerance"
+                    disabled={!userData.yearMatching?.enabled}
+                    value={userData.yearMatching?.tolerance ?? 1}
+                    onValueChange={(value) => {
+                      setUserData((prev) => ({
+                        ...prev,
+                        yearMatching: {
+                          ...prev.yearMatching,
+                          tolerance: value,
+                        },
+                      }));
+                    }}
+                    min={0}
+                    max={100}
+                    help="The number of years to tolerate when matching years. For example, if the year tolerance is 5, then a stream with a year of 2020 will match a request for 2025."
+                  />
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Combobox
+                        multiple
+                        disabled={!userData.yearMatching?.enabled}
+                        label="Request Types"
+                        emptyMessage="There aren't any request types to choose from..."
+                        help="Request types that will use year matching. Leave blank to apply to all request types."
+                        options={TYPES.map((type) => ({
+                          label: type,
+                          value: type,
+                          textValue: type,
+                        }))}
+                        value={userData.yearMatching?.requestTypes}
+                        onValueChange={(value) => {
+                          setUserData((prev) => ({
+                            ...prev,
+                            yearMatching: {
+                              ...prev.yearMatching,
+                              requestTypes: value,
+                            },
+                          }));
+                        }}
+                      />
+                      <Combobox
+                        multiple
+                        disabled={!userData.yearMatching?.enabled}
+                        label="Addons"
+                        help="Addons that will use year matching. Leave blank to apply to all addons."
+                        emptyMessage="You haven't installed any addons yet..."
+                        options={userData.presets.map((preset) => ({
+                          label: preset.options.name || preset.type,
+                          textValue: preset.options.name || preset.type,
+                          value: preset.instanceId,
+                        }))}
+                        value={userData.yearMatching?.addons || []}
+                        onValueChange={(value) => {
+                          setUserData((prev) => ({
+                            ...prev,
+                            yearMatching: {
+                              ...prev.yearMatching,
+                              addons: value,
+                            },
+                          }));
+                        }}
+                      />
+                    </div>
+                  </div>
+                </SettingsCard>
+
+                <SettingsCard
                   title="Season/Episode Matching"
                   description="Any streams which don't specifically match the requested season/episode will be filtered out. You can optionally choose to only apply it to specific request types and addons"
                 >
@@ -1296,10 +1362,10 @@ function Content() {
                   </div>
                 </SettingsCard>
               </div>
-            </PageWrapper>
+            </>
           </TabsContent>
           <TabsContent value="stream-expression" className="space-y-4">
-            <PageWrapper>
+            <>
               <HeadingWithPageControls heading="Stream Expression" />
               <div className="mb-4">
                 <p className="text-sm text-[--muted]">
@@ -1484,10 +1550,10 @@ function Content() {
                   }}
                 />
               </div>
-            </PageWrapper>
+            </>
           </TabsContent>
           <TabsContent value="keyword" className="space-y-4">
-            <PageWrapper>
+            <>
               <HeadingWithPageControls heading="Keyword" />
               <div className="mb-4">
                 <p className="text-sm text-[--muted]">
@@ -1585,10 +1651,10 @@ function Content() {
                   }}
                 />
               </div>
-            </PageWrapper>
+            </>
           </TabsContent>
           <TabsContent value="regex" className="space-y-4">
-            <PageWrapper>
+            <>
               <HeadingWithPageControls heading="Regex" />
               <div className="mb-4">
                 <p className="text-sm text-[--muted]">
@@ -1597,21 +1663,55 @@ function Content() {
                   group
                 </p>
               </div>
-              <div className="mb-4">
+              <div className="mb-4 space-y-4">
                 {status?.settings.regexFilterAccess === 'trusted' && (
                   <Alert
                     intent="info"
-                    title="Admin Only"
+                    title="Trusted Users Only"
                     description={
                       <>
                         <p>
                           Regex filters are only available to trusted users due
-                          to the potential for abuse. Ask the owner of the
-                          instance to add your UUID to the{' '}
+                          to the potential for abuse. If you are the owner of
+                          the instance, you can add your UUID to the{' '}
                           <code className="font-mono">TRUSTED_UUIDS</code>{' '}
                           environment variable.
                         </p>
                       </>
+                    }
+                  />
+                )}
+                {status?.settings.allowedRegexPatterns?.patterns.length && (
+                  <Alert
+                    intent="info"
+                    title="Allowed Regex Patterns"
+                    description={
+                      <div className="space-y-2">
+                        <div className="max-w-full overflow-hidden">
+                          <p className="break-words">
+                            This instance has allowed a specific set of regexes
+                            to be used by all users.
+                          </p>
+                          {status?.settings.allowedRegexPatterns
+                            .description && (
+                            <div className="mt-2 break-words overflow-hidden">
+                              <MarkdownLite>
+                                {status?.settings.allowedRegexPatterns
+                                  .description || ''}
+                              </MarkdownLite>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <Button
+                            intent="primary-outline"
+                            size="sm"
+                            onClick={allowedRegexModal.open}
+                          >
+                            View Allowed Patterns
+                          </Button>
+                        </div>
+                      </div>
                     }
                   />
                 )}
@@ -1735,10 +1835,10 @@ function Content() {
                   }}
                 />
               </div>
-            </PageWrapper>
+            </>
           </TabsContent>
           <TabsContent value="size" className="space-y-4">
-            <PageWrapper>
+            <>
               <HeadingWithPageControls heading="Size" />
               <div className="mb-4">
                 <p className="text-sm text-[--muted]">
@@ -1841,10 +1941,10 @@ function Content() {
                   </div>
                 </SettingsCard>
               </div>
-            </PageWrapper>
+            </>
           </TabsContent>
           <TabsContent value="limit" className="space-y-4">
-            <PageWrapper>
+            <>
               <HeadingWithPageControls heading="Result Limits" />
               <SettingsCard description="Apply limits to specific kinds of results">
                 <div className="space-y-4">
@@ -1962,10 +2062,10 @@ function Content() {
                   />
                 </div>
               </SettingsCard>
-            </PageWrapper>
+            </>
           </TabsContent>
           <TabsContent value="deduplicator" className="space-y-4">
-            <PageWrapper>
+            <>
               <HeadingWithPageControls heading="Deduplicator" />
               <div className="mb-4">
                 <p className="text-sm text-[--muted]">
@@ -2119,10 +2219,47 @@ function Content() {
                   />
                 </SettingsCard>
               </div>
-            </PageWrapper>
+            </>
           </TabsContent>
         </div>
       </Tabs>
+
+      {/* Modal for Allowed Regex Patterns */}
+      <Modal
+        open={allowedRegexModal.isOpen}
+        onOpenChange={allowedRegexModal.close}
+        title="Allowed Regex Patterns"
+        description={
+          status?.settings.allowedRegexPatterns?.description && (
+            <MarkdownLite>
+              {status?.settings.allowedRegexPatterns?.description}
+            </MarkdownLite>
+          )
+        }
+      >
+        <div className="space-y-4">
+          <div className="border rounded-md bg-gray-900 border-gray-800 p-4 max-h-96 overflow-auto">
+            <div className="space-y-2">
+              {status?.settings.allowedRegexPatterns?.patterns.map(
+                (pattern, index) => (
+                  <div
+                    key={index}
+                    className="font-mono text-sm bg-gray-800 rounded px-3 py-2 break-all whitespace-pre-wrap"
+                  >
+                    {pattern}
+                  </div>
+                )
+              )}
+              {(!status?.settings.allowedRegexPatterns?.patterns ||
+                status.settings.allowedRegexPatterns.patterns.length === 0) && (
+                <div className="text-muted-foreground text-sm text-center">
+                  No allowed regex patterns configured
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }

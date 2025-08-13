@@ -76,6 +76,10 @@ export class SubHeroPreset extends Preset {
         value: lang,
       };
     });
+    languages.push({
+      label: 'Portuguese (Brazil)',
+      value: 'pb',
+    });
 
     const options: Option[] = [
       ...baseOptions(
@@ -129,8 +133,11 @@ export class SubHeroPreset extends Preset {
       library: false,
       resources: options.resources || this.METADATA.SUPPORTED_RESOURCES,
       timeout: options.timeout || this.METADATA.TIMEOUT,
-      presetType: this.METADATA.ID,
-      presetInstanceId: '',
+      preset: {
+        id: '',
+        type: this.METADATA.ID,
+        options: options,
+      },
       headers: {
         'User-Agent': this.METADATA.USER_AGENT,
       },

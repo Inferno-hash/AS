@@ -44,8 +44,18 @@ import { AISearchPreset } from './aiSearch';
 import { FKStreamPreset } from './fkstream';
 import { AIOSubtitlePreset } from './aiosubtitle';
 import { SubHeroPreset } from './subhero';
+import { StreamAsiaPreset } from './streamasia';
+import { MoreLikeThisPreset } from './moreLikeThis';
+import { GDriveAPI } from '../builtins/gdrive';
+import { GDrivePreset } from './gdrive';
+import { ContentDeepDivePreset } from './contentDeepDive';
+import { AICompanionPreset } from './aiCompanion';
+import { GoogleOAuth } from '../builtins/gdrive/api';
+import { TorBoxSearchPreset } from './torboxSearch';
+import { AStreamPreset } from './aStream';
+import { Env } from '../utils/env';
 
-const PRESET_LIST: string[] = [
+let PRESET_LIST: string[] = [
   'custom',
   'torrentio',
   'comet',
@@ -60,17 +70,22 @@ const PRESET_LIST: string[] = [
   'fkstream',
   'debridio',
   'torbox',
+  'torbox-search',
   'easynews',
   'easynewsPlus',
   'easynewsPlusPlus',
   'dmm-cast',
   'nuvio-streams',
   'webstreamr',
+  'astream',
+  'streamasia',
+  Env.BUILTIN_GDRIVE_CLIENT_ID && Env.BUILTIN_GDRIVE_CLIENT_SECRET
+    ? 'stremio-gdrive'
+    : '',
   'usa-tv',
   'argentina-tv',
   'debridio-tv',
   'debridio-watchtower',
-  'ai-search',
   'tmdb-addon',
   'debridio-tmdb',
   'debridio-tvdb',
@@ -90,13 +105,17 @@ const PRESET_LIST: string[] = [
   'subdl',
   'subhero',
   'aiosubtitle',
+  'ai-companion',
+  'ai-search',
+  'more-like-this',
+  'content-deep-dive',
   'aiostreams',
-];
+].filter(Boolean);
 
 export class PresetManager {
   static getPresetList(): PresetMinimalMetadata[] {
     return PRESET_LIST.map((presetId) => this.fromId(presetId).METADATA).map(
-      (metadata) => ({
+      (metadata: PresetMetadata) => ({
         ID: metadata.ID,
         NAME: metadata.NAME,
         LOGO: metadata.LOGO,
@@ -106,6 +125,7 @@ export class PresetManager {
         SUPPORTED_STREAM_TYPES: metadata.SUPPORTED_STREAM_TYPES,
         SUPPORTED_SERVICES: metadata.SUPPORTED_SERVICES,
         OPTIONS: metadata.OPTIONS,
+        BUILTIN: metadata.BUILTIN,
       })
     );
   }
@@ -166,6 +186,8 @@ export class PresetManager {
         return NuvioStreamsPreset;
       case 'webstreamr':
         return WebStreamrPreset;
+      case 'astream':
+        return AStreamPreset;
       case 'streaming-catalogs':
         return StreamingCatalogsPreset;
       case 'anime-catalogs':
@@ -202,6 +224,18 @@ export class PresetManager {
         return AIOSubtitlePreset;
       case 'subhero':
         return SubHeroPreset;
+      case 'streamasia':
+        return StreamAsiaPreset;
+      case 'more-like-this':
+        return MoreLikeThisPreset;
+      case 'content-deep-dive':
+        return ContentDeepDivePreset;
+      case 'ai-companion':
+        return AICompanionPreset;
+      case 'stremio-gdrive':
+        return GDrivePreset;
+      case 'torbox-search':
+        return TorBoxSearchPreset;
       default:
         throw new Error(`Preset ${id} not found`);
     }

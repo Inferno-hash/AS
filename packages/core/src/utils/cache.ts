@@ -19,6 +19,7 @@ class CacheItem<T> {
   constructor(
     public value: T,
     public lastAccessed: number,
+    public createdAt: number,
     public ttl: number // Time-To-Live in milliseconds
   ) {}
 }
@@ -141,17 +142,19 @@ export class Cache<K, V> {
     return result;
   }
 
-  get(key: K, updateTTL: boolean = true): V | undefined {
+  get(key: K, updateTTL: boolean = false): V | undefined {
     const item = this.cache.get(key);
     if (item) {
       const now = Date.now();
-      if (now - item.lastAccessed > item.ttl) {
+      item.lastAccessed = now;
+      if (now - item.createdAt > item.ttl) {
         this.cache.delete(key);
         return undefined;
       }
       if (updateTTL) {
-        item.lastAccessed = now;
+        item.createdAt = now;
       }
+
       return structuredClone(item.value);
     }
     return undefined;
@@ -169,7 +172,12 @@ export class Cache<K, V> {
     }
     this.cache.set(
       key,
-      new CacheItem<V>(structuredClone(value), Date.now(), ttl * 1000)
+      new CacheItem<V>(
+        structuredClone(value),
+        Date.now(),
+        Date.now(),
+        ttl * 1000
+      )
     );
   }
 
@@ -195,7 +203,7 @@ export class Cache<K, V> {
     if (item) {
       return Math.max(
         0,
-        Math.floor((item.lastAccessed + item.ttl - Date.now()) / 1000)
+        Math.floor((item.createdAt + item.ttl - Date.now()) / 1000)
       );
     }
     return 0;

@@ -116,17 +116,18 @@ export class AISearchPreset extends Preset {
           min: 10,
         },
       },
-      {
-        id: 'tmdbApiKey',
-        name: 'TMDB API Key',
-        description:
-          'Get a free key from [TMDB](https://www.themoviedb.org/settings/api)',
-        type: 'password',
-        required: true,
-        constraints: {
-          min: 10,
-        },
-      },
+      // @deprecated TMDB API Key is now handled in the services menu
+      // {
+      //   id: 'tmdbApiKey',
+      //   name: 'TMDB API Key',
+      //   description:
+      //     'Get a free key from [TMDB](https://www.themoviedb.org/settings/api)',
+      //   type: 'password',
+      //   required: true,
+      //   constraints: {
+      //     min: 10,
+      //   },
+      // },
       {
         id: 'advancedSettingsNote',
         type: 'alert',
@@ -218,13 +219,16 @@ export class AISearchPreset extends Preset {
   ): Promise<Addon> {
     return {
       name: options.name || this.METADATA.NAME,
-      manifestUrl: await this.generateManifestUrl(options),
+      manifestUrl: await this.generateManifestUrl(userData, options),
       enabled: true,
       library: false,
       resources: options.resources || this.METADATA.SUPPORTED_RESOURCES,
       timeout: options.timeout || this.METADATA.TIMEOUT,
-      presetType: this.METADATA.ID,
-      presetInstanceId: '',
+      preset: {
+        id: '',
+        type: this.METADATA.ID,
+        options: options,
+      },
       headers: {
         'User-Agent': this.METADATA.USER_AGENT,
       },
@@ -232,6 +236,7 @@ export class AISearchPreset extends Preset {
   }
 
   private static async generateManifestUrl(
+    userData: UserData,
     options: Record<string, any>
   ): Promise<string> {
     let url = (options.url || this.METADATA.URL).replace(/\/$/, '');
@@ -239,9 +244,17 @@ export class AISearchPreset extends Preset {
       return url;
     }
 
+    const tmdbApiKey =
+      options.tmdbApiKey || userData.tmdbApiKey || Env.TMDB_API_KEY;
+    if (tmdbApiKey) {
+      throw new Error(
+        `${this.METADATA.NAME} requires a TMDB API Key to function. Please provide it in the services menu.`
+      );
+    }
+
     let config = {
       GeminiApiKey: options.geminiApiKey,
-      TmdbApiKey: options.tmdbApiKey,
+      TmdbApiKey: tmdbApiKey,
       RpdbApiKey: options.rpdbApiKey,
       RpdbPosterType: options.rpdbApiKey ? 'poster-default' : undefined,
       EnableRpdb: options.rpdbApiKey ? true : false,

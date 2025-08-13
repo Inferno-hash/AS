@@ -541,9 +541,11 @@ export abstract class StreamExpressionEngine {
       id: '1',
       type: 'http',
       addon: {
-        instanceId: 'test-instance',
-        presetType: 'test-preset',
-        presetInstanceId: 'test-preset-instance',
+        preset: {
+          type: 'test-preset',
+          id: 'test-preset',
+          options: {},
+        },
         manifestUrl: 'https://example.com/manifest.json',
         enabled: true,
         name: 'Test Addon',

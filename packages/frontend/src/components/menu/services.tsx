@@ -35,7 +35,6 @@ import { PageControls } from '../shared/page-controls';
 import { SettingsCard } from '../shared/settings-card';
 import { TextInput } from '../ui/text-input';
 import { PasswordInput } from '../ui/password-input';
-
 export function ServicesMenu() {
   return (
     <>
@@ -322,15 +321,39 @@ function Content() {
             }));
           }}
         />
+
+        <Switch
+          label="Use Redirect API"
+          side="right"
+          disabled={!userData.rpdbApiKey || !status.settings.baseUrl}
+          help={
+            <span>
+              If enabled, poster URLs will first contact AIOStreams and then be
+              redirected to RPDB. This allows fallback posters to be used if the
+              RPDB API is down or does not have a poster for that item. It can
+              however cause a minimal slowdown due to having to contact
+              AIOStreams first. This setting requires the <code>BASE_URL</code>{' '}
+              environment variable to be set.
+            </span>
+          }
+          value={
+            userData.rpdbUseRedirectApi !== undefined
+              ? userData.rpdbUseRedirectApi
+              : !!status.settings.baseUrl
+          }
+          onValueChange={(v) => {
+            setUserData((prev) => ({
+              ...prev,
+              rpdbUseRedirectApi: v,
+            }));
+          }}
+        />
       </SettingsCard>
 
       <SettingsCard
         title="TMDB"
-        description={`Provide your TMDB Read Access Token to use some features of AIOStreams. This instance ${
-          status?.settings.tmdbApiAvailable ? 'has' : 'does not have'
-        } a default TMDB Access token set so you ${
-          status?.settings.tmdbApiAvailable ? 'do not have to' : 'have to'
-        } set one here. It is used for title matching and recommended for precaching to be able to determine when to move to the next season.`}
+        description={`Optionally provide your TMDB API Key and Read Access Token here. AIOStreams only needs one of them for title matching and its recommended and precaching to be able to
+           determine when to move to the next season. Some addons in the marketplace will require one or the other too.`}
       >
         <PasswordInput
           label="TMDB Read Access Token"
@@ -344,8 +367,10 @@ function Content() {
                   className="text-[--brand] hover:underline"
                   rel="noopener noreferrer"
                 >
-                  TMDB Account Settings
+                  TMDB Account Settings.{' '}
                 </a>
+                Make sure to copy the Read Access Token and not the 32 character
+                API Key.
               </p>
               <p></p>
             </>
@@ -357,6 +382,33 @@ function Content() {
             setUserData((prev) => ({
               ...prev,
               tmdbAccessToken: value,
+            }));
+          }}
+        />
+
+        <PasswordInput
+          label="TMDB API Key"
+          help={
+            <span>
+              You can get it from your{' '}
+              <a
+                href="https://www.themoviedb.org/settings/api"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[--brand] hover:underline"
+              >
+                TMDB Account Settings.{' '}
+              </a>
+              Make sure to copy the 32 character API Key and not the Read Access
+              Token.
+            </span>
+          }
+          placeholder="Enter your TMDB API Key"
+          value={userData.tmdbApiKey}
+          onValueChange={(value) => {
+            setUserData((prev) => ({
+              ...prev,
+              tmdbApiKey: value,
             }));
           }}
         />

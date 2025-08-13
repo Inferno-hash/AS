@@ -147,7 +147,12 @@ export abstract class BaseProxy {
       return urls;
     } catch (error) {
       logger.error(
-        `Failed to generate proxy URLs: ${error instanceof Error ? error.message : String(error)}`
+        `Failed to generate proxy URLs: ${error instanceof Error ? error : String(error)}`,
+        error instanceof Error
+          ? Object.fromEntries(
+              Object.entries(error).filter(([key]) => key !== 'stack')
+            )
+          : undefined
       );
       return null;
     }
