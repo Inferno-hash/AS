@@ -509,8 +509,11 @@ const QUALITIES = [
   'Unknown',
 ] as const;
 
+export const FAKE_VISUAL_TAGS = ['HDR+DV', 'DV Only', 'HDR Only'] as const;
+export type FakeVisualTag = (typeof FAKE_VISUAL_TAGS)[number];
+
 const VISUAL_TAGS = [
-  'HDR+DV',
+  ...FAKE_VISUAL_TAGS,
   'HDR10+',
   'HDR10',
   'DV',

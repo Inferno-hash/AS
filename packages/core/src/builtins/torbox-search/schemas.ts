@@ -84,6 +84,7 @@ export const TorBoxApiUsenetDownloadLinkSchema = z.string();
 export const TorBoxSearchAddonUserDataSchema = z.object({
   torBoxApiKey: z.string(),
   searchUserEngines: z.boolean(),
+  onlyShowUserSearchResults: z.boolean(),
   tmdbAccessToken: z.string().optional(),
   sources: z
     .array(z.enum(['torrent', 'usenet']))

@@ -26,6 +26,8 @@ class StreamDeduplicator {
 
     deduplicator = {
       enabled: true,
+      multiGroupBehaviour:
+        deduplicator.multiGroupBehaviour || 'remove_uncached_same_service',
       keys: deduplicationKeys,
       cached: deduplicator.cached || 'per_addon',
       uncached: deduplicator.uncached || 'per_addon',
@@ -122,6 +124,31 @@ class StreamDeduplicator {
         const typeGroup = streamsByType.get(type) || [];
         typeGroup.push(stream);
         streamsByType.set(type, typeGroup);
+      }
+
+      const uncachedStreams = streamsByType.get('uncached') || [];
+      const cachedStreams = streamsByType.get('cached') || [];
+      if (uncachedStreams.length > 0 && cachedStreams.length > 0) {
+        switch (deduplicator.multiGroupBehaviour) {
+          case 'remove_uncached':
+            streamsByType.delete('uncached');
+            break;
+          case 'remove_nothing':
+            break;
+          case 'remove_uncached_same_service':
+            streamsByType.set(
+              'uncached',
+              uncachedStreams.filter(
+                (s) =>
+                  !cachedStreams.some((cs) => cs.service?.id === s.service?.id)
+              )
+            );
+            if (streamsByType.get('uncached')?.length === 0) {
+              streamsByType.delete('uncached');
+            }
+
+            break;
+        }
       }
 
       // Process each type according to its deduplication mode

@@ -66,7 +66,15 @@ export class FeatureControl {
     return this._allowedRegexPatterns;
   }
 
-  public static isRegexAllowed(userData: UserData) {
+  public static isRegexAllowed(userData: UserData, regexes?: string[]) {
+    if (regexes && regexes.length > 0) {
+      const areAllRegexesAllowed = regexes.every((regex) =>
+        this.allowedRegexPatterns.patterns.includes(regex)
+      );
+      if (areAllRegexesAllowed) {
+        return true;
+      }
+    }
     switch (this.regexFilterAccess) {
       case 'trusted':
         return userData.trusted ?? false;

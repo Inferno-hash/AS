@@ -80,7 +80,7 @@ class TorboxSearchApi {
   private static readonly timeout =
     Env.BUILTIN_TORBOX_SEARCH_SEARCH_API_TIMEOUT;
 
-  constructor(private readonly apiKey: string) {}
+  constructor(public readonly apiKey: string) {}
 
   private createRequestLock<T>(
     key: string,

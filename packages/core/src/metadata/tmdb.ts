@@ -1,3 +1,4 @@
+import { Headers } from 'undici';
 import { Env, Cache, TYPES, makeRequest } from '../utils';
 export type ExternalIdType = 'imdb' | 'tmdb' | 'tvdb';
 
@@ -56,11 +57,13 @@ export class TMDBMetadata {
     }
   }
 
-  private getHeaders(): Record<string, string> {
-    return {
-      Authorization: `Bearer ${this.accessToken}`,
-      'Content-Type': 'application/json',
-    };
+  private getHeaders(): Headers {
+    const headers = new Headers();
+    if (this.accessToken) {
+      headers.set('Authorization', `Bearer ${this.accessToken}`);
+    }
+    headers.set('Content-Type', 'application/json');
+    return headers;
   }
 
   private parseExternalId(id: string): ExternalId | null {

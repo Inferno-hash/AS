@@ -79,6 +79,8 @@ class Proxifier {
       if (proxiedUrl) {
         stream.url = proxiedUrl;
         stream.proxied = true;
+        // proxy will handle request headers, can be removed here
+        stream.requestHeaders = undefined;
       } else {
         removeIndexes.add(index);
       }

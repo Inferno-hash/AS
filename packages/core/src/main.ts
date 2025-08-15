@@ -22,6 +22,7 @@ import {
   AddonCatalog,
   Meta,
   MetaPreview,
+  ParsedMeta,
   ParsedStream,
   Subtitle,
 } from './db/schemas';
@@ -158,10 +159,6 @@ export class AIOStreams {
       }
     );
 
-    // step 2
-    // get all parsed stream objects and errors from all addons that have the stream resource.
-    // and that support the type and match the id prefix
-
     const { streams, errors, statistics } = await this.fetcher.fetch(
       supportedAddons,
       type,
@@ -176,43 +173,8 @@ export class AIOStreams {
       }))
     );
 
-    // step 4
-    // deduplicate streams based on the depuplicatoroptions
+    let finalStreams = await this._processStreams(streams, type, id);
 
-    const deduplicatedStreams = await this.deduplicator.deduplicate(streams);
-
-    let sortedStreams = await this.sorter.sort(
-      deduplicatedStreams,
-      id.startsWith('kitsu') ? 'anime' : type
-    );
-    sortedStreams = sortedStreams
-      // remove HDR+DV from visual tags after filtering/sorting
-      .map((stream) => {
-        if (stream.parsedFile?.visualTags?.includes('HDR+DV')) {
-          stream.parsedFile.visualTags = stream.parsedFile.visualTags.filter(
-            (tag) => tag !== 'HDR+DV'
-          );
-        }
-        return stream;
-      });
-
-    // step 6
-    // limit the number of streams based on the limit criteria.
-
-    const limitedStreams = await this.limiter.limit(sortedStreams);
-
-    // step 7
-    // apply stream expressions last
-    const postFilteredStreams =
-      await this.filterer.applyStreamExpressionFilters(limitedStreams);
-    // step 8
-    // proxify streaming links if a proxy is provided
-
-    const proxifiedStreams = await this.proxifier.proxify(postFilteredStreams);
-
-    let finalStreams = this.applyModifications(proxifiedStreams);
-
-    // step 8
     // if this.userData.precacheNextEpisode is true, start a new thread to request the next episode, check if
     // all provider streams are uncached, and only if so, then send a request to the first uncached stream in the list.
     if (this.userData.precacheNextEpisode && !preCaching) {
@@ -242,25 +204,6 @@ export class AIOStreams {
       }
     }
 
-    if (this.userData.externalDownloads) {
-      logger.info(`Adding external downloads to streams`);
-      let count = 0;
-      // for each stream object, insert a new stream object, replacing the url with undefined, and appending its value to externalUrl instead
-      // and place it right after the original stream object
-      const streamsWithExternalDownloads: ParsedStream[] = [];
-      for (const stream of proxifiedStreams) {
-        streamsWithExternalDownloads.push(stream);
-        if (stream.url) {
-          const downloadableStream: ParsedStream =
-            StreamUtils.createDownloadableStream(stream);
-          streamsWithExternalDownloads.push(downloadableStream);
-          count++;
-        }
-      }
-      logger.info(`Added ${count} external downloads to streams`);
-      finalStreams = streamsWithExternalDownloads;
-    }
-    // step 9
     // return the final list of streams, followed by the error streams.
     logger.info(
       `Returning ${finalStreams.length} streams and ${errors.length} errors and ${statistics.length} statistic`
@@ -434,7 +377,7 @@ export class AIOStreams {
   public async getMeta(
     type: string,
     id: string
-  ): Promise<AIOStreamsResponse<Meta | null>> {
+  ): Promise<AIOStreamsResponse<ParsedMeta | null>> {
     logger.info(`Handling meta request`, { type, id });
 
     // Build prioritized list of candidate addons (naturally ordered by priority)
@@ -524,6 +467,22 @@ export class AIOStreams {
         });
         meta.links = this.convertDiscoverDeepLinks(meta.links);
 
+        if (meta.videos) {
+          meta.videos = await Promise.all(
+            meta.videos.map(async (video) => {
+              if (!video.streams) {
+                return video;
+              }
+              video.streams = await this._processStreams(
+                video.streams,
+                type,
+                id,
+                true
+              );
+              return video;
+            })
+          );
+        }
         return {
           success: true,
           data: meta,
@@ -1172,9 +1131,12 @@ export class AIOStreams {
       }).getMetadata(id, 'series');
       return metadata;
     } catch (error) {
-      logger.warn(`Error getting metadata for ${id}`, {
-        error: error instanceof Error ? error.message : String(error),
-      });
+      logger.warn(
+        `Error getting metadata for ${id}, will not be able to precache next season if necessary`,
+        {
+          error: error instanceof Error ? error.message : String(error),
+        }
+      );
       return undefined;
     }
   }
@@ -1207,6 +1169,63 @@ export class AIOStreams {
       }
     }
     return { season, episode };
+  }
+
+  private async _processStreams(
+    streams: ParsedStream[],
+    type: string,
+    id: string,
+    isMeta: boolean = false
+  ): Promise<ParsedStream[]> {
+    let processedStreams = streams;
+
+    if (isMeta) {
+      processedStreams = await this.filterer.filter(processedStreams, type, id);
+    }
+
+    processedStreams = await this.deduplicator.deduplicate(processedStreams);
+
+    if (isMeta) {
+      await this.precomputer.precompute(processedStreams);
+    }
+
+    let finalStreams = this.applyModifications(
+      await this.proxifier.proxify(
+        await this.filterer.applyStreamExpressionFilters(
+          await this.limiter.limit(
+            await this.sorter.sort(
+              processedStreams,
+              id.startsWith('kitsu') ? 'anime' : type
+            )
+          )
+        )
+      )
+    ).map((stream) => {
+      if (stream.parsedFile) {
+        stream.parsedFile.visualTags = stream.parsedFile.visualTags.filter(
+          (tag) => !constants.FAKE_VISUAL_TAGS.includes(tag as any)
+        );
+      }
+      return stream;
+    });
+
+    if (this.userData.externalDownloads) {
+      const streamsWithExternalDownloads: ParsedStream[] = [];
+      for (const stream of finalStreams) {
+        streamsWithExternalDownloads.push(stream);
+        if (stream.url) {
+          const downloadableStream: ParsedStream =
+            StreamUtils.createDownloadableStream(stream);
+          streamsWithExternalDownloads.push(downloadableStream);
+        }
+      }
+      logger.info(
+        `Added ${streamsWithExternalDownloads.length - finalStreams.length} external downloads to streams`
+      );
+      finalStreams = streamsWithExternalDownloads;
+    }
+
+    return finalStreams;
   }
 
   private async _fetchAndHandleRedirects(stream: ParsedStream, id: string) {

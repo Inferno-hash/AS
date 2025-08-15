@@ -155,6 +155,17 @@ export function FiltersMenu() {
   );
 }
 
+const deduplicatorMultiGroupBehaviourHelp = {
+  remove_nothing:
+    'Remove Nothing - Do nothing, i.e. continue processing each group individually',
+  remove_uncached:
+    'Remove Uncached - Remove the uncached streams when both cached and uncached streams exist in a given duplicate set',
+  remove_uncached_same_service:
+    'Remove Uncached (Same Service) - Remove uncached streams that already have a cached duplicate of the same service. e.g. When a file is duplicated and there is a uncached and cached version from the same service, remove the uncached version but if they are 2 different services, keep both',
+};
+
+const defaultDeduplicatorMultiGroupBehaviour = 'remove_uncached_same_service';
+
 function Content() {
   const [tab, setTab] = useState('cache');
   const { status } = useStatus();
@@ -2069,7 +2080,7 @@ function Content() {
               <HeadingWithPageControls heading="Deduplicator" />
               <div className="mb-4">
                 <p className="text-sm text-[--muted]">
-                  Enable and customise the removal of duplicate results
+                  Enable and customise the removal of duplicate results.
                 </p>
               </div>
               <div className="space-y-4">
@@ -2087,36 +2098,16 @@ function Content() {
                   />
                 </SettingsCard>
 
-                <SettingsCard>
-                  <Combobox
-                    disabled={!userData.deduplicator?.enabled}
-                    label="Detection Methods"
-                    multiple
-                    help="Select the methods used to detect duplicates"
-                    value={
-                      userData.deduplicator?.keys ?? ['filename', 'infoHash']
-                    }
-                    emptyMessage="No detection methods available"
-                    onValueChange={(value) => {
-                      setUserData((prev) => ({
-                        ...prev,
-                        deduplicator: {
-                          ...prev.deduplicator,
-                          keys: value as (typeof DEDUPLICATOR_KEYS)[number][],
-                        },
-                      }));
-                    }}
-                    options={DEDUPLICATOR_KEYS.map((key) => ({
-                      label: key,
-                      value: key,
-                    }))}
-                  />
-                </SettingsCard>
-
-                <SettingsCard title="Deduplicator Settings">
-                  <p className="text-sm text-[--muted]">
-                    Configure how results are deduplicated for each result type:
-                  </p>
+                <SettingsCard
+                  title="Group Handling"
+                  description={
+                    <div>
+                      Sets of duplicates are separated into groups based on the
+                      streams' type. (e.g. cached, uncached, p2p, etc.) These
+                      options control how each set of duplicates are handled.
+                    </div>
+                  }
+                >
                   <div className="mt-2 space-y-2">
                     <div>
                       <span className="font-medium">Single Result</span>
@@ -2216,6 +2207,64 @@ function Content() {
                         },
                       }));
                     }}
+                  />
+                </SettingsCard>
+
+                <SettingsCard title="Other">
+                  <Combobox
+                    disabled={!userData.deduplicator?.enabled}
+                    label="Detection Methods"
+                    multiple
+                    help="Select the methods used to detect duplicates"
+                    value={
+                      userData.deduplicator?.keys ?? ['filename', 'infoHash']
+                    }
+                    emptyMessage="No detection methods available"
+                    onValueChange={(value) => {
+                      setUserData((prev) => ({
+                        ...prev,
+                        deduplicator: {
+                          ...prev.deduplicator,
+                          keys: value as (typeof DEDUPLICATOR_KEYS)[number][],
+                        },
+                      }));
+                    }}
+                    options={DEDUPLICATOR_KEYS.map((key) => ({
+                      label: key,
+                      value: key,
+                    }))}
+                  />
+
+                  <Select
+                    label="Multi-Group Behaviour"
+                    help={`Configure how duplicates across multiple types are handled. e.g. if a given duplicate set has both cached and uncached streams, what should be done.
+                      ${deduplicatorMultiGroupBehaviourHelp[userData.deduplicator?.multiGroupBehaviour || defaultDeduplicatorMultiGroupBehaviour]}
+                      `}
+                    value={
+                      userData.deduplicator?.multiGroupBehaviour ??
+                      defaultDeduplicatorMultiGroupBehaviour
+                    }
+                    onValueChange={(value) => {
+                      setUserData((prev) => ({
+                        ...prev,
+                        deduplicator: {
+                          ...prev.deduplicator,
+                          multiGroupBehaviour: value as
+                            | 'remove_nothing'
+                            | 'remove_uncached'
+                            | 'remove_uncached_same_service',
+                        },
+                      }));
+                    }}
+                    disabled={!userData.deduplicator?.enabled}
+                    options={[
+                      { label: 'Remove Nothing', value: 'remove_nothing' },
+                      { label: 'Remove Uncached', value: 'remove_uncached' },
+                      {
+                        label: 'Remove Uncached (Same Service)',
+                        value: 'remove_uncached_same_service',
+                      },
+                    ]}
                   />
                 </SettingsCard>
               </div>

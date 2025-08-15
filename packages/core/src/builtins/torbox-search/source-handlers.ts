@@ -161,6 +161,20 @@ export class TorrentSourceHandler extends SourceHandler {
 
     if (torrents.length === 0) return [];
 
+    if (userData.onlyShowUserSearchResults) {
+      const userSearchResults = torrents.filter(
+        (torrent) => torrent.userSearch
+      );
+      logger.info(
+        `Filtered out ${torrents.length - userSearchResults.length} torrents that were not user search results`
+      );
+      if (userSearchResults.length > 0) {
+        torrents = userSearchResults;
+      } else {
+        return [];
+      }
+    }
+
     const titleMetadata = this.metadataCache.get(`metadata:${type}:${id}`);
     const filesByHash = await this.getAvailableFilesFromDebrid(
       torrents,
@@ -204,10 +218,20 @@ export class TorrentSourceHandler extends SourceHandler {
     episode?: string,
     tmdbAccessToken?: string
   ): Promise<Torrent[]> {
-    const cacheKey = `torrents:${idType}:${id}:${season}:${episode}`;
+    let cacheKey = `torrents:${idType}:${id}:${season}:${episode}`;
+    if (
+      this.searchUserEngines &&
+      Env.BUILTIN_TORBOX_SEARCH_CACHE_PER_USER_SEARCH_ENGINE
+    ) {
+      cacheKey += `:${this.searchApi.apiKey}`;
+    }
     const cachedTorrents = this.searchCache.get(cacheKey);
 
-    if (cachedTorrents && !this.searchUserEngines) {
+    if (
+      cachedTorrents &&
+      (!this.searchUserEngines ||
+        Env.BUILTIN_TORBOX_SEARCH_CACHE_PER_USER_SEARCH_ENGINE)
+    ) {
       logger.info(`Found ${cachedTorrents.length} (cached) torrents for ${id}`);
       return cachedTorrents;
     }
@@ -263,7 +287,12 @@ export class TorrentSourceHandler extends SourceHandler {
 
     this.searchCache.set(
       cacheKey,
-      torrents.filter((torrent) => !torrent.userSearch),
+      torrents.filter(
+        (torrent) =>
+          !torrent.userSearch ||
+          (this.searchUserEngines &&
+            Env.BUILTIN_TORBOX_SEARCH_CACHE_PER_USER_SEARCH_ENGINE)
+      ),
       Env.BUILTIN_TORBOX_SEARCH_SEARCH_API_CACHE_TTL
     );
 
@@ -358,6 +387,20 @@ export class UsenetSourceHandler extends SourceHandler {
       }
     } else {
       logger.info(`Found ${torrents.length} (cached) NZBs for ${id}`);
+    }
+
+    if (userData.onlyShowUserSearchResults) {
+      const userSearchResults = torrents.filter(
+        (torrent) => torrent.userSearch
+      );
+      logger.info(
+        `Filtered out ${torrents.length - userSearchResults.length} NZBs that were not user search results`
+      );
+      if (userSearchResults.length > 0) {
+        torrents = userSearchResults;
+      } else {
+        return [];
+      }
     }
 
     return torrents.map((torrent) => {

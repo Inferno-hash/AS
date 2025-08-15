@@ -86,9 +86,9 @@ export class DebridService {
 
     let newResults: DebridFile[] = [];
 
+    const start = Date.now();
     if (torrentsToCheck.length > 0) {
       try {
-        const start = Date.now();
         const instantAvailability = await this.debridInterface.checkMagnets(
           torrentsToCheck.map((t) => t.hash),
           id
@@ -148,9 +148,9 @@ export class DebridService {
             );
           }
         }
-        logger.info(
-          `[${this.serviceConfig.id}] Checked ${torrentsToCheck.length} uncached magnets in ${getTimeTakenSincePoint(start)}`
-        );
+        // logger.info(
+        //   `[${this.serviceConfig.id}] Checked ${torrentsToCheck.length} uncached magnets  in ${getTimeTakenSincePoint(start)}`
+        // );
       } catch (error) {
         if (error instanceof StremThruError) {
           logger.error(
@@ -180,6 +180,15 @@ export class DebridService {
         return [];
       }
     }
+
+    // count number of cached results
+    const cachedCount = [...cachedResults, ...newResults].filter(
+      (result) => result.service.cached
+    ).length;
+
+    logger.debug(
+      `[${this.serviceConfig.id}] Checked ${torrents.length} magnets in ${getTimeTakenSincePoint(start)}. ${cachedCount} / ${torrents.length} cached`
+    );
 
     return [...cachedResults, ...newResults];
   }

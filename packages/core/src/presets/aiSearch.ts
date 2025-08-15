@@ -246,7 +246,7 @@ export class AISearchPreset extends Preset {
 
     const tmdbApiKey =
       options.tmdbApiKey || userData.tmdbApiKey || Env.TMDB_API_KEY;
-    if (tmdbApiKey) {
+    if (!tmdbApiKey) {
       throw new Error(
         `${this.METADATA.NAME} requires a TMDB API Key to function. Please provide it in the services menu.`
       );

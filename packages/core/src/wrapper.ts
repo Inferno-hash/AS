@@ -9,6 +9,7 @@ import {
   Manifest,
   ManifestSchema,
   Meta,
+  ParsedMeta,
   MetaPreview,
   MetaPreviewSchema,
   MetaResponse,
@@ -24,6 +25,7 @@ import {
   SubtitleResponse,
   SubtitleResponseSchema,
   SubtitleSchema,
+  ParsedMetaSchema,
 } from './db/schemas';
 import {
   Cache,
@@ -236,7 +238,7 @@ export class Wrapper {
     );
   }
 
-  async getMeta(type: string, id: string): Promise<Meta> {
+  async getMeta(type: string, id: string): Promise<ParsedMeta> {
     const validator = (data: any): Meta => {
       const parsed = MetaSchema.safeParse(data.meta);
       if (!parsed.success) {
@@ -261,7 +263,20 @@ export class Wrapper {
         options: this.addon.preset.options,
       })
     );
-    return meta;
+    // parse streams in meta.videos.streams if present
+    const parser = new (this.preset.getParser())(this.addon);
+    if (meta.videos) {
+      meta.videos = meta.videos.map((video) => {
+        const parsedStreams = video.streams
+          ?.map((stream) => parser.parse(stream))
+          .filter((stream) => ('skip' in stream ? !stream.skip : true));
+        if (parsedStreams) {
+          video.streams = parsedStreams as ParsedStream[];
+        }
+        return video;
+      });
+    }
+    return ParsedMetaSchema.parse(meta);
   }
 
   async getSubtitles(

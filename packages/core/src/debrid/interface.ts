@@ -190,6 +190,12 @@ export class DebridInterface {
     filename: string
   ): Promise<string | undefined> {
     const { nzb } = playbackInfo;
+    const cacheKey = `${this.storeAuth.storeName}:${this.storeAuth.storeCredential}:${nzb}:${this.clientIp}`;
+    const cachedLink = DebridInterface.playbackLinkCache.get(cacheKey);
+    if (cachedLink) {
+      logger.debug(`Using cached link for ${nzb}`);
+      return cachedLink;
+    }
 
     if (!this.torboxApi) {
       throw new Error('Torbox API not available');
@@ -197,6 +203,7 @@ export class DebridInterface {
 
     const nzbFile = await this.torboxApi.usenet.createUsenetDownload('v1', {
       link: nzb,
+      name: filename,
     });
 
     logger.debug(`Created usenet download for ${nzb}: ${nzbFile.data?.detail}`);
@@ -227,6 +234,10 @@ export class DebridInterface {
       `Requested usenet download link for ${nzb}: ${link.data?.data} ${link.metadata.status}`
     );
 
-    return link.data?.data ?? undefined;
+    const playbackLink = link.data?.data;
+    if (playbackLink) {
+      DebridInterface.playbackLinkCache.set(cacheKey, playbackLink, 60 * 30);
+    }
+    return playbackLink;
   }
 }

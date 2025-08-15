@@ -240,7 +240,6 @@ export class GDriveAPI {
 
     const data = await response.json();
     const parsedResponse = GDriveFileQueryResponseSchema.safeParse(data);
-    logger.debug(`GDrive file query response: ${JSON.stringify(data)}`);
 
     if (!parsedResponse.success || !parsedResponse.data) {
       throw new Error('Failed to parse GDrive file query response');
@@ -289,7 +288,9 @@ export class GDriveAPI {
     }
 
     if ('error' in parsedResponse.data) {
-      throw new Error('Failed to get GDrive file');
+      throw new Error(
+        `GDrive API error: ${parsedResponse.data.error.code}: ${parsedResponse.data.error.message}: ${parsedResponse.data.error.errors.map((error) => `[${error.reason}] ${error.message} at ${error.location}`).join(', ')}`
+      );
     }
 
     return parsedResponse.data;

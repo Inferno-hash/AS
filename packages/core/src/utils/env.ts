@@ -1446,6 +1446,10 @@ export const Env = cleanEnv(process.env, {
     default: 15 * 60, // 15 minutes
     desc: 'Builtin TorBox Search instant availability cache TTL',
   }),
+  BUILTIN_TORBOX_SEARCH_CACHE_PER_USER_SEARCH_ENGINE: bool({
+    default: false,
+    desc: 'Whether to cache results separately for every user that is using their own search engines.',
+  }),
 
   // Rate limiting settings
   DISABLE_RATE_LIMITS: bool({

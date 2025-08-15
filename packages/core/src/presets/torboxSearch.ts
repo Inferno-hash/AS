@@ -116,6 +116,15 @@ export class TorBoxSearchPreset extends Preset {
         default: false,
       },
       {
+        id: 'onlyShowUserSearchResults',
+        name: 'Only Show User Search Results',
+        description:
+          'Whether to only show user search results. If not specified, then all results will be shown.',
+        type: 'boolean',
+        required: false,
+        default: false,
+      },
+      {
         id: 'useMultipleInstances',
         name: 'Use Multiple Instances',
         description:
@@ -224,6 +233,7 @@ export class TorBoxSearchPreset extends Preset {
       torBoxApiKey: torboxApiKey,
       searchUserEngines: options.userSearchEngines,
       tmdbAccessToken: userData.tmdbAccessToken,
+      onlyShowUserSearchResults: options.onlyShowUserSearchResults ?? false,
       services: services.map((service) => ({
         id: service,
         credential: this.getServiceCredential(service, userData, {
