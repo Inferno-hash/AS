@@ -84,6 +84,12 @@ function getServiceCredentialDefault(
           return Env.DEFAULT_EASYDEBRID_API_KEY;
       }
       break;
+    case constants.DEBRIDER_SERVICE:
+      switch (credentialId) {
+        case 'apiKey':
+          return Env.DEFAULT_DEBRIDER_API_KEY;
+      }
+      break;
     case constants.PUTIO_SERVICE:
       switch (credentialId) {
         case 'clientId':
@@ -171,6 +177,12 @@ function getServiceCredentialForced(
           return Env.FORCED_EASYDEBRID_API_KEY;
       }
       break;
+    case constants.DEBRIDER_SERVICE:
+      switch (credentialId) {
+        case 'apiKey':
+          return Env.FORCED_DEBRIDER_API_KEY;
+      }
+      break;
     case constants.PUTIO_SERVICE:
       switch (credentialId) {
         case 'clientId':
@@ -253,12 +265,16 @@ export async function validateConfig(
   skipErrorsFromAddonsOrProxies: boolean = false,
   decryptValues: boolean = false
 ): Promise<UserData> {
-  const { success, data: config, error } = UserDataSchema.safeParse(data);
+  const {
+    success,
+    data: config,
+    error,
+  } = UserDataSchema.safeParse(
+    removeInvalidPresetReferences(applyMigrations(data))
+  );
   if (!success) {
     throw new Error(formatZodError(error));
   }
-
-  applyMigrations(config);
 
   if (
     Env.ADDON_PASSWORD.length > 0 &&
@@ -375,8 +391,9 @@ export async function validateConfig(
     try {
       const tmdb = new TMDBMetadata({
         accessToken: config.tmdbAccessToken,
+        apiKey: config.tmdbApiKey,
       });
-      await tmdb.validateAccessToken();
+      await tmdb.validateAuthorisation();
     } catch (error) {
       if (!skipErrorsFromAddonsOrProxies) {
         throw new Error(`Invalid TMDB access token: ${error}`);
@@ -403,7 +420,58 @@ export async function validateConfig(
   return config;
 }
 
-export function applyMigrations(config: UserData) {
+function removeInvalidPresetReferences(config: UserData) {
+  // remove references to non-existent presets in options:
+  const existingPresetIds = config.presets?.map((preset) => preset.instanceId);
+  if (config.proxy) {
+    config.proxy.proxiedAddons = config.proxy.proxiedAddons?.filter((addon) =>
+      existingPresetIds?.includes(addon)
+    );
+  }
+  if (config.yearMatching) {
+    config.yearMatching.addons = config.yearMatching.addons?.filter((addon) =>
+      existingPresetIds?.includes(addon)
+    );
+  }
+  if (config.titleMatching) {
+    config.titleMatching.addons = config.titleMatching.addons?.filter((addon) =>
+      existingPresetIds?.includes(addon)
+    );
+  }
+  if (config.seasonEpisodeMatching) {
+    config.seasonEpisodeMatching.addons =
+      config.seasonEpisodeMatching.addons?.filter((addon) =>
+        existingPresetIds?.includes(addon)
+      );
+  }
+  if (config.groups) {
+    config.groups = config.groups.map((group) => ({
+      ...group,
+      addons: group.addons?.filter((addon) =>
+        existingPresetIds?.includes(addon)
+      ),
+    }));
+  }
+  return config;
+}
+
+export function applyMigrations(config: UserData): UserData {
+  if (
+    config.deduplicator &&
+    typeof config.deduplicator.multiGroupBehaviour === 'string'
+  ) {
+    switch (config.deduplicator.multiGroupBehaviour as string) {
+      case 'remove_uncached':
+        config.deduplicator.multiGroupBehaviour = 'aggressive';
+        break;
+      case 'remove_uncached_same_service':
+        config.deduplicator.multiGroupBehaviour = 'conservative';
+        break;
+      case 'remove_nothing':
+        config.deduplicator.multiGroupBehaviour = 'keep_all';
+        break;
+    }
+  }
   if (config.titleMatching?.matchYear) {
     config.yearMatching = {
       enabled: true,
@@ -415,6 +483,7 @@ export function applyMigrations(config: UserData) {
     };
     delete config.titleMatching.matchYear;
   }
+  return config;
 }
 
 async function validateRegexes(config: UserData) {
@@ -432,8 +501,10 @@ async function validateRegexes(config: UserData) {
   ];
 
   if (!regexAllowed && regexes.length > 0) {
+    const allowedPatterns = (await FeatureControl.allowedRegexPatterns())
+      .patterns;
     const allowedRegexes = regexes.filter((regex) =>
-      FeatureControl.allowedRegexPatterns.patterns.includes(regex)
+      allowedPatterns.includes(regex)
     );
     if (allowedRegexes.length === 0) {
       throw new Error(
@@ -578,6 +649,13 @@ function validateOption(
   value: any,
   decryptValues: boolean = false
 ): any {
+  const forcedValue =
+    option.forced !== undefined && option.forced !== null
+      ? option.forced
+      : undefined;
+  if (forcedValue !== undefined) {
+    value = forcedValue;
+  }
   if (value === undefined) {
     if (option.required) {
       throw new Error(`Option ${option.id} is required, got ${value}`);
@@ -640,7 +718,7 @@ function validateOption(
   if (option.type === 'string' || option.type === 'password') {
     if (typeof value !== 'string') {
       throw new Error(
-        `Option ${option.id} must be a string, got ${typeof value}`
+        `Option ${option.id} must be a string, got ${typeof value}: ${value}`
       );
     }
     if (option.constraints?.min && value.length < option.constraints.min) {
@@ -656,10 +734,6 @@ function validateOption(
   }
 
   if (option.type === 'password') {
-    if (option.forced) {
-      // option.forced is already encrypted
-      value = option.forced;
-    }
     if (isEncrypted(value) && decryptValues) {
       const { success, data, error } = decryptString(value);
       if (!success) {
@@ -672,6 +746,9 @@ function validateOption(
   }
 
   if (option.type === 'url') {
+    if (forcedValue !== undefined) {
+      value = forcedValue;
+    }
     if (typeof value !== 'string') {
       throw new Error(
         `Option ${option.id} must be a string, got ${typeof value}`

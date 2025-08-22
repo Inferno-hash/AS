@@ -92,11 +92,30 @@ const logStartupInfo = () => {
     if (Env.CUSTOM_HTML) {
       logKeyValue('Custom HTML:', '✅ Configured');
     }
+    if (
+      Env.REQUEST_URL_MAPPINGS &&
+      Object.keys(Env.REQUEST_URL_MAPPINGS).length > 0
+    ) {
+      logKeyValue('Request URL Mappings:', '✅ Configured');
+      for (const [key, value] of Object.entries(Env.REQUEST_URL_MAPPINGS)) {
+        logKeyValue(`${key} → ${value}`, '', '       ');
+      }
+    }
+    if (
+      Env.STREAM_URL_MAPPINGS &&
+      Object.keys(Env.STREAM_URL_MAPPINGS).length > 0
+    ) {
+      logKeyValue('Stream URL Mappings:', '✅ Configured');
+      for (const [key, value] of Object.entries(Env.STREAM_URL_MAPPINGS)) {
+        logKeyValue(`${key} → ${value}`, '', '       ');
+      }
+    }
   });
 
   // Database & Storage
-  logSection('DATABASE & STORAGE', '💾', () => {
+  logSection('STORAGE & CACHE', '💾', () => {
     const dbType = Env.DATABASE_URI.split('://')[0].toUpperCase();
+    const cacheType = Env.REDIS_URI ? 'Redis' : 'Memory';
     logKeyValue('Database Type:', dbType);
     if (Env.DATABASE_URI.includes('sqlite')) {
       const dbPath =
@@ -107,6 +126,10 @@ const logStartupInfo = () => {
         'Database URI:',
         Env.DATABASE_URI.replace(/:\/\/.*@/, '://***@')
       ); // Hide credentials
+    }
+    logKeyValue('Cache Type:', cacheType);
+    if (Env.REDIS_URI) {
+      logKeyValue('Redis URI:', Env.REDIS_URI);
     }
   });
 
@@ -355,6 +378,7 @@ const logStartupInfo = () => {
     { name: 'EasyNews', key: Env.DEFAULT_EASYNEWS_USERNAME },
     { name: 'EasyNews Password', key: Env.DEFAULT_EASYNEWS_PASSWORD },
     { name: 'EasyDebrid', key: Env.DEFAULT_EASYDEBRID_API_KEY },
+    { name: 'Debrider', key: Env.DEFAULT_DEBRIDER_API_KEY },
     { name: 'PikPak', key: Env.DEFAULT_PIKPAK_EMAIL },
     { name: 'PikPak Password', key: Env.DEFAULT_PIKPAK_PASSWORD },
     { name: 'Seedr', key: Env.DEFAULT_SEEDR_ENCODED_TOKEN },
@@ -387,6 +411,7 @@ const logStartupInfo = () => {
     { name: 'EasyNews', key: Env.FORCED_EASYNEWS_USERNAME },
     { name: 'EasyNews Password', key: Env.FORCED_EASYNEWS_PASSWORD },
     { name: 'EasyDebrid', key: Env.FORCED_EASYDEBRID_API_KEY },
+    { name: 'Debrider', key: Env.FORCED_DEBRIDER_API_KEY },
     { name: 'PikPak', key: Env.FORCED_PIKPAK_EMAIL },
     { name: 'PikPak Password', key: Env.FORCED_PIKPAK_PASSWORD },
     { name: 'Seedr', key: Env.FORCED_SEEDR_ENCODED_TOKEN },

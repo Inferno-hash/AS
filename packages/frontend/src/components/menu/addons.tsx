@@ -160,7 +160,7 @@ function Content() {
       options: Object.fromEntries(
         (preset.OPTIONS || []).map((opt: any) => [
           opt.id,
-          opt.default ?? undefined,
+          opt.forced ?? opt.default ?? undefined,
         ])
       ),
     });
@@ -572,6 +572,20 @@ function SortableAddonItem({
     return url.replace(/^stremio:\/\//, 'https://').replace(/\/$/, '');
   };
 
+  const getManifestUrl = (): string | undefined => {
+    if (presetMetadata.ID === 'custom' || presetMetadata.ID === 'aiostreams') {
+      return preset.options.manifestUrl;
+    }
+    const url = preset.options.url;
+    if (!url) return undefined;
+    try {
+      const urlObj = new URL(url);
+      if (urlObj.pathname.endsWith('/manifest.json')) {
+        return url;
+      }
+    } catch {}
+  };
+
   useEffect(() => {
     if (configModalOpen.isOpen) {
       setStep(1);
@@ -581,19 +595,21 @@ function SortableAddonItem({
   useEffect(() => {
     let active = true;
 
-    if (presetMetadata.ID === 'custom' && preset.options.manifestUrl) {
-      const manifestUrl = standardiseManifestUrl(preset.options.manifestUrl);
-      const cached = manifestCache.get(manifestUrl);
+    const manifestUrl = getManifestUrl();
+
+    if (manifestUrl) {
+      const standardisedManifestUrl = standardiseManifestUrl(manifestUrl);
+      const cached = manifestCache.get(standardisedManifestUrl);
       if (cached) {
         setIsConfigurable(cached.behaviorHints?.configurable === true);
         setLogo(cached.logo);
         return; // Don't fetch again
       }
 
-      fetch(manifestUrl)
+      fetch(standardisedManifestUrl)
         .then((r) => r.json())
         .then((manifest) => {
-          manifestCache.set(manifestUrl, manifest);
+          manifestCache.set(standardisedManifestUrl, manifest);
           if (active) {
             setIsConfigurable(manifest?.behaviorHints?.configurable === true);
             setLogo(manifest?.logo);
@@ -607,7 +623,7 @@ function SortableAddonItem({
     return () => {
       active = false;
     };
-  }, [presetMetadata.ID, preset.options.manifestUrl]);
+  }, [presetMetadata.ID, preset.options.manifestUrl, preset.options.url]);
 
   const handleManifestUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -637,20 +653,22 @@ function SortableAddonItem({
       return;
     }
 
-    setUserData((prev) => ({
-      ...prev,
-      presets: prev.presets.map((p) =>
-        p.instanceId === preset.instanceId
-          ? {
-              ...p,
-              options: {
-                ...p.options,
-                manifestUrl: standardisedManifest,
-              },
-            }
-          : p
-      ),
-    }));
+    setUserData((prev) => {
+      const currentPreset = prev.presets.find(
+        (p) => p.instanceId === preset.instanceId
+      );
+      if (!currentPreset) return prev;
+      const options =
+        presetMetadata.ID === 'custom' || presetMetadata.ID === 'aiostreams'
+          ? { ...currentPreset.options, manifestUrl: standardisedManifest }
+          : { ...currentPreset.options, url: standardisedManifest };
+      return {
+        ...prev,
+        presets: prev.presets.map((p) =>
+          p.instanceId === preset.instanceId ? { ...p, options } : p
+        ),
+      };
+    });
 
     setNewManifestUrl('');
     configModalOpen.close();
@@ -659,8 +677,9 @@ function SortableAddonItem({
   };
 
   const getConfigureUrl = () => {
-    if (!preset.options.manifestUrl) return '';
-    return standardiseManifestUrl(preset.options.manifestUrl).replace(
+    const manifestUrl = getManifestUrl();
+    if (!manifestUrl) return '';
+    return standardiseManifestUrl(manifestUrl).replace(
       /\/manifest\.json$/,
       '/configure'
     );
@@ -699,7 +718,7 @@ function SortableAddonItem({
             onValueChange={onToggleEnabled}
             size="sm"
           />
-          {isConfigurable && presetMetadata.ID === 'custom' && (
+          {isConfigurable && (
             <IconButton
               className="rounded-full h-8 w-8 md:h-10 md:w-10"
               icon={<LuSettings />}

@@ -265,7 +265,7 @@ export class AISearchPreset extends Preset {
 
     // request to /aisearch/encrypt with cache and config as body
     const cacheKey = `${JSON.stringify(config)}`;
-    let configId: string | undefined = configCache.get(cacheKey);
+    let configId: string | undefined = await configCache.get(cacheKey);
     if (configId) {
       return `${url}/aisearch/${configId}/manifest.json`;
     }
@@ -289,7 +289,7 @@ export class AISearchPreset extends Preset {
       });
       const result = schema.parse(data);
       configId = result.encryptedConfig;
-      configCache.set(cacheKey, configId, 365 * 24 * 60 * 60);
+      await configCache.set(cacheKey, configId, 365 * 24 * 60 * 60);
       return `${url}/aisearch/${configId}/manifest.json`;
     } catch (error) {
       throw new Error(

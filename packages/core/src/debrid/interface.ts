@@ -116,10 +116,10 @@ export class DebridInterface {
   private async resolveTorrent(
     playbackInfo: PlaybackInfo & { type: 'torrent' },
     filename: string
-  ) {
+  ): Promise<string | undefined> {
     let { hash, index, parsedId } = playbackInfo;
     const cacheKey = `${this.storeAuth.storeName}:${hash}:${index ?? 'undefined'}:${this.storeAuth.storeCredential}:${this.clientIp}`;
-    const cachedLink = DebridInterface.playbackLinkCache.get(cacheKey);
+    const cachedLink = await DebridInterface.playbackLinkCache.get(cacheKey);
     if (cachedLink) {
       logger.debug(`Using cached link for ${hash}`);
       return cachedLink;
@@ -181,7 +181,11 @@ export class DebridInterface {
     });
 
     const playbackLink = link.data.link;
-    DebridInterface.playbackLinkCache.set(cacheKey, playbackLink, 60 * 30);
+    await DebridInterface.playbackLinkCache.set(
+      cacheKey,
+      playbackLink,
+      60 * 30
+    );
     return playbackLink;
   }
 
@@ -191,7 +195,7 @@ export class DebridInterface {
   ): Promise<string | undefined> {
     const { nzb } = playbackInfo;
     const cacheKey = `${this.storeAuth.storeName}:${this.storeAuth.storeCredential}:${nzb}:${this.clientIp}`;
-    const cachedLink = DebridInterface.playbackLinkCache.get(cacheKey);
+    const cachedLink = await DebridInterface.playbackLinkCache.get(cacheKey);
     if (cachedLink) {
       logger.debug(`Using cached link for ${nzb}`);
       return cachedLink;
@@ -212,7 +216,7 @@ export class DebridInterface {
       !nzbFile.data.detail.includes('Using cached download.')
     ) {
       logger.debug(
-        `Usenet download failed detected to not be cached, returning undefined`
+        `Usenet download detected to not be cached, returning undefined`
       );
       return undefined;
     }
@@ -236,7 +240,11 @@ export class DebridInterface {
 
     const playbackLink = link.data?.data;
     if (playbackLink) {
-      DebridInterface.playbackLinkCache.set(cacheKey, playbackLink, 60 * 30);
+      await DebridInterface.playbackLinkCache.set(
+        cacheKey,
+        playbackLink,
+        60 * 30
+      );
     }
     return playbackLink;
   }

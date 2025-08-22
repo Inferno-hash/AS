@@ -14,9 +14,9 @@ const TV_DETAILS_PATH = '/tv';
 const ALTERNATIVE_TITLES_PATH = '/alternative_titles';
 
 // Cache TTLs in seconds
-const ID_CACHE_TTL = 24 * 60 * 60; // 24 hours
+const ID_CACHE_TTL = 30 * 24 * 60 * 60; // 30 days
 const TITLE_CACHE_TTL = 7 * 24 * 60 * 60; // 7 days
-const ACCESS_TOKEN_CACHE_TTL = 2 * 24 * 60 * 60; // 2 day
+const AUTHORISATION_CACHE_TTL = 2 * 24 * 60 * 60; // 2 days
 
 export interface TMDBMetadataResponse {
   titles: string[];
@@ -92,7 +92,7 @@ export class TMDBMetadata {
 
     // Check cache first
     const cacheKey = `${id.type}:${id.value}:${type}`;
-    const cachedId = TMDBMetadata.idCache.get(cacheKey);
+    const cachedId = await TMDBMetadata.idCache.get(cacheKey);
     if (cachedId) {
       return cachedId;
     }
@@ -147,7 +147,7 @@ export class TMDBMetadata {
 
     // Check cache first
     const cacheKey = `${tmdbId}:${type}`;
-    const cachedMetadata = TMDBMetadata.metadataCache.get(cacheKey);
+    const cachedMetadata = await TMDBMetadata.metadataCache.get(cacheKey);
     if (cachedMetadata) {
       return cachedMetadata;
     }
@@ -226,12 +226,12 @@ export class TMDBMetadata {
     }
   }
 
-  public async validateAccessToken() {
+  public async validateAuthorisation() {
     const cacheKey = this.accessToken || this.apiKey;
     if (!cacheKey) {
       throw new Error('TMDB Access Token or API Key is not set');
     }
-    const cachedResult = TMDBMetadata.validationCache.get(cacheKey);
+    const cachedResult = await TMDBMetadata.validationCache.get(cacheKey);
     if (cachedResult) {
       return cachedResult;
     }
@@ -243,12 +243,16 @@ export class TMDBMetadata {
     });
     if (!validationResponse.ok) {
       throw new Error(
-        `Failed to validate TMDB access token: ${validationResponse.statusText}`
+        `Failed to validate TMDB authorisation, ensure you have set a valid access token or API key: ${validationResponse.statusText}`
       );
     }
     const validationData: any = await validationResponse.json();
     const isValid = validationData.success;
-    TMDBMetadata.validationCache.set(cacheKey, isValid, ACCESS_TOKEN_CACHE_TTL);
+    TMDBMetadata.validationCache.set(
+      cacheKey,
+      isValid,
+      AUTHORISATION_CACHE_TTL
+    );
     return isValid;
   }
 }

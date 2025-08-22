@@ -31,6 +31,7 @@ RUN npm run build
 RUN npm --workspaces prune --omit=dev
 
 FROM node:22-alpine AS final
+RUN apk add --no-cache curl
 
 WORKDIR /app
 
@@ -51,7 +52,7 @@ COPY --from=builder /build/resources ./resources
 COPY --from=builder /build/node_modules ./node_modules
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-3000}/api/v1/status || exit 1
+  CMD curl -fsS http://localhost:${PORT:-3000}/api/v1/status || exit 1
 
 EXPOSE ${PORT:-3000}
 

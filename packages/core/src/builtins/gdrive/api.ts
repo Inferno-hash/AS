@@ -76,7 +76,7 @@ export class GoogleOAuth {
       throw new Error('Builtin GDrive client ID and secret are not set');
     }
     this.refreshToken = refreshToken;
-    this.accessToken = accessTokenCache.get(this.refreshToken);
+    this.accessToken = undefined;
   }
 
   private static get clientId(): string {
@@ -160,7 +160,7 @@ export class GoogleOAuth {
   }
 
   private async refreshAccessToken(): Promise<void> {
-    const cachedToken = accessTokenCache.get(this.refreshToken);
+    const cachedToken = await accessTokenCache.get(this.refreshToken);
     if (cachedToken) {
       this.accessToken = cachedToken;
       return;

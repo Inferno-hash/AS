@@ -285,7 +285,7 @@ export class AICompanionPreset extends Preset {
     form.append('include_catalogs_movies', movieFeedCatalogs.join(','));
     form.append('include_catalogs_series', seriesFeedCatalogs.join(','));
 
-    let manifestUrl: string | undefined = manifestCache.get(cacheKey);
+    let manifestUrl: string | undefined = await manifestCache.get(cacheKey);
     if (manifestUrl) {
       return manifestUrl;
     }
@@ -327,7 +327,11 @@ export class AICompanionPreset extends Preset {
       if (!result.success || !result.manifest_url) {
         throw new Error(result.detail || 'Unknown error');
       }
-      manifestCache.set(cacheKey, result.manifest_url, 365 * 24 * 60 * 60);
+      await manifestCache.set(
+        cacheKey,
+        result.manifest_url,
+        365 * 24 * 60 * 60
+      );
       return result.manifest_url;
     } catch (error) {
       throw new Error(

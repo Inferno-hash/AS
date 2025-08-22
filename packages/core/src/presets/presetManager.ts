@@ -9,7 +9,7 @@ import { EasynewsPreset } from './easynews';
 import { EasynewsPlusPreset } from './easynewsPlus';
 import { EasynewsPlusPlusPreset } from './easynewsPlusPlus';
 import { StremthruTorzPreset } from './stremthruTorz';
-import { DebridioPreset } from './debridio';
+import { DebridioPreset } from './debridioScraper';
 import { AIOStreamsPreset } from './aiostreams';
 import { OpenSubtitlesPreset } from './opensubtitles';
 import { PeerflixPreset } from './peerflix';

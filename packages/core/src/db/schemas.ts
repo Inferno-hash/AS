@@ -161,7 +161,7 @@ const DeduplicatorMode = z.enum([
 const DeduplicatorOptions = z.object({
   enabled: z.boolean().optional(),
   multiGroupBehaviour: z
-    .enum(['remove_uncached', 'remove_nothing', 'remove_uncached_same_service'])
+    .enum(['keep_all', 'aggressive', 'conservative'])
     .optional(),
   keys: z.array(DeduplicatorKey).optional(),
   cached: DeduplicatorMode.optional(),
@@ -423,6 +423,13 @@ export const UserDataSchema = z.object({
     })
     .optional(),
   deduplicator: DeduplicatorOptions.optional(),
+  autoPlay: z
+    .object({
+      enabled: z.boolean().optional(),
+      method: z.enum(constants.AUTO_PLAY_METHODS).optional(),
+      attributes: z.array(z.enum(constants.AUTO_PLAY_ATTRIBUTES)).optional(),
+    })
+    .optional(),
   precacheNextEpisode: z.boolean().optional(),
   alwaysPrecache: z.boolean().optional(),
   services: ServiceList.optional(),
@@ -882,6 +889,7 @@ const StatusResponseSchema = z.object({
       .object({
         patterns: z.array(z.string()),
         description: z.string().optional(),
+        urls: z.array(z.string()).optional(),
       })
       .optional(),
     loggingSensitiveInfo: z.boolean(),

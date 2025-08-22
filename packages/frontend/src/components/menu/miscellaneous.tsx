@@ -5,7 +5,14 @@ import { Switch } from '../ui/switch';
 import { useUserData } from '@/context/userData';
 import { SettingsCard } from '../shared/settings-card';
 import { Combobox } from '../ui/combobox';
-import { RESOURCES } from '../../../../core/src/utils/constants';
+import {
+  RESOURCES,
+  AUTO_PLAY_ATTRIBUTES,
+  DEFAULT_AUTO_PLAY_ATTRIBUTES,
+  AutoPlayMethod,
+  AUTO_PLAY_METHODS,
+  AUTO_PLAY_METHOD_DETAILS,
+} from '../../../../core/src/utils/constants';
 import { Select } from '../ui/select';
 import { Alert } from '../ui/alert';
 
@@ -63,6 +70,73 @@ function Content() {
               }));
             }}
           />
+        </SettingsCard>
+        <SettingsCard
+          title="Auto Play"
+          description="Control how AIOStreams handles auto-play."
+        >
+          <Switch
+            label="Enable"
+            side="right"
+            value={userData.autoPlay?.enabled ?? true}
+            onValueChange={(value) => {
+              setUserData((prev) => ({
+                ...prev,
+                autoPlay: {
+                  ...prev.autoPlay,
+                  enabled: value,
+                },
+              }));
+            }}
+          />
+          <Select
+            label="Auto Play Method"
+            disabled={userData.autoPlay?.enabled === false}
+            options={AUTO_PLAY_METHODS.map((method) => ({
+              label: AUTO_PLAY_METHOD_DETAILS[method].name,
+              value: method,
+            }))}
+            value={userData.autoPlay?.method || 'matchingFile'}
+            onValueChange={(value) => {
+              setUserData((prev) => ({
+                ...prev,
+                autoPlay: {
+                  ...prev.autoPlay,
+                  method: value as AutoPlayMethod,
+                },
+              }));
+            }}
+            help={
+              AUTO_PLAY_METHOD_DETAILS[
+                userData.autoPlay?.method || 'matchingFile'
+              ].description
+            }
+          />
+          {(userData.autoPlay?.method ?? 'matchingFile') === 'matchingFile' && (
+            <Combobox
+              label="Auto Play Attributes"
+              help="The attributes that will be used to match the stream for auto-play. The first stream for the next episode that has the same set of attributes selected above will be auto-played. Less attributes means more likely to auto-play but less accurate in terms of playing a similar type of stream."
+              options={AUTO_PLAY_ATTRIBUTES.map((attribute) => ({
+                label: attribute,
+                value: attribute,
+              }))}
+              multiple
+              disabled={userData.autoPlay?.enabled === false}
+              emptyMessage="No attributes found"
+              value={userData.autoPlay?.attributes}
+              defaultValue={DEFAULT_AUTO_PLAY_ATTRIBUTES as unknown as string[]}
+              onValueChange={(value) => {
+                setUserData((prev) => ({
+                  ...prev,
+                  autoPlay: {
+                    ...prev.autoPlay,
+                    attributes:
+                      value as (typeof AUTO_PLAY_ATTRIBUTES)[number][],
+                  },
+                }));
+              }}
+            />
+          )}
         </SettingsCard>
         <SettingsCard
           title="External Downloads"

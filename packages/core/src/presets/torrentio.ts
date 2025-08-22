@@ -153,10 +153,6 @@ export class TorrentioPreset extends Preset {
         type: 'multi-select',
         required: false,
         options: TorrentioPreset.defaultProviders,
-        default: TorrentioPreset.defaultProviders.map(
-          (provider) => provider.value
-        ),
-        emptyIsUndefined: true,
       },
       {
         id: 'services',

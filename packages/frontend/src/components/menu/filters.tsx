@@ -13,6 +13,7 @@ import {
   FaTrash,
   FaPlus,
   FaRegTrashAlt,
+  FaRegCopy,
   FaFileExport,
   FaFileImport,
   FaEquals,
@@ -156,15 +157,14 @@ export function FiltersMenu() {
 }
 
 const deduplicatorMultiGroupBehaviourHelp = {
-  remove_nothing:
-    'Remove Nothing - Do nothing, i.e. continue processing each group individually',
-  remove_uncached:
-    'Remove Uncached - Remove the uncached streams when both cached and uncached streams exist in a given duplicate set',
-  remove_uncached_same_service:
-    'Remove Uncached (Same Service) - Remove uncached streams that already have a cached duplicate of the same service. e.g. When a file is duplicated and there is a uncached and cached version from the same service, remove the uncached version but if they are 2 different services, keep both',
+  conservative:
+    'Removes duplicates conservatively - removes uncached versions which have cached versions from the same service, and removes P2P versions when cached versions exist',
+  aggressive:
+    'Aggressively removes all uncached and p2p streams when cached versions exist, and removes uncached streams when p2p versions exist',
+  keep_all: 'Keeps all streams and processes each group independently',
 };
 
-const defaultDeduplicatorMultiGroupBehaviour = 'remove_uncached_same_service';
+const defaultDeduplicatorMultiGroupBehaviour = 'aggressive';
 
 function Content() {
   const [tab, setTab] = useState('cache');
@@ -172,6 +172,7 @@ function Content() {
   const previousTab = useRef(tab);
   const { userData, setUserData } = useUserData();
   const allowedRegexModal = useDisclosure(false);
+  const allowedRegexUrlsModal = useDisclosure(false);
   useEffect(() => {
     if (tab !== previousTab.current) {
       previousTab.current = tab;
@@ -1713,7 +1714,18 @@ function Content() {
                             </div>
                           )}
                         </div>
-                        <div>
+                        <div className="flex flex-row flex-wrap gap-2">
+                          {status?.settings.allowedRegexPatterns?.urls &&
+                            status.settings.allowedRegexPatterns.urls.length >
+                              0 && (
+                              <Button
+                                intent="primary-outline"
+                                size="sm"
+                                onClick={allowedRegexUrlsModal.open}
+                              >
+                                View Allowed Import URLs
+                              </Button>
+                            )}
                           <Button
                             intent="primary-outline"
                             size="sm"
@@ -2250,20 +2262,17 @@ function Content() {
                         deduplicator: {
                           ...prev.deduplicator,
                           multiGroupBehaviour: value as
-                            | 'remove_nothing'
-                            | 'remove_uncached'
-                            | 'remove_uncached_same_service',
+                            | 'conservative'
+                            | 'aggressive'
+                            | 'keep_all',
                         },
                       }));
                     }}
                     disabled={!userData.deduplicator?.enabled}
                     options={[
-                      { label: 'Remove Nothing', value: 'remove_nothing' },
-                      { label: 'Remove Uncached', value: 'remove_uncached' },
-                      {
-                        label: 'Remove Uncached (Same Service)',
-                        value: 'remove_uncached_same_service',
-                      },
+                      { label: 'Conservative', value: 'conservative' },
+                      { label: 'Aggressive', value: 'aggressive' },
+                      { label: 'Keep All', value: 'keep_all' },
                     ]}
                   />
                 </SettingsCard>
@@ -2278,13 +2287,7 @@ function Content() {
         open={allowedRegexModal.isOpen}
         onOpenChange={allowedRegexModal.close}
         title="Allowed Regex Patterns"
-        description={
-          status?.settings.allowedRegexPatterns?.description && (
-            <MarkdownLite>
-              {status?.settings.allowedRegexPatterns?.description}
-            </MarkdownLite>
-          )
-        }
+        description="These are regex patterns that you are allowed to use in your filters."
       >
         <div className="space-y-4">
           <div className="border rounded-md bg-gray-900 border-gray-800 p-4 max-h-96 overflow-auto">
@@ -2303,6 +2306,47 @@ function Content() {
                 status.settings.allowedRegexPatterns.patterns.length === 0) && (
                 <div className="text-muted-foreground text-sm text-center">
                   No allowed regex patterns configured
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={allowedRegexUrlsModal.isOpen}
+        onOpenChange={allowedRegexUrlsModal.close}
+        title="Allowed Regex Pattern URLs"
+        description="These are URLs that you can import regex patterns from."
+      >
+        <div className="space-y-4">
+          <div className="border rounded-md bg-gray-900 border-gray-800 p-4 max-h-96 overflow-auto">
+            <div className="space-y-2">
+              {status?.settings.allowedRegexPatterns?.urls?.map(
+                (url, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 font-mono text-sm bg-gray-800 rounded px-3 py-2"
+                  >
+                    <div className="flex-1 break-all whitespace-pre-wrap">
+                      {url}
+                    </div>
+                    <IconButton
+                      size="sm"
+                      intent="primary-subtle"
+                      icon={<FaRegCopy />}
+                      onClick={() => {
+                        navigator.clipboard.writeText(url);
+                        toast.success('URL copied to clipboard');
+                      }}
+                    />
+                  </div>
+                )
+              )}
+              {(!status?.settings.allowedRegexPatterns?.urls ||
+                status.settings.allowedRegexPatterns.urls.length === 0) && (
+                <div className="text-muted-foreground text-sm text-center">
+                  No allowed regex pattern URLs configured
                 </div>
               )}
             </div>

@@ -19,6 +19,7 @@
     "moment-timezone": "^0.5.48",
     "parse-torrent-title": "github:TheBeastLT/parse-torrent-title",
     "pg": "^8.16.0",
+    "redis": "^5.8.2",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",
     "stremthru": "^0.8.0",

@@ -48,7 +48,7 @@ router.head('/', async (req, res, next) => {
     if (error instanceof APIError) {
       next(error);
     } else {
-      next(new APIError(constants.ErrorCode.USER_ERROR));
+      next(new APIError(constants.ErrorCode.INTERNAL_SERVER_ERROR));
     }
   }
 });
@@ -74,7 +74,11 @@ router.get('/', async (req, res, next) => {
       next(error);
     } else {
       next(
-        new APIError(constants.ErrorCode.USER_ERROR, undefined, error.message)
+        new APIError(
+          constants.ErrorCode.INTERNAL_SERVER_ERROR,
+          undefined,
+          error.message
+        )
       );
     }
     return;
@@ -84,7 +88,7 @@ router.get('/', async (req, res, next) => {
     encryptString(password);
 
   if (!successfulEncryption) {
-    next(new APIError(constants.ErrorCode.USER_ERROR));
+    next(new APIError(constants.ErrorCode.ENCRYPTION_ERROR));
     return;
   }
 
@@ -133,7 +137,7 @@ router.put('/', async (req, res, next) => {
     if (error instanceof APIError) {
       next(error);
     } else {
-      next(new APIError(constants.ErrorCode.USER_ERROR));
+      next(new APIError(constants.ErrorCode.INTERNAL_SERVER_ERROR));
     }
   }
 });
@@ -170,7 +174,7 @@ router.post('/', async (req, res, next) => {
       next(error);
     } else {
       logger.error(error);
-      next(new APIError(constants.ErrorCode.USER_ERROR));
+      next(new APIError(constants.ErrorCode.INTERNAL_SERVER_ERROR));
     }
   }
 });
@@ -194,7 +198,7 @@ router.delete('/', async (req, res, next) => {
     if (error instanceof APIError) {
       next(error);
     } else {
-      next(new APIError(constants.ErrorCode.USER_ERROR));
+      next(new APIError(constants.ErrorCode.INTERNAL_SERVER_ERROR));
     }
   }
 });

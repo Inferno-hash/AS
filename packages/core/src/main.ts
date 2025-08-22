@@ -44,7 +44,11 @@ import { TMDBMetadata, TMDBMetadataResponse } from './metadata/tmdb';
 const logger = createLogger('core');
 
 const shuffleCache = Cache.getInstance<string, MetaPreview[]>('shuffle');
-const precacheCache = Cache.getInstance<string, boolean>('precache');
+const precacheCache = Cache.getInstance<string, boolean>(
+  'precache',
+  undefined,
+  true
+);
 
 export interface AIOStreamsError {
   title?: string;
@@ -182,7 +186,7 @@ export class AIOStreams {
       // within the last 24 hours (Env.PRECACHE_NEXT_EPISODE_MIN_INTERVAL)
       let precache = false;
       const cacheKey = `precache-${type}-${id}-${this.userData.uuid}`;
-      const cachedNextEpisode = precacheCache.get(cacheKey, false);
+      const cachedNextEpisode = await precacheCache.get(cacheKey, false);
       if (cachedNextEpisode) {
         logger.info(
           `The current request for ${type} ${id} has already had the next episode precached within the last ${Env.PRECACHE_NEXT_EPISODE_MIN_INTERVAL} seconds (${precacheCache.getTTL(cacheKey)} seconds left). Skipping precaching.`
@@ -302,7 +306,7 @@ export class AIOStreams {
     if (modification?.shuffle && !(extras && extras.includes('search'))) {
       // shuffle the catalog array if it is not a search
       const cacheKey = `shuffle-${type}-${actualCatalogId}-${extras}-${this.userData.uuid}`;
-      const cachedShuffle = shuffleCache.get(cacheKey);
+      const cachedShuffle = await shuffleCache.get(cacheKey);
       if (cachedShuffle) {
         catalog = cachedShuffle;
       } else {
@@ -311,7 +315,7 @@ export class AIOStreams {
           [catalog[i], catalog[j]] = [catalog[j], catalog[i]];
         }
         if (modification.persistShuffleFor) {
-          shuffleCache.set(
+          await shuffleCache.set(
             cacheKey,
             catalog,
             modification.persistShuffleFor * 3600
@@ -1344,7 +1348,11 @@ export class AIOStreams {
         );
       }
       const cacheKey = `precache-${type}-${id}-${this.userData.uuid}`;
-      precacheCache.set(cacheKey, true, Env.PRECACHE_NEXT_EPISODE_MIN_INTERVAL);
+      await precacheCache.set(
+        cacheKey,
+        true,
+        Env.PRECACHE_NEXT_EPISODE_MIN_INTERVAL
+      );
       logger.info(`Successfully precached a stream for ${id} (${type})`);
     } catch (error) {
       logger.error(`Error pinging url of first uncached stream`, {

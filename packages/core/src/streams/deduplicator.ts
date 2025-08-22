@@ -26,8 +26,7 @@ class StreamDeduplicator {
 
     deduplicator = {
       enabled: true,
-      multiGroupBehaviour:
-        deduplicator.multiGroupBehaviour || 'remove_uncached_same_service',
+      multiGroupBehaviour: deduplicator.multiGroupBehaviour || 'aggressive',
       keys: deduplicationKeys,
       cached: deduplicator.cached || 'per_addon',
       uncached: deduplicator.uncached || 'per_addon',
@@ -126,16 +125,24 @@ class StreamDeduplicator {
         streamsByType.set(type, typeGroup);
       }
 
-      const uncachedStreams = streamsByType.get('uncached') || [];
       const cachedStreams = streamsByType.get('cached') || [];
-      if (uncachedStreams.length > 0 && cachedStreams.length > 0) {
+      const uncachedStreams = streamsByType.get('uncached') || [];
+      const p2pStreams = streamsByType.get('p2p') || [];
+
+      const groupTypes = [cachedStreams, uncachedStreams, p2pStreams];
+      if (groupTypes.filter((arr) => arr.length > 0).length >= 2) {
         switch (deduplicator.multiGroupBehaviour) {
-          case 'remove_uncached':
-            streamsByType.delete('uncached');
+          case 'aggressive':
+            if (cachedStreams.length > 0) {
+              streamsByType.delete('p2p');
+              streamsByType.delete('uncached');
+            } else if (p2pStreams.length > 0) {
+              streamsByType.delete('uncached');
+            }
             break;
-          case 'remove_nothing':
+          case 'keep_all':
             break;
-          case 'remove_uncached_same_service':
+          case 'conservative':
             streamsByType.set(
               'uncached',
               uncachedStreams.filter(
@@ -146,7 +153,9 @@ class StreamDeduplicator {
             if (streamsByType.get('uncached')?.length === 0) {
               streamsByType.delete('uncached');
             }
-
+            if (cachedStreams.length > 0) {
+              streamsByType.delete('p2p');
+            }
             break;
         }
       }

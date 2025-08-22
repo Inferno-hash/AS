@@ -160,6 +160,34 @@ const readonly = makeValidator((x) => {
   return x;
 });
 
+const urlMappings = makeValidator<Record<string, string>>((x) => {
+  // json object with string properties
+  const parsed = JSON.parse(x);
+  if (typeof parsed !== 'object' || parsed === null) {
+    throw new EnvError('URL mappings must be an object');
+  }
+  const mappings: Record<string, string> = {};
+  for (const [key, value] of Object.entries(parsed)) {
+    if (typeof key !== 'string' || typeof value !== 'string') {
+      throw new EnvError(
+        'URL mappings must be an object with string properties only'
+      );
+    }
+    try {
+      const keyUrl = new URL(key.endsWith('/') ? key.slice(0, -1) : key);
+      const valueUrl = new URL(
+        value.endsWith('/') ? value.slice(0, -1) : value
+      );
+      mappings[keyUrl.origin] = valueUrl.origin;
+    } catch (e) {
+      throw new EnvError(
+        `Each key and value in the URL mappings must be a valid URL`
+      );
+    }
+  }
+  return mappings;
+});
+
 export const Env = cleanEnv(process.env, {
   VERSION: readonly({
     default: metadata?.version || 'unknown',
@@ -253,6 +281,14 @@ export const Env = cleanEnv(process.env, {
     default: 'sqlite://./data/db.sqlite',
     desc: 'Database URI for the addon',
   }),
+  REDIS_URI: str({
+    default: undefined,
+    desc: 'Redis URI for the addon',
+  }),
+  REDIS_TIMEOUT: num({
+    default: 500,
+    desc: 'Redis timeout for the addon',
+  }),
   ADDON_PROXY: url({
     default: undefined,
     desc: 'Proxy URL for the addon',
@@ -260,6 +296,10 @@ export const Env = cleanEnv(process.env, {
   ADDON_PROXY_CONFIG: str({
     default: undefined,
     desc: 'Proxy config for the addon in format of comma separated hostname:boolean',
+  }),
+  REQUEST_URL_MAPPINGS: urlMappings({
+    default: undefined,
+    desc: 'Mapping of URLs to another, converts requests to the original URL to the mapped URL',
   }),
   ALIASED_CONFIGURATIONS: aliasedUUIDs({
     default: {},
@@ -429,9 +469,17 @@ export const Env = cleanEnv(process.env, {
     desc: 'Max number of groups',
   }),
 
-  ALLOWED_REGEX_PATTERNS: json({
+  ALLOWED_REGEX_PATTERNS: json<string[]>({
     default: [],
     desc: 'Allowed regex patterns',
+  }),
+  ALLOWED_REGEX_PATTERNS_URLS: json<string[]>({
+    default: undefined,
+    desc: 'Comma separated list of allowed regex patterns URLs',
+  }),
+  ALLOWED_REGEX_PATTERNS_URLS_REFRESH_INTERVAL: num({
+    default: 86400000,
+    desc: 'Interval for refreshing regex patterns from URLs in milliseconds',
   }),
   ALLOWED_REGEX_PATTERNS_DESCRIPTION: str({
     default: undefined,
@@ -462,6 +510,11 @@ export const Env = cleanEnv(process.env, {
   MANIFEST_TIMEOUT: num({
     default: 3000,
     desc: 'Timeout for manifest requests',
+  }),
+
+  BACKGROUND_RESOURCE_REQUEST_TIMEOUT: num({
+    default: undefined,
+    desc: 'Timeout for background resource requests, uses your maximum timeout if not set',
   }),
 
   FORCE_PUBLIC_PROXY_HOST: host({
@@ -604,6 +657,10 @@ export const Env = cleanEnv(process.env, {
     default: undefined,
     desc: 'Default EasyDebrid API key',
   }),
+  DEFAULT_DEBRIDER_API_KEY: str({
+    default: undefined,
+    desc: 'Default Debrider API key',
+  }),
   DEFAULT_PIKPAK_EMAIL: str({
     default: undefined,
     desc: 'Default PikPak email',
@@ -670,6 +727,10 @@ export const Env = cleanEnv(process.env, {
     default: undefined,
     desc: 'Forced EasyDebrid API key',
   }),
+  FORCED_DEBRIDER_API_KEY: str({
+    default: undefined,
+    desc: 'Forced Debrider API key',
+  }),
   FORCED_PIKPAK_EMAIL: str({
     default: undefined,
     desc: 'Forced PikPak email',
@@ -681,6 +742,11 @@ export const Env = cleanEnv(process.env, {
   FORCED_SEEDR_ENCODED_TOKEN: str({
     default: undefined,
     desc: 'Forced Seedr encoded token',
+  }),
+
+  STREAM_URL_MAPPINGS: urlMappings({
+    default: undefined,
+    desc: 'Mapping of URLs to another, converts stream URLs from the original URL to the mapped URL',
   }),
 
   COMET_URL: url({

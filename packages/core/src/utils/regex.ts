@@ -1,11 +1,10 @@
-import { isMatch, firstMatch } from 'super-regex';
+import { isMatch } from 'super-regex';
 import { Cache } from './cache';
 import { getSimpleTextHash } from './crypto';
 import { createLogger } from './logger';
-import { Env } from './env';
 
 const DEFAULT_TIMEOUT = 1000; // 1 second timeout
-const regexCache = Cache.getInstance<string, RegExp>('regexCache', 1_000);
+const regexCache = Cache.getInstance<string, RegExp>('regexCache', 1_000, true);
 const resultCache = Cache.getInstance<string, boolean>(
   'regexResultCache',
   1_000_000
@@ -76,9 +75,9 @@ export async function compileRegex(
 export async function formRegexFromKeywords(
   keywords: string[]
 ): Promise<RegExp> {
-  const pattern = `/(?<![^ [(_\\-.])(${keywords
-    .map((filter) => filter.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'))
-    .map((filter) => filter.replace(/\s/g, '[ .\\-_]?'))
+  const pattern = `/(?:^|(?<![^ \\[(_\\-.]))(${keywords
+    .map((filter) => filter.replace(/[-[\]{}()*+?.,\\^$]/g, '\\$&'))
+    .map((filter) => filter.replace(/\s/g, '[\\s.\\-_]?'))
     .join('|')})(?=[ \\)\\]_.-]|$)/i`;
 
   return await compileRegex(pattern);

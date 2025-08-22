@@ -1,6 +1,6 @@
 import { Addon, Option, UserData, Resource, Stream, ParsedStream } from '../db';
 import { baseOptions, Preset } from './preset';
-import { createLogger, Env } from '../utils';
+import { createLogger, Env, getSimpleTextHash } from '../utils';
 import { constants, ServiceId } from '../utils';
 import { StreamParser } from '../parser';
 
@@ -132,6 +132,7 @@ export class MediaFusionPreset extends Preset {
       constants.TORBOX_SERVICE,
       constants.DEBRIDLINK_SERVICE,
       constants.EASYDEBRID_SERVICE,
+      constants.DEBRIDER_SERVICE,
       constants.OFFCLOUD_SERVICE,
       constants.PIKPAK_SERVICE,
       constants.SEEDR_SERVICE,
@@ -327,7 +328,12 @@ export class MediaFusionPreset extends Preset {
     options: Record<string, any>,
     serviceId?: ServiceId
   ): Addon {
-    const url = this.generateManifestUrl(options);
+    const encodedUserData = this.generateEncodedUserData(
+      userData,
+      options,
+      serviceId
+    );
+    const url = this.generateManifestUrl(options, encodedUserData);
     return {
       name: options.name || this.METADATA.NAME,
       identifier: serviceId
@@ -355,21 +361,20 @@ export class MediaFusionPreset extends Preset {
           }
         : {
             'User-Agent': this.METADATA.USER_AGENT,
-            encoded_user_data: this.generateEncodedUserData(
-              userData,
-              options,
-              serviceId
-            ),
+            encoded_user_data: encodedUserData,
           },
     };
   }
 
-  private static generateManifestUrl(options: Record<string, any>) {
-    const url = options.url || this.METADATA.URL;
+  private static generateManifestUrl(
+    options: Record<string, any>,
+    encodedUserData: string
+  ) {
+    const url = (options.url || this.METADATA.URL).replace(/\/$/, '');
     if (url.endsWith('/manifest.json')) {
       return url;
     }
-    return `${url}/manifest.json`;
+    return `${url}/manifest.json?data=${getSimpleTextHash(encodedUserData)}`;
   }
 
   private static generateEncodedUserData(

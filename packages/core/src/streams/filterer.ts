@@ -86,14 +86,18 @@ class StreamFilterer {
     };
 
     const start = Date.now();
-    const isRegexAllowed = FeatureControl.isRegexAllowed(this.userData, [
+    const isRegexAllowed = await FeatureControl.isRegexAllowed(this.userData, [
       ...(this.userData.excludedRegexPatterns ?? []),
       ...(this.userData.requiredRegexPatterns ?? []),
       ...(this.userData.includedRegexPatterns ?? []),
     ]);
 
     let requestedMetadata: TMDBMetadataResponse | undefined;
-    if (this.userData.titleMatching?.enabled && TYPES.includes(type as any)) {
+    if (
+      (this.userData.titleMatching?.enabled ||
+        this.userData.yearMatching?.enabled) &&
+      TYPES.includes(type as any)
+    ) {
       try {
         requestedMetadata = await new TMDBMetadata({
           accessToken: this.userData.tmdbAccessToken,
@@ -173,6 +177,21 @@ class StreamFilterer {
         return true;
       }
 
+      if (
+        yearMatchingOptions.requestTypes?.length &&
+        (!yearMatchingOptions.requestTypes.includes(type) ||
+          (isAnime && !yearMatchingOptions.requestTypes.includes('anime')))
+      ) {
+        return true;
+      }
+
+      if (
+        yearMatchingOptions.addons?.length &&
+        !yearMatchingOptions.addons.includes(stream.addon.preset.id)
+      ) {
+        return true;
+      }
+
       const streamYear = stream.parsedFile?.year;
       if (!streamYear && type === 'movie') {
         // only filter out movies without a year as series results usually don't include a year
@@ -180,9 +199,10 @@ class StreamFilterer {
       }
       return streamYear
         ? requestedMetadata.year === streamYear ||
-            (yearMatchingOptions.tolerance &&
-              Math.abs(Number(requestedMetadata.year) - Number(streamYear)) <=
-                yearMatchingOptions.tolerance)
+            (yearMatchingOptions.tolerance !== undefined
+              ? Math.abs(Number(requestedMetadata.year) - Number(streamYear)) <=
+                yearMatchingOptions.tolerance
+              : false)
         : true;
     };
 

@@ -35,6 +35,7 @@ import { PageControls } from '../shared/page-controls';
 import { SettingsCard } from '../shared/settings-card';
 import { TextInput } from '../ui/text-input';
 import { PasswordInput } from '../ui/password-input';
+import { StatusResponse, UserData } from '@aiostreams/core';
 export function ServicesMenu() {
   return (
     <>
@@ -152,7 +153,7 @@ function Content() {
         services: [...filtered, ...toAdd],
       }));
     }
-  }, [status.settings.services]);
+  }, [status.settings.services, userData.services]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -267,7 +268,10 @@ function Content() {
                   </li>
                 ) : (
                   userData.services?.map((service, idx) => {
-                    const svcMeta = status.settings.services[service.id]!;
+                    const svcMeta = status.settings.services[service.id] as
+                      | StatusResponse['settings']['services'][ServiceId]
+                      | undefined;
+                    if (!svcMeta) return null;
                     return (
                       <SortableServiceItem
                         key={service.id}
@@ -433,8 +437,8 @@ function SortableServiceItem({
   onEdit,
   onToggleEnabled,
 }: {
-  service: any;
-  meta: any;
+  service: Exclude<UserData['services'], undefined>[number];
+  meta: Exclude<StatusResponse['settings']['services'][ServiceId], undefined>;
   onEdit: () => void;
   onToggleEnabled: (v: boolean) => void;
 }) {
@@ -451,7 +455,7 @@ function SortableServiceItem({
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
-  const disableEdit = meta.credentials.every((cred: any) => {
+  const disableEdit = meta.credentials.every((cred) => {
     return cred.forced;
   });
   return (

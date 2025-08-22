@@ -47,7 +47,8 @@ export class StremioTransformer {
     stream: ParsedStream,
     formatter: {
       format: (stream: ParsedStream) => { name: string; description: string };
-    }
+    },
+    index: number
   ): Promise<AIOStream> {
     const { name, description } = stream.addon.streamPassthrough
       ? {
@@ -55,25 +56,51 @@ export class StremioTransformer {
           description: stream.originalDescription,
         }
       : formatter.format(stream);
-    const identifyingAttributes = [
-      Env.ADDON_ID,
-      stream.service?.id,
-      stream.proxied,
-      stream.parsedFile?.resolution,
-      stream.parsedFile?.quality,
-      stream.parsedFile?.encode,
-      stream.parsedFile?.audioTags.length
-        ? stream.parsedFile?.audioTags
-        : undefined,
-      stream.parsedFile?.visualTags.length
-        ? stream.parsedFile?.visualTags
-        : undefined,
-      stream.parsedFile?.languages.length
-        ? stream.parsedFile?.languages
-        : undefined,
-      stream.parsedFile?.releaseGroup,
-    ].filter(Boolean);
-    const bingeGroup = `${identifyingAttributes.join('|')}`;
+
+    const autoPlaySettings = {
+      enabled: this.userData.autoPlay?.enabled ?? true,
+      method: this.userData.autoPlay?.method ?? 'matchingFile',
+      attributes:
+        this.userData.autoPlay?.attributes ??
+        constants.DEFAULT_AUTO_PLAY_ATTRIBUTES,
+    };
+
+    const identifyingAttributes = autoPlaySettings.attributes
+      .map((attribute) => {
+        switch (attribute) {
+          case 'service':
+            return stream.service?.id;
+          case 'proxied':
+            return stream.proxied;
+          case 'addon':
+            return stream.addon.name;
+          case 'infoHash':
+            return stream.torrent?.infoHash;
+          default:
+            return stream.parsedFile?.[attribute];
+        }
+      })
+      .filter((attribute) =>
+        attribute !== undefined &&
+        attribute !== null &&
+        Array.isArray(attribute)
+          ? attribute.length
+          : true
+      );
+    let bingeGroup: string | undefined;
+    if (autoPlaySettings.enabled)
+      switch (autoPlaySettings.method) {
+        case 'matchingFile':
+          bingeGroup = `${identifyingAttributes.join('|')}`;
+          break;
+        case 'matchingIndex':
+          bingeGroup = index.toString();
+          break;
+        case 'firstFile':
+          bingeGroup = '';
+          break;
+      }
+
     return {
       name,
       description,
@@ -89,7 +116,7 @@ export class StremioTransformer {
       behaviorHints: {
         countryWhitelist: stream.countryWhitelist,
         notWebReady: stream.notWebReady,
-        bingeGroup: bingeGroup,
+        bingeGroup: `${Env.ADDON_ID}:${bingeGroup}`,
         proxyHeaders:
           stream.requestHeaders || stream.responseHeaders
             ? {
@@ -161,8 +188,8 @@ export class StremioTransformer {
     );
 
     transformedStreams = await Promise.all(
-      streams.map((stream: ParsedStream) =>
-        this.convertParsedStreamToStream(stream, formatter)
+      streams.map((stream: ParsedStream, index: number) =>
+        this.convertParsedStreamToStream(stream, formatter, index)
       )
     );
 
@@ -291,8 +318,8 @@ export class StremioTransformer {
       for (const video of meta.videos) {
         if (video.streams && video.streams.length > 0) {
           const transformedStreams = await Promise.all(
-            video.streams.map((stream) =>
-              this.convertParsedStreamToStream(stream, formatter!)
+            video.streams.map((stream, index) =>
+              this.convertParsedStreamToStream(stream, formatter!, index)
             )
           );
           video.streams = transformedStreams as unknown as ParsedStream[];

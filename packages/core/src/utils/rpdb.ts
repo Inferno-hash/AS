@@ -9,7 +9,7 @@ interface Id {
   value: string;
 }
 
-const apiKeyValidationCache = Cache.getInstance('rpdbApiKey');
+const apiKeyValidationCache = Cache.getInstance<string, boolean>('rpdbApiKey');
 const posterCheckCache = Cache.getInstance<string, string>('rpdbPosterCheck');
 
 export class RPDB {
@@ -24,8 +24,8 @@ export class RPDB {
     }
   }
 
-  public async validateApiKey() {
-    const cached = apiKeyValidationCache.get(this.apiKey);
+  public async validateApiKey(): Promise<boolean> {
+    const cached = await apiKeyValidationCache.get(this.apiKey);
     if (cached) {
       return cached;
     }
@@ -53,6 +53,7 @@ export class RPDB {
       data.valid,
       Env.RPDB_API_KEY_VALIDITY_CACHE_TTL
     );
+    return data.valid;
   }
   /**
    *
@@ -65,7 +66,7 @@ export class RPDB {
   ): Promise<string | null> {
     const parsedId = this.getParsedId(id, type);
     const cacheKey = `${type}-${id}`;
-    const cached = posterCheckCache.get(cacheKey);
+    const cached = await posterCheckCache.get(cacheKey);
     if (cached) {
       return cached;
     }

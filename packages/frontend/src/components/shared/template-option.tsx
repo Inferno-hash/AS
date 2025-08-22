@@ -50,7 +50,9 @@ const TemplateOption: React.FC<TemplateOptionProps> = ({
     emptyIsUndefined = false,
   } = option;
 
-  const isDisabled = disabled || !!forced;
+  const isDisabled = disabled || !(forced === undefined || forced === null);
+  const forcedValue =
+    forced !== undefined && forced !== null ? forced : undefined;
 
   switch (type) {
     case 'socials':
@@ -74,7 +76,7 @@ const TemplateOption: React.FC<TemplateOptionProps> = ({
         <div>
           <PasswordInput
             label={name}
-            value={forced || defaultValue || value}
+            value={forcedValue ?? value ?? defaultValue}
             onValueChange={(value: string) =>
               onChange(emptyIsUndefined ? value || undefined : value)
             }
@@ -99,7 +101,7 @@ const TemplateOption: React.FC<TemplateOptionProps> = ({
         <div>
           <TextInput
             label={name}
-            value={value}
+            value={forcedValue ?? value ?? defaultValue}
             onValueChange={(value: string) =>
               onChange(emptyIsUndefined ? value || undefined : value)
             }
@@ -123,7 +125,7 @@ const TemplateOption: React.FC<TemplateOptionProps> = ({
       return (
         <div>
           <NumberInput
-            value={value}
+            value={forcedValue ?? value ?? defaultValue}
             label={name}
             onValueChange={(value: number, valueAsString: string) =>
               onChange(value)
@@ -156,7 +158,11 @@ const TemplateOption: React.FC<TemplateOptionProps> = ({
         <div>
           <div className="flex items-center justify-between mb-1">
             <span className="font-medium text-sm">{name}</span>
-            <Switch value={!!value} onValueChange={onChange} />
+            <Switch
+              disabled={isDisabled}
+              value={!!(forcedValue ?? value ?? defaultValue)}
+              onValueChange={onChange}
+            />
           </div>
           {description && (
             <div className="text-xs text-[--muted] mt-1">
@@ -170,7 +176,7 @@ const TemplateOption: React.FC<TemplateOptionProps> = ({
         <div>
           <Select
             label={name}
-            value={value}
+            value={forcedValue ?? value ?? defaultValue}
             onValueChange={onChange}
             options={
               options?.map((opt) => ({ label: opt.label, value: opt.value })) ??
@@ -189,7 +195,7 @@ const TemplateOption: React.FC<TemplateOptionProps> = ({
         <div>
           <Combobox
             label={name}
-            value={Array.isArray(value) ? value : undefined}
+            value={(forcedValue ?? Array.isArray(value)) ? value : defaultValue}
             onValueChange={(value: any) =>
               onChange(
                 emptyIsUndefined
@@ -226,7 +232,7 @@ const TemplateOption: React.FC<TemplateOptionProps> = ({
         <div>
           <TextInput
             label={name}
-            value={value}
+            value={forcedValue ?? value ?? defaultValue}
             onValueChange={(value: string) =>
               onChange(emptyIsUndefined ? value || undefined : value)
             }
@@ -293,7 +299,7 @@ const TemplateOption: React.FC<TemplateOptionProps> = ({
                 />
               </div>
               <PasswordInput
-                value={value}
+                value={forcedValue ?? value ?? defaultValue}
                 onValueChange={(value: string) =>
                   onChange(emptyIsUndefined ? value || undefined : value)
                 }

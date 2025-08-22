@@ -118,6 +118,7 @@ export class TorrentsDbPreset extends Preset {
       constants.ALLDEBRID_SERVICE,
       constants.TORBOX_SERVICE,
       constants.EASYDEBRID_SERVICE,
+      constants.DEBRIDER_SERVICE,
       constants.PUTIO_SERVICE,
       constants.DEBRIDLINK_SERVICE,
       constants.OFFCLOUD_SERVICE,
@@ -319,6 +320,9 @@ export class TorrentsDbPreset extends Preset {
         : undefined,
       easydebrid: services.includes(constants.EASYDEBRID_SERVICE)
         ? this.getServiceCredential(constants.EASYDEBRID_SERVICE, userData)
+        : undefined,
+      debrider: services.includes(constants.DEBRIDER_SERVICE)
+        ? this.getServiceCredential(constants.DEBRIDER_SERVICE, userData)
         : undefined,
     });
     return `${url}${configString ? '/' + configString : ''}/manifest.json`;
