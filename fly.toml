@@ -1,4 +1,4 @@
-app = "myaiostreams"
+app = "APP_NAME"
 primary_region = "bom"
 
 [build]
