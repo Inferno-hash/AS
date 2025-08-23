@@ -383,6 +383,9 @@ export class UsenetSourceHandler extends SourceHandler {
           search_user_engines: this.searchUserEngines ? 'true' : 'false',
         });
         torrents = convertDataToTorrents(data.nzbs);
+        logger.info(
+          `Found ${torrents.length} NZBs for ${id} in ${getTimeTakenSincePoint(start)}`
+        );
         if (torrents.length === 0) {
           return [];
         }
@@ -390,9 +393,6 @@ export class UsenetSourceHandler extends SourceHandler {
           cacheKey,
           torrents,
           Env.BUILTIN_TORBOX_SEARCH_SEARCH_API_CACHE_TTL
-        );
-        logger.info(
-          `Found ${torrents.length} NZBs for ${id} in ${getTimeTakenSincePoint(start)}`
         );
       } catch (error) {
         if (error instanceof TorboxApiError) {
