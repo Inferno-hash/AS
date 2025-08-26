@@ -374,7 +374,7 @@ export class MediaFusionPreset extends Preset {
     if (url.endsWith('/manifest.json')) {
       return url;
     }
-    return `${url}/manifest.json?data=${getSimpleTextHash(encodedUserData)}`;
+    return `${url}/${getSimpleTextHash(encodedUserData)}/manifest.json`;
   }
 
   private static generateEncodedUserData(

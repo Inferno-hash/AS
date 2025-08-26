@@ -3,7 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 
 import { Env, createLogger, constants, APIError } from '@aiostreams/core';
 
-const logger = createLogger('ratelimit');
+const logger = createLogger('server');
 
 const createRateLimiter = (
   windowMs: number,
@@ -30,7 +30,7 @@ const createRateLimiter = (
         ? req.rateLimit.resetTime.getTime() - new Date().getTime()
         : 0;
       logger.warn(
-        `Rate limit exceeded for IP: ${req.userIp || req.ip} - ${
+        `${prefix} rate limit exceeded for IP: ${req.userIp || req.ip} - ${
           options.message
         } - Time remaining: ${timeRemaining}ms`
       );

@@ -392,7 +392,7 @@ export class Wrapper {
         () =>
           reject(
             new Error(
-              `Request for ${resourceName} timed out after ${timeout}ms`
+              `Request for ${resourceName} for ${this.getAddonName(this.addon)} timed out after ${timeout}ms`
             )
           ),
         timeout

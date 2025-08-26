@@ -1,4 +1,4 @@
-import { ParsedStream } from '../db';
+import { ParsedStream, UserData } from '../db';
 // import { constants, Env, createLogger } from '../utils';
 import * as constants from '../utils/constants';
 import { createLogger } from '../utils/logger';
@@ -60,10 +60,15 @@ export interface ParseValue {
     quality: string | null;
     resolution: string | null;
     languages: string[] | null;
+    uLanguages: string[] | null;
     languageEmojis: string[] | null;
+    uLanguageEmojis: string[] | null;
     languageCodes: string[] | null;
+    uLanguageCodes: string[] | null;
     smallLanguageCodes: string[] | null;
+    uSmallLanguageCodes: string[] | null;
     wedontknowwhatakilometeris: string[] | null;
+    uWedontknowwhatakilometeris: string[] | null;
     visualTags: string[] | null;
     audioTags: string[] | null;
     releaseGroup: string | null;
@@ -104,11 +109,11 @@ export interface ParseValue {
 
 export abstract class BaseFormatter {
   protected config: FormatterConfig;
-  protected addonName: string;
+  protected userData: UserData;
 
-  constructor(config: FormatterConfig, addonName?: string) {
+  constructor(config: FormatterConfig, userData: UserData) {
     this.config = config;
-    this.addonName = addonName || Env.ADDON_NAME;
+    this.userData = userData;
   }
 
   public format(stream: ParsedStream): { name: string; description: string } {
@@ -120,9 +125,39 @@ export abstract class BaseFormatter {
   }
 
   protected convertStreamToParseValue(stream: ParsedStream): ParseValue {
+    const languages = stream.parsedFile?.languages || null;
+    const userSpecifiedLanguages = [
+      ...new Set([
+        ...(this.userData.preferredLanguages || []),
+        ...(this.userData.requiredLanguages || []),
+        ...(this.userData.includedLanguages || []),
+      ]),
+    ];
+
+    const sortedLanguages = languages
+      ? [...languages].sort((a, b) => {
+          const aIndex = userSpecifiedLanguages.indexOf(a as any);
+          const bIndex = userSpecifiedLanguages.indexOf(b as any);
+
+          const aInUser = aIndex !== -1;
+          const bInUser = bIndex !== -1;
+
+          return aInUser && bInUser
+            ? aIndex - bIndex
+            : aInUser
+              ? -1
+              : bInUser
+                ? 1
+                : languages.indexOf(a) - languages.indexOf(b);
+        })
+      : null;
+
+    const onlyUserSpecifiedLanguages = sortedLanguages?.filter((lang) =>
+      userSpecifiedLanguages.includes(lang as any)
+    );
     return {
       config: {
-        addonName: this.addonName,
+        addonName: this.userData.addonName || Env.ADDON_NAME,
       },
       stream: {
         filename: stream.filename || null,
@@ -132,25 +167,48 @@ export abstract class BaseFormatter {
         library: stream.library !== undefined ? stream.library : null,
         quality: stream.parsedFile?.quality || null,
         resolution: stream.parsedFile?.resolution || null,
-        languages: stream.parsedFile?.languages || null,
-        languageEmojis: stream.parsedFile?.languages
-          ? stream.parsedFile.languages
+        languages: sortedLanguages || null,
+        uLanguages: onlyUserSpecifiedLanguages || null,
+        languageEmojis: sortedLanguages
+          ? sortedLanguages
               .map((lang) => languageToEmoji(lang) || lang)
               .filter((value, index, self) => self.indexOf(value) === index)
           : null,
-        languageCodes: stream.parsedFile?.languages
-          ? stream.parsedFile.languages
-              .map((lang) => languageToCode(lang) || lang)
+        uLanguageEmojis: onlyUserSpecifiedLanguages
+          ? onlyUserSpecifiedLanguages
+              .map((lang) => languageToEmoji(lang) || lang)
               .filter((value, index, self) => self.indexOf(value) === index)
           : null,
-        smallLanguageCodes: stream.parsedFile?.languages
-          ? stream.parsedFile.languages
+        languageCodes: sortedLanguages
+          ? sortedLanguages
+              .map((lang) => languageToCode(lang) || lang.toUpperCase())
+              .filter((value, index, self) => self.indexOf(value) === index)
+          : null,
+        uLanguageCodes: onlyUserSpecifiedLanguages
+          ? onlyUserSpecifiedLanguages
+              .map((lang) => languageToCode(lang) || lang.toUpperCase())
+              .filter((value, index, self) => self.indexOf(value) === index)
+          : null,
+        smallLanguageCodes: sortedLanguages
+          ? sortedLanguages
               .map((lang) => languageToCode(lang) || lang)
               .filter((value, index, self) => self.indexOf(value) === index)
               .map((code) => makeSmall(code))
           : null,
-        wedontknowwhatakilometeris: stream.parsedFile?.languages
-          ? stream.parsedFile.languages
+        uSmallLanguageCodes: onlyUserSpecifiedLanguages
+          ? onlyUserSpecifiedLanguages
+              .map((lang) => languageToCode(lang) || lang)
+              .filter((value, index, self) => self.indexOf(value) === index)
+              .map((code) => makeSmall(code))
+          : null,
+        wedontknowwhatakilometeris: sortedLanguages
+          ? sortedLanguages
+              .map((lang) => languageToEmoji(lang) || lang)
+              .map((emoji) => emoji.replace('🇬🇧', '🇺🇸🦅'))
+              .filter((value, index, self) => self.indexOf(value) === index)
+          : null,
+        uWedontknowwhatakilometeris: onlyUserSpecifiedLanguages
+          ? onlyUserSpecifiedLanguages
               .map((lang) => languageToEmoji(lang) || lang)
               .map((emoji) => emoji.replace('🇬🇧', '🇺🇸🦅'))
               .filter((value, index, self) => self.indexOf(value) === index)

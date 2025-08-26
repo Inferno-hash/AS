@@ -305,7 +305,7 @@ export class AICompanionPreset extends Preset {
           manifest_url: z.string().url(),
           manifest_urls: z.object({
             combined: z.string().url(),
-            movies: z.string().url(),
+            movie: z.string().url(),
             series: z.string().url(),
           }),
           preview_url: z.string().url().optional(),
@@ -319,7 +319,7 @@ export class AICompanionPreset extends Preset {
       const parseResult = schema.safeParse(data);
       if (!parseResult.success) {
         throw new Error(
-          `Invalid response from server (${response.status} - ${response.statusText}): ${formatZodError(parseResult.error)}`
+          `Invalid response from server (${response.status} - ${response.statusText}): Got ${JSON.stringify(data)}, errors: ${formatZodError(parseResult.error)}`
         );
       }
 

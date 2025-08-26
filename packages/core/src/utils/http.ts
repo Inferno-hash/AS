@@ -53,17 +53,6 @@ export interface RequestOptions {
 
 export async function makeRequest(url: string, options: RequestOptions) {
   const urlObj = new URL(url);
-  const useProxy = shouldProxy(urlObj);
-  const headers = new Headers(options.headers);
-  if (options.forwardIp) {
-    for (const header of HEADERS_FOR_IP_FORWARDING) {
-      headers.set(header, options.forwardIp);
-    }
-  }
-
-  if (headers.get('User-Agent') === 'none') {
-    headers.delete('User-Agent');
-  }
 
   if (Env.BASE_URL && urlObj.origin === Env.BASE_URL) {
     const internalUrl = new URL(Env.INTERNAL_URL);
@@ -82,6 +71,18 @@ export async function makeRequest(url: string, options: RequestOptions) {
         break;
       }
     }
+  }
+
+  const useProxy = shouldProxy(urlObj);
+  const headers = new Headers(options.headers);
+  if (options.forwardIp) {
+    for (const header of HEADERS_FOR_IP_FORWARDING) {
+      headers.set(header, options.forwardIp);
+    }
+  }
+
+  if (headers.get('User-Agent') === 'none') {
+    headers.delete('User-Agent');
   }
 
   if (urlObj.toString().startsWith(Env.INTERNAL_URL)) {

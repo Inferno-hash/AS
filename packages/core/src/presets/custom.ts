@@ -30,8 +30,8 @@ export class CustomPreset extends Preset {
         default: false,
       },
       {
-        id: 'streamPassthrough',
-        name: 'Stream Passthrough',
+        id: 'formatPassthrough',
+        name: 'Format Passthrough',
         description:
           'Whether to pass through the stream formatting. This means your formatting will not be applied and original stream formatting is retained.',
         type: 'boolean',
@@ -132,7 +132,8 @@ export class CustomPreset extends Preset {
         type: this.METADATA.ID,
         options: options,
       },
-      streamPassthrough: options.streamPassthrough ?? false,
+      formatPassthrough:
+        options.formatPassthrough ?? options.streamPassthrough ?? false,
       resultPassthrough: options.resultPassthrough ?? false,
       forceToTop: options.forceToTop ?? false,
       headers: {

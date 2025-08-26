@@ -50,7 +50,7 @@ export class StremioTransformer {
     },
     index: number
   ): Promise<AIOStream> {
-    const { name, description } = stream.addon.streamPassthrough
+    const { name, description } = stream.addon.formatPassthrough
       ? {
           name: stream.originalName || stream.addon.name,
           description: stream.originalDescription,
@@ -76,6 +76,46 @@ export class StremioTransformer {
             return stream.addon.name;
           case 'infoHash':
             return stream.torrent?.infoHash;
+          case 'size':
+            return (() => {
+              const size = stream.size;
+              if (!size || typeof size !== 'number' || isNaN(size)) return;
+
+              // size in bytes
+              const KB = 1024;
+              const MB = 1024 * KB;
+              const GB = 1024 * MB;
+
+              if (size < 5 * GB) {
+                if (size < 100 * MB) return '0-100MB';
+                if (size > 100 * MB && size < 300 * MB) return '100-300MB';
+                if (size > 300 * MB && size < 500 * MB) return '300-500MB';
+                if (size > 500 * MB && size < 1 * GB) return '500MB-1GB';
+                if (size > 1 * GB && size < 2 * GB) return '1-2GB';
+                if (size > 2 * GB && size < 3 * GB) return '2-3GB';
+                if (size > 3 * GB && size < 4 * GB) return '3-4GB';
+                if (size > 4 * GB && size < 5 * GB) return '4-5GB';
+                return '5GB+';
+              }
+
+              const sizeInGB = size / GB;
+
+              const lower = Math.floor(
+                Math.pow(1.5, Math.floor(Math.log(sizeInGB) / Math.log(1.5)))
+              );
+              const upper = Math.floor(
+                Math.pow(
+                  1.5,
+                  Math.floor(Math.log(sizeInGB) / Math.log(1.5)) + 1
+                )
+              );
+
+              if (lower === upper) {
+                return `${upper}GB+`;
+              }
+
+              return `${lower}-${upper}GB`;
+            })();
           default:
             return stream.parsedFile?.[attribute];
         }
@@ -88,18 +128,18 @@ export class StremioTransformer {
           : true
       );
     let bingeGroup: string | undefined;
-    if (autoPlaySettings.enabled)
+    if (autoPlaySettings.enabled) {
+      bingeGroup = Env.ADDON_ID;
+
       switch (autoPlaySettings.method) {
         case 'matchingFile':
-          bingeGroup = `${identifyingAttributes.join('|')}`;
+          bingeGroup += `|${identifyingAttributes.join('|')}`;
           break;
         case 'matchingIndex':
-          bingeGroup = index.toString();
-          break;
-        case 'firstFile':
-          bingeGroup = '';
+          bingeGroup += `|${index.toString()}`;
           break;
       }
+    }
 
     return {
       name,
@@ -116,7 +156,7 @@ export class StremioTransformer {
       behaviorHints: {
         countryWhitelist: stream.countryWhitelist,
         notWebReady: stream.notWebReady,
-        bingeGroup: `${Env.ADDON_ID}:${bingeGroup}`,
+        bingeGroup,
         proxyHeaders:
           stream.requestHeaders || stream.responseHeaders
             ? {
@@ -164,24 +204,7 @@ export class StremioTransformer {
 
     let transformedStreams: AIOStream[] = [];
 
-    let formatter;
-    if (this.userData.formatter.id === constants.CUSTOM_FORMATTER) {
-      const template = this.userData.formatter.definition;
-      if (!template) {
-        throw new Error('No template defined for custom formatter');
-      }
-      formatter = createFormatter(
-        this.userData.formatter.id,
-        template,
-        this.userData.addonName
-      );
-    } else {
-      formatter = createFormatter(
-        this.userData.formatter.id,
-        undefined,
-        this.userData.addonName
-      );
-    }
+    const formatter = createFormatter(this.userData);
 
     logger.info(
       `Transforming ${streams.length} streams, using formatter ${this.userData.formatter.id}`
@@ -294,23 +317,7 @@ export class StremioTransformer {
     if (
       meta.videos?.some((video) => video.streams && video.streams.length > 0)
     ) {
-      if (this.userData.formatter.id === constants.CUSTOM_FORMATTER) {
-        const template = this.userData.formatter.definition;
-        if (!template) {
-          throw new Error('No template defined for custom formatter');
-        }
-        formatter = createFormatter(
-          this.userData.formatter.id,
-          template,
-          this.userData.addonName
-        );
-      } else {
-        formatter = createFormatter(
-          this.userData.formatter.id,
-          undefined,
-          this.userData.addonName
-        );
-      }
+      formatter = createFormatter(this.userData);
     }
 
     // Transform streams in videos if present

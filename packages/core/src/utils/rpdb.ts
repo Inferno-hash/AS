@@ -65,7 +65,7 @@ export class RPDB {
     checkExists: boolean = true
   ): Promise<string | null> {
     const parsedId = this.getParsedId(id, type);
-    const cacheKey = `${type}-${id}`;
+    const cacheKey = `${type}-${id}-${this.apiKey}`;
     const cached = await posterCheckCache.get(cacheKey);
     if (cached) {
       return cached;
@@ -93,7 +93,7 @@ export class RPDB {
     } catch (error) {
       return null;
     }
-    posterCheckCache.set(cacheKey, posterUrl, 1 * 60 * 60);
+    posterCheckCache.set(cacheKey, posterUrl, 24 * 60 * 60);
     return posterUrl;
   }
 

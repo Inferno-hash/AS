@@ -73,7 +73,33 @@ function Content() {
         </SettingsCard>
         <SettingsCard
           title="Auto Play"
-          description="Control how AIOStreams handles auto-play."
+          description={
+            <div className="space-y-2">
+              <p>
+                Configure how AIOStreams suggests the next stream for Stremio's
+                auto-play feature.
+              </p>
+              <Alert intent="info-basic">
+                <p className="text-sm">
+                  AIOStreams does not (and cannot) directly control auto-play.
+                  It uses the{' '}
+                  <code>
+                    <a
+                      rel="noopener noreferrer"
+                      href="https://github.com/Stremio/stremio-addon-sdk/blob/master/docs/api/responses/stream.md#additional-properties-to-provide-information--behaviour-flags"
+                      target="_blank"
+                      className="text-[--brand] hover:text-[--brand]/80 hover:underline"
+                    >
+                      bingeGroup
+                    </a>
+                  </code>{' '}
+                  attribute to suggest the next stream to Stremio. For this to
+                  work, you must have auto-play enabled in your Stremio
+                  settings.
+                </p>
+              </Alert>
+            </div>
+          }
         >
           <Switch
             label="Enable"

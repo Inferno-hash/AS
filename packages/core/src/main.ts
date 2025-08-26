@@ -322,6 +322,11 @@ export class AIOStreams {
           );
         }
       }
+    } else if (
+      modification?.reverse &&
+      !(extras && extras.includes('search'))
+    ) {
+      catalog = catalog.reverse();
     }
 
     const rpdbApiKey =
@@ -335,7 +340,12 @@ export class AIOStreams {
         // Apply RPDB poster modification
         if (rpdbApiKey && item.poster) {
           let posterUrl = item.poster;
-          if (this.userData.rpdbUseRedirectApi !== false && Env.BASE_URL) {
+          if (posterUrl.includes('api.ratingposterdb.com')) {
+            // already a RPDB poster, do nothing
+          } else if (
+            this.userData.rpdbUseRedirectApi !== false &&
+            Env.BASE_URL
+          ) {
             const id = (item as any).imdb_id || item.id;
             const url = new URL(Env.BASE_URL);
             url.pathname = '/api/v1/rpdb';

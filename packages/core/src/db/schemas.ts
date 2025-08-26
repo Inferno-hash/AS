@@ -120,7 +120,7 @@ const AddonSchema = z.object({
   displayIdentifier: z.string().optional(), // identifier for display purposes
   timeout: z.number().min(1),
   library: z.boolean().optional(),
-  streamPassthrough: z.boolean().optional(),
+  formatPassthrough: z.boolean().optional(),
   resultPassthrough: z.boolean().optional(),
   forceToTop: z.boolean().optional(),
   headers: z.record(z.string().min(1), z.string().min(1)).optional(),
@@ -269,6 +269,7 @@ const CatalogModification = z.object({
   type: z.string().min(1), // the type of catalog modification
   name: z.string().min(1).optional(), // override the name of the catalog
   shuffle: z.boolean().optional(), // shuffle the catalog
+  reverse: z.boolean().optional(), // reverse the catalog
   persistShuffleFor: z.number().min(0).max(24).optional(), // persist the shuffle for a given amount of time (in hours)
   onlyOnDiscover: z.boolean().optional(), // only show the catalog on the discover page
   disableSearch: z.boolean().optional(), // disable the search for the catalog
@@ -490,7 +491,7 @@ export const ManifestSchema = z
   .object({
     id: z.string().min(1),
     name: z.string(),
-    description: z.string(),
+    description: z.string().optional(),
     version: z.string(),
     types: z.array(z.string()),
     idPrefixes: z.array(z.string()).or(z.null()).optional(),

@@ -549,6 +549,7 @@ function Content() {
                         setFilterCredentialsInExport(value)
                       }
                       side="right"
+                      help="This will not exclude any URLs you have provided, these may contain credentials and you should always double check the contents of the exported file before sharing it."
                       label="Exclude Credentials"
                     />
                   </div>

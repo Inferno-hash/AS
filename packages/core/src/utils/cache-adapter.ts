@@ -201,6 +201,9 @@ export class RedisCacheBackend<K, V> implements CacheBackend<K, V> {
   }
 
   async set(key: K, value: V, ttl: number): Promise<void> {
+    if (ttl === 0) {
+      return;
+    }
     const redisKey = this.getKey(key);
 
     await this.withTimeout(

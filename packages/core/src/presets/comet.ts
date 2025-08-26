@@ -54,6 +54,7 @@ export class CometPreset extends StremThruPreset {
       constants.ALLDEBRID_SERVICE,
       constants.TORBOX_SERVICE,
       constants.EASYDEBRID_SERVICE,
+      constants.DEBRIDER_SERVICE,
       constants.DEBRIDLINK_SERVICE,
       constants.OFFCLOUD_SERVICE,
       constants.PIKPAK_SERVICE,

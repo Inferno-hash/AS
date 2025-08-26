@@ -41,13 +41,32 @@ abstract class SourceHandler {
   );
 
   protected errorStreams: Stream[] = [];
+  protected readonly useCache: boolean;
 
-  constructor(protected searchApi: TorboxSearchApi) {}
+  constructor(
+    protected searchApi: TorboxSearchApi,
+    protected readonly searchUserEngines: boolean
+  ) {
+    this.useCache =
+      !this.searchUserEngines ||
+      Env.BUILTIN_TORBOX_SEARCH_CACHE_PER_USER_SEARCH_ENGINE;
+  }
 
   abstract getStreams(
     parsedId: ParsedId,
     userData: z.infer<typeof TorBoxSearchAddonUserDataSchema>
   ): Promise<Stream[]>;
+
+  protected getCacheKey(
+    parsedId: ParsedId,
+    type: 'torrent' | 'usenet'
+  ): string {
+    let cacheKey = `${type}:${parsedId.type}:${parsedId.id}:${parsedId.season}:${parsedId.episode}`;
+    if (this.searchUserEngines) {
+      cacheKey += `:${this.searchApi.apiKey}`;
+    }
+    return cacheKey;
+  }
 
   protected createStream(
     id: ParsedId,
@@ -117,7 +136,6 @@ abstract class SourceHandler {
 
 export class TorrentSourceHandler extends SourceHandler {
   private readonly debridServices: DebridService[];
-  private readonly searchUserEngines: boolean;
 
   constructor(
     searchApi: TorboxSearchApi,
@@ -125,11 +143,10 @@ export class TorrentSourceHandler extends SourceHandler {
     searchUserEngines: boolean,
     clientIp?: string
   ) {
-    super(searchApi);
+    super(searchApi, searchUserEngines);
     this.debridServices = services.map(
       (service) => new DebridService(service, clientIp)
     );
-    this.searchUserEngines = searchUserEngines;
   }
 
   async getStreams(
@@ -228,13 +245,11 @@ export class TorrentSourceHandler extends SourceHandler {
     episode?: string,
     tmdbAccessToken?: string
   ): Promise<Torrent[]> {
-    let cacheKey = `torrents:${idType}:${id}:${season}:${episode}`;
-    if (
-      this.searchUserEngines &&
-      Env.BUILTIN_TORBOX_SEARCH_CACHE_PER_USER_SEARCH_ENGINE
-    ) {
-      cacheKey += `:${this.searchApi.apiKey}`;
-    }
+    const cacheKey = this.getCacheKey(
+      { type: idType, id, season, episode },
+      'torrent'
+    );
+
     const cachedTorrents = await this.searchCache.get(cacheKey);
 
     if (
@@ -300,16 +315,18 @@ export class TorrentSourceHandler extends SourceHandler {
       return [];
     }
 
-    await this.searchCache.set(
-      cacheKey,
-      torrents.filter(
-        (torrent) =>
-          !torrent.userSearch ||
-          (this.searchUserEngines &&
-            Env.BUILTIN_TORBOX_SEARCH_CACHE_PER_USER_SEARCH_ENGINE)
-      ),
-      Env.BUILTIN_TORBOX_SEARCH_SEARCH_API_CACHE_TTL
-    );
+    if (this.useCache) {
+      await this.searchCache.set(
+        cacheKey,
+        torrents.filter(
+          (torrent) =>
+            !torrent.userSearch ||
+            (this.searchUserEngines &&
+              Env.BUILTIN_TORBOX_SEARCH_CACHE_PER_USER_SEARCH_ENGINE)
+        ),
+        Env.BUILTIN_TORBOX_SEARCH_SEARCH_API_CACHE_TTL
+      );
+    }
 
     return torrents;
   }
@@ -348,7 +365,6 @@ export class TorrentSourceHandler extends SourceHandler {
 }
 
 export class UsenetSourceHandler extends SourceHandler {
-  private readonly searchUserEngines: boolean;
   private readonly torboxApi: TorboxApi;
   private readonly clientIp?: string;
 
@@ -357,9 +373,8 @@ export class UsenetSourceHandler extends SourceHandler {
     torboxApi: TorboxApi,
     searchUserEngines: boolean
   ) {
-    super(searchApi);
+    super(searchApi, searchUserEngines);
     this.torboxApi = torboxApi;
-    this.searchUserEngines = searchUserEngines;
   }
 
   async getStreams(
@@ -367,7 +382,7 @@ export class UsenetSourceHandler extends SourceHandler {
     userData: z.infer<typeof TorBoxSearchAddonUserDataSchema>
   ): Promise<Stream[]> {
     const { type, id, season, episode } = parsedId;
-    const cacheKey = `usenet:${type}:${id}:${season}:${episode}`;
+    const cacheKey = this.getCacheKey(parsedId, 'usenet');
     let usingCachedSearch = false;
 
     let torrents = await this.searchCache.get(cacheKey);
@@ -389,11 +404,13 @@ export class UsenetSourceHandler extends SourceHandler {
         if (torrents.length === 0) {
           return [];
         }
-        await this.searchCache.set(
-          cacheKey,
-          torrents,
-          Env.BUILTIN_TORBOX_SEARCH_SEARCH_API_CACHE_TTL
-        );
+        if (this.useCache) {
+          await this.searchCache.set(
+            cacheKey,
+            torrents,
+            Env.BUILTIN_TORBOX_SEARCH_SEARCH_API_CACHE_TTL
+          );
+        }
       } catch (error) {
         if (error instanceof TorboxApiError) {
           switch (error.errorCode) {
