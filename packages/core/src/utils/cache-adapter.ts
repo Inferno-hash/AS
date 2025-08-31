@@ -1,6 +1,7 @@
 import { createLogger } from './logger';
 import { Env } from './env';
-import { RedisClientType, RedisClientOptions, AbortError } from 'redis';
+import { RedisClientType } from 'redis';
+import { REDIS_PREFIX } from './constants';
 
 const logger = createLogger('cache');
 
@@ -127,7 +128,7 @@ export class RedisCacheBackend<K, V> implements CacheBackend<K, V> {
 
   constructor(
     redisClient: RedisClientType,
-    prefix: string = 'aiostreams:',
+    prefix: string = REDIS_PREFIX,
     maxSize: number = Env.DEFAULT_MAX_CACHE_SIZE,
     timeout: number = REDIS_TIMEOUT
   ) {
@@ -138,7 +139,7 @@ export class RedisCacheBackend<K, V> implements CacheBackend<K, V> {
   }
 
   private getKey(key: K): string {
-    return `aiostreams:${this.prefix}${String(key)}`;
+    return `${REDIS_PREFIX}${this.prefix}${String(key)}`;
   }
 
   /**

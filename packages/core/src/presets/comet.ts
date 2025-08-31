@@ -63,13 +63,19 @@ export class CometPreset extends StremThruPreset {
     const supportedResources = [constants.STREAM_RESOURCE];
 
     const options: Option[] = [
-      ...baseOptions('Comet', supportedResources, Env.DEFAULT_COMET_TIMEOUT),
+      ...baseOptions(
+        'Comet',
+        supportedResources,
+        Env.DEFAULT_COMET_TIMEOUT,
+        Env.COMET_URL
+      ),
       {
         id: 'includeP2P',
         name: 'Include P2P',
         description: 'Include P2P results, even if a debrid service is enabled',
         type: 'boolean',
         default: false,
+        showInNoobMode: false,
       },
       {
         id: 'removeTrash',
@@ -78,10 +84,12 @@ export class CometPreset extends StremThruPreset {
           'Remove all trash from results (Adult Content, CAM, Clean Audio, PDTV, R5, Screener, Size, Telecine and Telesync)',
         type: 'boolean',
         default: true,
+        showInNoobMode: false,
       },
       {
         id: 'services',
         name: 'Services',
+        showInNoobMode: false,
         description:
           'Optionally override the services that are used. If not specified, then the services that are enabled and supported will be used.',
         type: 'multi-select',
@@ -115,7 +123,7 @@ export class CometPreset extends StremThruPreset {
       ID: 'comet',
       NAME: 'Comet',
       LOGO: 'https://i.imgur.com/jmVoVMu.jpeg',
-      URL: Env.COMET_URL,
+      URL: Env.COMET_URL[0],
       TIMEOUT: Env.DEFAULT_COMET_TIMEOUT || Env.DEFAULT_TIMEOUT,
       USER_AGENT: Env.DEFAULT_COMET_USER_AGENT || Env.DEFAULT_USER_AGENT,
       SUPPORTED_SERVICES: supportedServices,

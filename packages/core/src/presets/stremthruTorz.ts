@@ -47,7 +47,8 @@ export class StremthruTorzPreset extends StremThruPreset {
       ...baseOptions(
         'StremThru Torz',
         supportedResources,
-        Env.DEFAULT_STREMTHRU_STORE_TIMEOUT
+        Env.DEFAULT_STREMTHRU_STORE_TIMEOUT,
+        Env.STREMTHRU_TORZ_URL
       ),
       {
         id: 'services',
@@ -56,6 +57,7 @@ export class StremthruTorzPreset extends StremThruPreset {
           'Optionally override the services that are used. If not specified, then the services that are enabled and supported will be used.',
         type: 'multi-select',
         required: false,
+        showInNoobMode: false,
         options: StremThruPreset.supportedServices.map((service) => ({
           value: service,
           label: constants.SERVICE_DETAILS[service].name,
@@ -70,6 +72,7 @@ export class StremthruTorzPreset extends StremThruPreset {
           'Use this option when you want to include P2P results even when using a debrid service. If left unchecked, then P2P results will not be fetched when using a debrid service.',
         type: 'boolean',
         default: false,
+        showInNoobMode: false,
       },
       {
         id: 'useMultipleInstances',
@@ -78,6 +81,7 @@ export class StremthruTorzPreset extends StremThruPreset {
           'StremThru Torz supports multiple services in one instance of the addon - which is used by default. If this is enabled, then the addon will be created for each service.',
         type: 'boolean',
         default: false,
+        showInNoobMode: false,
       },
       {
         id: 'socials',
@@ -92,7 +96,7 @@ export class StremthruTorzPreset extends StremThruPreset {
       ID: 'stremthruTorz',
       NAME: 'StremThru Torz',
       LOGO: 'https://emojiapi.dev/api/v1/sparkles/256.png',
-      URL: Env.STREMTHRU_TORZ_URL,
+      URL: Env.STREMTHRU_TORZ_URL[0],
       TIMEOUT: Env.DEFAULT_STREMTHRU_TORZ_TIMEOUT || Env.DEFAULT_TIMEOUT,
       USER_AGENT:
         Env.DEFAULT_STREMTHRU_TORZ_USER_AGENT || Env.DEFAULT_USER_AGENT,

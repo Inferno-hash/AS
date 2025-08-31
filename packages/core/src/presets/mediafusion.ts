@@ -148,7 +148,8 @@ export class MediaFusionPreset extends Preset {
       ...baseOptions(
         'MediaFusion',
         supportedResources,
-        Env.DEFAULT_MEDIAFUSION_TIMEOUT
+        Env.DEFAULT_MEDIAFUSION_TIMEOUT,
+        Env.MEDIAFUSION_URL
       ),
       {
         id: 'useCachedResultsOnly',
@@ -158,6 +159,7 @@ export class MediaFusionPreset extends Preset {
         type: 'boolean',
         forced: Env.MEDIAFUSION_FORCED_USE_CACHED_RESULTS_ONLY,
         default: Env.MEDIAFUSION_DEFAULT_USE_CACHED_RESULTS_ONLY,
+        showInNoobMode: false,
       },
       {
         id: 'enableWatchlistCatalogs',
@@ -165,6 +167,7 @@ export class MediaFusionPreset extends Preset {
         description: 'Enable watchlist catalogs for the selected services.',
         type: 'boolean',
         default: false,
+        showInNoobMode: false,
       },
       {
         id: 'downloadViaBrowser',
@@ -173,6 +176,7 @@ export class MediaFusionPreset extends Preset {
           'Show download streams to allow downloading the stream from your service, rather than streaming.',
         type: 'boolean',
         default: false,
+        showInNoobMode: false,
       },
       {
         id: 'contributorStreams',
@@ -180,6 +184,7 @@ export class MediaFusionPreset extends Preset {
         description: 'Show a stream to contribute torrents for the title.',
         type: 'boolean',
         default: false,
+        showInNoobMode: false,
       },
       {
         id: 'certificationLevelsFilter',
@@ -188,6 +193,7 @@ export class MediaFusionPreset extends Preset {
           'Choose to not display streams for titles of a certain certification level. Leave blank to show all results.',
         type: 'multi-select',
         required: false,
+        showInNoobMode: false,
         options: [
           {
             value: 'Unknown',
@@ -226,6 +232,7 @@ export class MediaFusionPreset extends Preset {
           'Choose to not display streams that a certain level of nudity. Leave blank to show all results.',
         type: 'multi-select',
         required: false,
+        showInNoobMode: false,
         options: [
           {
             value: 'Unknown',
@@ -257,6 +264,7 @@ export class MediaFusionPreset extends Preset {
           'Optionally override the services that are used. If not specified, then the services that are enabled and supported will be used.',
         type: 'multi-select',
         required: false,
+        showInNoobMode: false,
         options: supportedServices.map((service) => ({
           value: service,
           label: constants.SERVICE_DETAILS[service].name,
@@ -279,7 +287,7 @@ export class MediaFusionPreset extends Preset {
       ID: 'mediafusion',
       NAME: 'MediaFusion',
       LOGO: `https://raw.githubusercontent.com/mhdzumair/MediaFusion/refs/heads/main/resources/images/mediafusion_logo.png`,
-      URL: Env.MEDIAFUSION_URL,
+      URL: Env.MEDIAFUSION_URL[0],
       TIMEOUT: Env.DEFAULT_MEDIAFUSION_TIMEOUT || Env.DEFAULT_TIMEOUT,
       USER_AGENT: Env.DEFAULT_MEDIAFUSION_USER_AGENT || Env.DEFAULT_USER_AGENT,
       SUPPORTED_SERVICES: supportedServices,

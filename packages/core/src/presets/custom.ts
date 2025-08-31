@@ -72,6 +72,7 @@ export class CustomPreset extends Preset {
           'Optionally override the resources that are fetched from this addon ',
         type: 'multi-select',
         required: false,
+        showInNoobMode: false,
         default: undefined,
         options: RESOURCES.map((resource) => ({
           label: resource,

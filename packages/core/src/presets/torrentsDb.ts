@@ -147,6 +147,7 @@ export class TorrentsDbPreset extends Preset {
           (provider) => provider.value
         ),
         emptyIsUndefined: true,
+        showInNoobMode: false,
       },
       {
         id: 'services',
@@ -161,6 +162,7 @@ export class TorrentsDbPreset extends Preset {
         })),
         default: undefined,
         emptyIsUndefined: true,
+        showInNoobMode: false,
       },
       {
         id: 'includeP2P',
@@ -170,6 +172,7 @@ export class TorrentsDbPreset extends Preset {
         type: 'boolean',
         default: false,
         required: false,
+        showInNoobMode: false,
       },
       {
         id: 'useMultipleInstances',
@@ -179,6 +182,7 @@ export class TorrentsDbPreset extends Preset {
         type: 'boolean',
         default: false,
         required: true,
+        showInNoobMode: false,
       },
     ];
 

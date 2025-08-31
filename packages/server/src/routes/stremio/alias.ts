@@ -12,7 +12,7 @@ interface AliasParams {
   [key: string]: string;
 }
 
-router.get('/:alias/*', (req: Request<AliasParams>, res) => {
+router.get('/:alias/*any', (req: Request<AliasParams>, res) => {
   const { alias } = req.params;
   const wildcardPath = req.params[0] || '';
 

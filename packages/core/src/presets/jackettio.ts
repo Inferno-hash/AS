@@ -56,7 +56,8 @@ export class JackettioPreset extends StremThruPreset {
       ...baseOptions(
         'Jackettio',
         supportedResources,
-        Env.DEFAULT_JACKETTIO_TIMEOUT
+        Env.DEFAULT_JACKETTIO_TIMEOUT,
+        Env.JACKETTIO_URL
       ),
       {
         id: 'services',
@@ -65,6 +66,7 @@ export class JackettioPreset extends StremThruPreset {
           'Optionally override the services that are used. If not specified, then the services that are enabled and supported will be used.',
         type: 'multi-select',
         required: false,
+        showInNoobMode: false,
         options: supportedServices.map((service) => ({
           value: service,
           label: constants.SERVICE_DETAILS[service].name,
@@ -87,7 +89,7 @@ export class JackettioPreset extends StremThruPreset {
       ID: 'jackettio',
       NAME: 'Jackettio',
       LOGO: 'https://raw.githubusercontent.com/Jackett/Jackett/bbea5febd623f6e536e11aa1fa8d6674d8d4043f/src/Jackett.Common/Content/jacket_medium.png',
-      URL: Env.JACKETTIO_URL,
+      URL: Env.JACKETTIO_URL[0],
       TIMEOUT: Env.DEFAULT_JACKETTIO_TIMEOUT || Env.DEFAULT_TIMEOUT,
       USER_AGENT: Env.DEFAULT_JACKETTIO_USER_AGENT || Env.DEFAULT_USER_AGENT,
       SUPPORTED_SERVICES: supportedServices,

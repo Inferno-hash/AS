@@ -45,7 +45,7 @@ const StreamProxyConfig = z.object({
   url: z.string().optional(),
   publicUrl: z.string().optional(),
   credentials: z.string().optional(),
-  publicIp: z.union([z.string().ip(), z.literal('')]).optional(),
+  publicIp: z.union([z.union([z.ipv4(), z.ipv6()]), z.literal('')]).optional(),
   proxiedAddons: z.array(z.string().min(1)).optional(),
   proxiedServices: z.array(z.string().min(1)).optional(),
 });
@@ -85,14 +85,14 @@ const SizeFilter = z.object({
 });
 
 const SizeFilterOptions = z.object({
-  global: SizeFilter,
-  resolution: z.record(Resolutions, SizeFilter).optional(),
+  global: SizeFilter.optional(),
+  resolution: z.partialRecord(Resolutions, SizeFilter).optional(),
 });
 
 const ServiceSchema = z.object({
   id: ServiceIds,
   enabled: z.boolean().optional(),
-  credentials: z.record(z.string().min(1), z.string().min(1)),
+  credentials: z.record(z.string().min(1), z.string()),
 });
 
 export type Service = z.infer<typeof ServiceSchema>;
@@ -124,7 +124,7 @@ const AddonSchema = z.object({
   resultPassthrough: z.boolean().optional(),
   forceToTop: z.boolean().optional(),
   headers: z.record(z.string().min(1), z.string().min(1)).optional(),
-  ip: z.string().ip().optional(),
+  ip: z.union([z.union([z.ipv4(), z.ipv6()])]).optional(),
 });
 
 // preset objects are transformed into addons by a preset transformer.
@@ -177,6 +177,7 @@ const OptionDefinition = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   description: z.string().min(1),
+  showInNoobMode: z.boolean().optional(),
   emptyIsUndefined: z.boolean().optional(),
   type: z.enum([
     'string',
@@ -184,6 +185,7 @@ const OptionDefinition = z.object({
     'number',
     'boolean',
     'select',
+    'select-with-custom',
     'multi-select',
     'url',
     'alert',
@@ -286,7 +288,7 @@ export const UserDataSchema = z.object({
   encryptedPassword: z.string().min(1).optional(),
   trusted: z.boolean().optional(),
   addonPassword: z.string().min(1).optional(),
-  ip: z.string().ip().optional(),
+  ip: z.union([z.union([z.ipv4(), z.ipv6()])]).optional(),
   addonName: z.string().min(1).max(300).optional(),
   addonLogo: z.string().url().optional(),
   addonBackground: z.string().url().optional(),
@@ -733,7 +735,9 @@ export const MetaSchema = MetaPreviewSchema.extend({
   behaviorHints: z
     .object({
       defaultVideoId: z.string().or(z.null()).optional(),
+      hasScheduledVideo: z.boolean().nullable().optional(),
     })
+    .passthrough()
     .optional(),
 }).passthrough();
 
@@ -779,51 +783,53 @@ export const ExtrasSchema = z
 export type Extras = z.infer<typeof ExtrasSchema>;
 
 export const AIOStream = StreamSchema.extend({
-  streamData: z.object({
-    error: z
-      .object({
-        title: z.string().min(1),
-        description: z.string().min(1),
-      })
-      .optional(),
-    proxied: z.boolean().optional(),
-    addon: z.string().optional(),
-    filename: z.string().optional(),
-    folderName: z.string().optional(),
-    service: z
-      .object({
-        id: z.enum(constants.SERVICES),
-        cached: z.boolean(),
-      })
-      .optional(),
-    parsedFile: ParsedFileSchema.optional(),
-    message: z.string().max(1000).optional(),
-    regexMatched: z
-      .object({
-        name: z.string().optional(),
-        pattern: z.string().min(1).optional(),
-        index: z.number(),
-      })
-      .optional(),
-    keywordMatched: z.boolean().optional(),
-    streamExpressionMatched: z.number().optional(),
-    size: z.number().optional(),
-    folderSize: z.number().optional(),
-    type: StreamTypes.optional(),
-    indexer: z.string().optional(),
-    age: z.string().optional(),
-    torrent: z
-      .object({
-        infoHash: z.string().min(1).optional(),
-        fileIdx: z.number().optional(),
-        seeders: z.number().optional(),
-        sources: z.array(z.string().min(1)).optional(), // array of tracker urls and DHT nodes
-      })
-      .optional(),
-    duration: z.number().optional(),
-    library: z.boolean().optional(),
-    id: z.string().min(1).optional(),
-  }),
+  streamData: z
+    .object({
+      error: z
+        .object({
+          title: z.string().min(1),
+          description: z.string().min(1),
+        })
+        .optional(),
+      proxied: z.boolean().optional(),
+      addon: z.string().optional(),
+      filename: z.string().optional(),
+      folderName: z.string().optional(),
+      service: z
+        .object({
+          id: z.enum(constants.SERVICES),
+          cached: z.boolean(),
+        })
+        .optional(),
+      parsedFile: ParsedFileSchema.optional(),
+      message: z.string().max(1000).optional(),
+      regexMatched: z
+        .object({
+          name: z.string().optional(),
+          pattern: z.string().min(1).optional(),
+          index: z.number(),
+        })
+        .optional(),
+      keywordMatched: z.boolean().optional(),
+      streamExpressionMatched: z.number().optional(),
+      size: z.number().optional(),
+      folderSize: z.number().optional(),
+      type: StreamTypes.optional(),
+      indexer: z.string().optional(),
+      age: z.string().optional(),
+      torrent: z
+        .object({
+          infoHash: z.string().min(1).optional(),
+          fileIdx: z.number().optional(),
+          seeders: z.number().optional(),
+          sources: z.array(z.string().min(1)).optional(), // array of tracker urls and DHT nodes
+        })
+        .optional(),
+      duration: z.number().optional(),
+      library: z.boolean().optional(),
+      id: z.string().min(1).optional(),
+    })
+    .optional(),
 });
 
 export type AIOStream = z.infer<typeof AIOStream>;
@@ -920,7 +926,7 @@ const StatusResponseSchema = z.object({
       timeout: z.number().or(z.null()),
     }),
     presets: z.array(PresetMinimalMetadataSchema),
-    services: z.record(
+    services: z.partialRecord(
       z.enum(constants.SERVICES),
       z.object({
         id: z.enum(constants.SERVICES),

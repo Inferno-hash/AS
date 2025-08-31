@@ -380,10 +380,6 @@ class StreamParser {
     service: ParsedStream['service'],
     currentParsedStream: ParsedStream
   ): ParsedStream['type'] {
-    if (stream.infoHash) {
-      return 'p2p';
-    }
-
     if (stream.url?.endsWith('.m3u8')) {
       return 'live';
     }
@@ -397,6 +393,10 @@ class StreamParser {
     // return 'http';
     if (stream.url) {
       return 'http';
+    }
+
+    if (stream.infoHash) {
+      return 'p2p';
     }
 
     if (stream.externalUrl) {

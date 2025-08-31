@@ -66,7 +66,8 @@ export class AICompanionPreset extends Preset {
         id: 'providerBaseUrl',
         name: 'LLM Provider',
         description: 'Choose the LLM Provider to use.',
-        type: 'select',
+        type: 'select-with-custom',
+        default: 'https://openrouter.ai/api/v1',
         required: true,
         options: [
           {
@@ -85,20 +86,9 @@ export class AICompanionPreset extends Preset {
             label: 'Gemini (OpenAI Compatible)',
             value: 'https://generativelanguage.googleapis.com/v1beta/openai',
           },
-          {
-            label: 'Custom LLM Provider',
-            value: 'custom',
-          },
         ],
       },
-      {
-        id: 'customBaseUrl',
-        name: 'Custom LLM Base URL',
-        description:
-          'If you selected "Custom LLM Provider", enter the base URL of your custom LLM provider here.',
-        type: 'url',
-        required: false,
-      },
+
       {
         id: 'providerApiKey',
         name: 'LLM Provider API Key',

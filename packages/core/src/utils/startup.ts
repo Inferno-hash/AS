@@ -576,7 +576,7 @@ const logStartupInfo = () => {
   // Addon Sources
   logSection('ADDONS', '🎬', () => {
     // Comet
-    logKeyValue('Comet:', Env.COMET_URL);
+    logKeyValue('Comet:', Env.COMET_URL.join(', '));
     if (Env.DEFAULT_COMET_TIMEOUT) {
       logKeyValue(
         '  Timeout:',
@@ -596,7 +596,7 @@ const logStartupInfo = () => {
     }
 
     // MediaFusion
-    logKeyValue('MediaFusion:', Env.MEDIAFUSION_URL);
+    logKeyValue('MediaFusion:', Env.MEDIAFUSION_URL.join(', '));
     if (Env.DEFAULT_MEDIAFUSION_TIMEOUT) {
       logKeyValue(
         '  Timeout:',
@@ -629,7 +629,7 @@ const logStartupInfo = () => {
     }
 
     // Jackettio
-    logKeyValue('Jackettio:', Env.JACKETTIO_URL);
+    logKeyValue('Jackettio:', Env.JACKETTIO_URL.join(', '));
     if (Env.DEFAULT_JACKETTIO_TIMEOUT) {
       logKeyValue(
         '  Timeout:',
@@ -838,7 +838,7 @@ const logStartupInfo = () => {
     }
 
     // StremThru Store
-    logKeyValue('StremThru Store:', Env.STREMTHRU_STORE_URL);
+    logKeyValue('StremThru Store:', Env.STREMTHRU_STORE_URL.join(', '));
     if (Env.DEFAULT_STREMTHRU_STORE_TIMEOUT) {
       logKeyValue(
         '  Timeout:',
@@ -872,7 +872,7 @@ const logStartupInfo = () => {
     }
 
     // StremThru Torz
-    logKeyValue('StremThru Torz:', Env.STREMTHRU_TORZ_URL);
+    logKeyValue('StremThru Torz:', Env.STREMTHRU_TORZ_URL.join(', '));
     if (Env.DEFAULT_STREMTHRU_TORZ_TIMEOUT) {
       logKeyValue(
         '  Timeout:',

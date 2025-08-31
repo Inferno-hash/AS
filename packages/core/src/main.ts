@@ -85,13 +85,13 @@ export class AIOStreams {
     error: string;
   }[] = [];
 
-  constructor(userData: UserData, skipFailedAddons: boolean = true) {
+  constructor(userData: UserData, options?: { skipFailedAddons: boolean }) {
     this.addonInitialisationErrors = [];
     this.userData = userData;
     this.manifestUrl = `${Env.BASE_URL}/stremio/${this.userData.uuid}/${this.userData.encryptedPassword}/manifest.json`;
     this.manifests = {};
     this.supportedResources = {};
-    this.skipFailedAddons = skipFailedAddons;
+    this.skipFailedAddons = options?.skipFailedAddons ?? true;
     this.proxifier = new Proxifier(userData);
     this.limiter = new StreamLimiter(userData);
     this.fetcher = new Fetcher(userData);
@@ -733,6 +733,34 @@ export class AIOStreams {
         }
         return resource;
       });
+
+      if (manifest.catalogs) {
+        const existing = addonResources.find((r) => r.name === 'catalog');
+        if (existing) {
+          existing.types = [
+            ...new Set([
+              ...manifest.catalogs.map((c) => {
+                const type = c.type;
+                const modification = this.userData.catalogModifications?.find(
+                  (m) => m.id === `${instanceId}.${c.id}` && m.type === type
+                );
+                return modification?.overrideType ?? type;
+              }),
+            ]),
+          ];
+        } else {
+          addonResources.push({
+            name: 'catalog',
+            types: manifest.catalogs.map((c) => {
+              const type = c.type;
+              const modification = this.userData.catalogModifications?.find(
+                (m) => m.id === `${instanceId}.${c.id}` && m.type === type
+              );
+              return modification?.overrideType ?? type;
+            }),
+          });
+        }
+      }
 
       const addon = this.getAddon(instanceId);
 

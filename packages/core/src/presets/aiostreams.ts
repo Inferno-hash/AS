@@ -23,6 +23,9 @@ class AIOStreamsStreamParser extends StreamParser {
       );
       throw new Error('Invalid stream');
     }
+    if (!aioStream.streamData) {
+      throw new Error('Stream Data was missing from AIOStream response');
+    }
     if (
       aioStream.streamData.id?.endsWith('external-download') ||
       aioStream.streamData.type === constants.STATISTIC_STREAM_TYPE
@@ -107,6 +110,7 @@ export class AIOStreamsPreset extends Preset {
       {
         id: 'resources',
         name: 'Resources',
+        showInNoobMode: false,
         description:
           'Optionally override the resources that are fetched from this addon ',
         type: 'multi-select',
@@ -125,7 +129,7 @@ export class AIOStreamsPreset extends Preset {
       LOGO: 'https://raw.githubusercontent.com/Viren070/AIOStreams/refs/heads/main/packages/frontend/public/assets/logo.png',
       URL: '',
       TIMEOUT: Env.DEFAULT_TIMEOUT,
-      USER_AGENT: Env.DEFAULT_USER_AGENT,
+      USER_AGENT: Env.AIOSTREAMS_USER_AGENT,
       SUPPORTED_SERVICES: [],
       DESCRIPTION: 'Wrap AIOStreams within AIOStreams!',
       OPTIONS: options,

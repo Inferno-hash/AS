@@ -73,6 +73,7 @@ import { PiStarFill, PiStarBold } from 'react-icons/pi';
 import { IoExtensionPuzzle } from 'react-icons/io5';
 import { NumberInput } from '../ui/number-input';
 import { useDisclosure } from '@/hooks/disclosure';
+import { useMode } from '@/context/mode';
 
 interface CatalogModification {
   id: string;
@@ -957,6 +958,7 @@ function AddonModal({
   initialValues?: Record<string, any>;
   onSubmit: (values: Record<string, any>) => void;
 }) {
+  const { mode: configMode } = useMode();
   const [values, setValues] = useState<Record<string, any>>(initialValues);
   useEffect(() => {
     if (open) {
@@ -969,7 +971,13 @@ function AddonModal({
       }, 150);
     }
   }, [open, initialValues]);
-  const dynamicOptions: Option[] = presetMetadata?.OPTIONS || [];
+  let dynamicOptions: Option[] = presetMetadata?.OPTIONS || [];
+  if (configMode === 'noob') {
+    dynamicOptions = dynamicOptions.filter((opt: any) => {
+      if (opt?.showInNoobMode === false) return false;
+      return true;
+    });
+  }
 
   // Check if all required fields are filled
   const allRequiredFilled = dynamicOptions.every((opt: any) => {

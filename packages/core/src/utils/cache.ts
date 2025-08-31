@@ -50,7 +50,7 @@ export class Cache<K, V> {
     }
   }
 
-  private static getRedisClient(): RedisClientType {
+  public static getRedisClient(): RedisClientType {
     if (!this.redisClient) {
       logger.info(`Initialising Redis client connection to ${Env.REDIS_URI}`);
       this.redisClient = createClient({

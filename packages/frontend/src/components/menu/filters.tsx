@@ -81,6 +81,7 @@ import { Slider } from '../ui/slider/slider';
 import { TbFilterCode } from 'react-icons/tb';
 import { PasswordInput } from '../ui/password-input';
 import MarkdownLite from '../shared/markdown-lite';
+import { useMode } from '@/context/mode';
 
 type Resolution = (typeof RESOLUTIONS)[number];
 type Quality = (typeof QUALITIES)[number];
@@ -173,6 +174,7 @@ function Content() {
   const { userData, setUserData } = useUserData();
   const allowedRegexModal = useDisclosure(false);
   const allowedRegexUrlsModal = useDisclosure(false);
+  const { mode } = useMode();
   useEffect(() => {
     if (tab !== previousTab.current) {
       previousTab.current = tab;
@@ -242,34 +244,54 @@ function Content() {
                 <FaBolt className="text-lg mr-3" />
                 Cache
               </TabsTrigger>
-              <TabsTrigger value="resolution">
-                <BiSolidCameraMovie className="text-lg mr-3" />
-                Resolution
-              </TabsTrigger>
-              <TabsTrigger value="quality">
-                <MdMovieFilter className="text-lg mr-3" />
-                Quality
-              </TabsTrigger>
-              <TabsTrigger value="encode">
-                <FaFilm className="text-lg mr-3" />
-                Encode
-              </TabsTrigger>
-              <TabsTrigger value="stream-type">
-                <MdVideoLibrary className="text-lg mr-3" />
-                Stream Type
-              </TabsTrigger>
-              <TabsTrigger value="visual-tag">
-                <MdHdrOn className="text-lg mr-3" />
-                Visual Tag
-              </TabsTrigger>
-              <TabsTrigger value="audio-tag">
-                <BsSpeakerFill className="text-lg mr-3" />
-                Audio Tag
-              </TabsTrigger>
-              <TabsTrigger value="audio-channel">
-                <MdSurroundSound className="text-lg mr-3" />
-                Audio Channel
-              </TabsTrigger>
+
+              <>
+                <TabsTrigger value="resolution">
+                  <BiSolidCameraMovie className="text-lg mr-3" />
+                  Resolution
+                </TabsTrigger>
+              </>
+
+              {mode == 'pro' && (
+                <>
+                  <TabsTrigger value="quality">
+                    <MdMovieFilter className="text-lg mr-3" />
+                    Quality
+                  </TabsTrigger>
+                </>
+              )}
+              {mode === 'pro' && (
+                <>
+                  <TabsTrigger value="encode">
+                    <FaFilm className="text-lg mr-3" />
+                    Encode
+                  </TabsTrigger>
+                </>
+              )}
+              {mode === 'pro' && (
+                <TabsTrigger value="stream-type">
+                  <MdVideoLibrary className="text-lg mr-3" />
+                  Stream Type
+                </TabsTrigger>
+              )}
+              {mode === 'pro' && (
+                <TabsTrigger value="visual-tag">
+                  <MdHdrOn className="text-lg mr-3" />
+                  Visual Tag
+                </TabsTrigger>
+              )}
+              {mode === 'pro' && (
+                <TabsTrigger value="audio-tag">
+                  <BsSpeakerFill className="text-lg mr-3" />
+                  Audio Tag
+                </TabsTrigger>
+              )}
+              {mode === 'pro' && (
+                <TabsTrigger value="audio-channel">
+                  <MdSurroundSound className="text-lg mr-3" />
+                  Audio Channel
+                </TabsTrigger>
+              )}
               <TabsTrigger value="language">
                 <FaLanguage className="text-lg mr-3" />
                 Language
@@ -278,25 +300,34 @@ function Content() {
                 <MdPerson className="text-lg mr-3" />
                 Seeders
               </TabsTrigger>
-              <TabsTrigger value="title-matching">
-                <FaEquals className="text-lg mr-3" />
-                Matching
-              </TabsTrigger>
-              <TabsTrigger value="keyword">
-                <MdTextFields className="text-lg mr-3" />
-                Keyword
-              </TabsTrigger>
-              <TabsTrigger value="stream-expression">
-                <TbFilterCode className="text-lg mr-3" />
-                Stream Expression
-              </TabsTrigger>
-              {(status?.settings.regexFilterAccess !== 'none' ||
-                status?.settings.allowedRegexPatterns) && (
-                <TabsTrigger value="regex">
-                  <BsRegex className="text-lg mr-3" />
-                  Regex
+              {mode === 'pro' && (
+                <>
+                  <TabsTrigger value="title-matching">
+                    <FaEquals className="text-lg mr-3" />
+                    Matching
+                  </TabsTrigger>
+                </>
+              )}
+              {mode === 'pro' && (
+                <TabsTrigger value="keyword">
+                  <MdTextFields className="text-lg mr-3" />
+                  Keyword
                 </TabsTrigger>
               )}
+              {mode === 'pro' && (
+                <TabsTrigger value="stream-expression">
+                  <TbFilterCode className="text-lg mr-3" />
+                  Stream Expression
+                </TabsTrigger>
+              )}
+              {(status?.settings.regexFilterAccess !== 'none' ||
+                status?.settings.allowedRegexPatterns) &&
+                mode === 'pro' && (
+                  <TabsTrigger value="regex">
+                    <BsRegex className="text-lg mr-3" />
+                    Regex
+                  </TabsTrigger>
+                )}
               <TabsTrigger value="size">
                 <GoFileBinary className="text-lg mr-3" />
                 Size
@@ -336,89 +367,94 @@ function Content() {
                         }));
                       }}
                     />
-                    <Combobox
-                      help="Addons selected here will have their uncached results excluded"
-                      label="Exclude Uncached From Addons"
-                      value={userData.excludeUncachedFromAddons ?? []}
-                      onValueChange={(value) => {
-                        setUserData((prev) => ({
-                          ...prev,
-                          excludeUncachedFromAddons: value,
-                        }));
-                      }}
-                      options={userData.presets.map((preset) => ({
-                        label: preset.options.name || preset.type,
-                        value: preset.instanceId,
-                        textValue: preset.options.name,
-                      }))}
-                      emptyMessage="You haven't installed any addons..."
-                      placeholder="Select addons..."
-                      multiple
-                      disabled={userData.excludeUncached === true}
-                    />
+                    {mode === 'pro' && (
+                      <>
+                        <Combobox
+                          help="Addons selected here will have their uncached results excluded"
+                          label="Exclude Uncached From Addons"
+                          value={userData.excludeUncachedFromAddons ?? []}
+                          onValueChange={(value) => {
+                            setUserData((prev) => ({
+                              ...prev,
+                              excludeUncachedFromAddons: value,
+                            }));
+                          }}
+                          options={userData.presets.map((preset) => ({
+                            label: preset.options.name || preset.type,
+                            value: preset.instanceId,
+                            textValue: preset.options.name,
+                          }))}
+                          emptyMessage="You haven't installed any addons..."
+                          placeholder="Select addons..."
+                          multiple
+                          disabled={userData.excludeUncached === true}
+                        />
 
-                    <Combobox
-                      help="Services selected here will have their uncached results excluded"
-                      label="Exclude Uncached From Services"
-                      value={userData.excludeUncachedFromServices ?? []}
-                      onValueChange={(value) => {
-                        setUserData((prev) => ({
-                          ...prev,
-                          excludeUncachedFromServices: value,
-                        }));
-                      }}
-                      options={Object.values(
-                        status?.settings.services ?? {}
-                      ).map((service) => ({
-                        label: service.name,
-                        value: service.id,
-                        textValue: service.name,
-                      }))}
-                      placeholder="Select services..."
-                      emptyMessage="This is odd... there aren't any services to choose from..."
-                      multiple
-                      disabled={userData.excludeUncached === true}
-                    />
-                    <Combobox
-                      help="Stream types selected here will have their uncached results excluded"
-                      label="Exclude Uncached From Stream Types"
-                      value={userData.excludeUncachedFromStreamTypes ?? []}
-                      onValueChange={(value) => {
-                        setUserData((prev) => ({
-                          ...prev,
-                          excludeUncachedFromStreamTypes: value as StreamType[],
-                        }));
-                      }}
-                      options={STREAM_TYPES.filter(
-                        (streamType) =>
-                          ['debrid', 'usenet'].includes(streamType) // only these 2 stream types can have a service
-                      ).map((streamType) => ({
-                        label: streamType,
-                        value: streamType,
-                        textValue: streamType,
-                      }))}
-                      emptyMessage="This is odd... there aren't any stream types to choose from..."
-                      placeholder="Select stream types..."
-                      multiple
-                      disabled={userData.excludeUncached === true}
-                    />
+                        <Combobox
+                          help="Services selected here will have their uncached results excluded"
+                          label="Exclude Uncached From Services"
+                          value={userData.excludeUncachedFromServices ?? []}
+                          onValueChange={(value) => {
+                            setUserData((prev) => ({
+                              ...prev,
+                              excludeUncachedFromServices: value,
+                            }));
+                          }}
+                          options={Object.values(
+                            status?.settings.services ?? {}
+                          ).map((service) => ({
+                            label: service.name,
+                            value: service.id,
+                            textValue: service.name,
+                          }))}
+                          placeholder="Select services..."
+                          emptyMessage="This is odd... there aren't any services to choose from..."
+                          multiple
+                          disabled={userData.excludeUncached === true}
+                        />
+                        <Combobox
+                          help="Stream types selected here will have their uncached results excluded"
+                          label="Exclude Uncached From Stream Types"
+                          value={userData.excludeUncachedFromStreamTypes ?? []}
+                          onValueChange={(value) => {
+                            setUserData((prev) => ({
+                              ...prev,
+                              excludeUncachedFromStreamTypes:
+                                value as StreamType[],
+                            }));
+                          }}
+                          options={STREAM_TYPES.filter(
+                            (streamType) =>
+                              ['debrid', 'usenet'].includes(streamType) // only these 2 stream types can have a service
+                          ).map((streamType) => ({
+                            label: streamType,
+                            value: streamType,
+                            textValue: streamType,
+                          }))}
+                          emptyMessage="This is odd... there aren't any stream types to choose from..."
+                          placeholder="Select stream types..."
+                          multiple
+                          disabled={userData.excludeUncached === true}
+                        />
 
-                    <Select
-                      label="Apply mode"
-                      disabled={userData.excludeUncached === true}
-                      help="How these three options (from addons, services and stream types) are applied. AND means a result must match all, OR means a result only needs to match one"
-                      value={userData.excludeUncachedMode ?? 'or'}
-                      onValueChange={(value) => {
-                        setUserData((prev) => ({
-                          ...prev,
-                          excludeUncachedMode: value as 'or' | 'and',
-                        }));
-                      }}
-                      options={[
-                        { label: 'OR', value: 'or' },
-                        { label: 'AND', value: 'and' },
-                      ]}
-                    />
+                        <Select
+                          label="Apply mode"
+                          disabled={userData.excludeUncached === true}
+                          help="How these three options (from addons, services and stream types) are applied. AND means a result must match all, OR means a result only needs to match one"
+                          value={userData.excludeUncachedMode ?? 'or'}
+                          onValueChange={(value) => {
+                            setUserData((prev) => ({
+                              ...prev,
+                              excludeUncachedMode: value as 'or' | 'and',
+                            }));
+                          }}
+                          options={[
+                            { label: 'OR', value: 'or' },
+                            { label: 'AND', value: 'and' },
+                          ]}
+                        />
+                      </>
+                    )}
                   </div>
                 </SettingsCard>
                 <SettingsCard
@@ -439,87 +475,92 @@ function Content() {
                         }));
                       }}
                     />
-                    <Combobox
-                      help="Addons selected here will have their cached results excluded"
-                      label="Exclude Cached From Addons"
-                      value={userData.excludeCachedFromAddons ?? []}
-                      onValueChange={(value) => {
-                        setUserData((prev) => ({
-                          ...prev,
-                          excludeCachedFromAddons: value,
-                        }));
-                      }}
-                      options={userData.presets.map((preset) => ({
-                        label: preset.options.name || preset.type,
-                        value: preset.instanceId,
-                        textValue: preset.options.name || preset.type,
-                      }))}
-                      emptyMessage="You haven't installed any addons..."
-                      placeholder="Select addons..."
-                      multiple
-                      disabled={userData.excludeCached === true}
-                    />
-                    <Combobox
-                      help="Services selected here will have their cached results excluded"
-                      label="Exclude Cached From Services"
-                      value={userData.excludeCachedFromServices ?? []}
-                      onValueChange={(value) => {
-                        setUserData((prev) => ({
-                          ...prev,
-                          excludeCachedFromServices: value,
-                        }));
-                      }}
-                      options={Object.values(
-                        status?.settings.services ?? {}
-                      ).map((service) => ({
-                        label: service.name,
-                        value: service.id,
-                        textValue: service.name,
-                      }))}
-                      placeholder="Select services..."
-                      emptyMessage="This is odd... there aren't any services to choose from..."
-                      multiple
-                      disabled={userData.excludeCached === true}
-                    />
-                    <Combobox
-                      help="Stream types selected here will have their cached results excluded"
-                      label="Exclude Cached From Stream Types"
-                      value={userData.excludeCachedFromStreamTypes ?? []}
-                      onValueChange={(value) => {
-                        setUserData((prev) => ({
-                          ...prev,
-                          excludeCachedFromStreamTypes: value as StreamType[],
-                        }));
-                      }}
-                      options={STREAM_TYPES.filter(
-                        (streamType) =>
-                          ['debrid', 'usenet'].includes(streamType) // only these 2 stream types can have a service
-                      ).map((streamType) => ({
-                        label: streamType,
-                        value: streamType,
-                        textValue: streamType,
-                      }))}
-                      emptyMessage="This is odd... there aren't any stream types to choose from..."
-                      placeholder="Select stream types..."
-                      multiple
-                      disabled={userData.excludeCached === true}
-                    />
-                    <Select
-                      label="Apply mode"
-                      disabled={userData.excludeCached === true}
-                      help="How these three options (from addons, services and stream types) are applied. AND means a result must match all, OR means a result only needs to match one"
-                      value={userData.excludeCachedMode ?? 'or'}
-                      onValueChange={(value) => {
-                        setUserData((prev) => ({
-                          ...prev,
-                          excludeCachedMode: value as 'or' | 'and',
-                        }));
-                      }}
-                      options={[
-                        { label: 'OR', value: 'or' },
-                        { label: 'AND', value: 'and' },
-                      ]}
-                    />
+                    {mode === 'pro' && (
+                      <>
+                        <Combobox
+                          help="Addons selected here will have their cached results excluded"
+                          label="Exclude Cached From Addons"
+                          value={userData.excludeCachedFromAddons ?? []}
+                          onValueChange={(value) => {
+                            setUserData((prev) => ({
+                              ...prev,
+                              excludeCachedFromAddons: value,
+                            }));
+                          }}
+                          options={userData.presets.map((preset) => ({
+                            label: preset.options.name || preset.type,
+                            value: preset.instanceId,
+                            textValue: preset.options.name || preset.type,
+                          }))}
+                          emptyMessage="You haven't installed any addons..."
+                          placeholder="Select addons..."
+                          multiple
+                          disabled={userData.excludeCached === true}
+                        />
+                        <Combobox
+                          help="Services selected here will have their cached results excluded"
+                          label="Exclude Cached From Services"
+                          value={userData.excludeCachedFromServices ?? []}
+                          onValueChange={(value) => {
+                            setUserData((prev) => ({
+                              ...prev,
+                              excludeCachedFromServices: value,
+                            }));
+                          }}
+                          options={Object.values(
+                            status?.settings.services ?? {}
+                          ).map((service) => ({
+                            label: service.name,
+                            value: service.id,
+                            textValue: service.name,
+                          }))}
+                          placeholder="Select services..."
+                          emptyMessage="This is odd... there aren't any services to choose from..."
+                          multiple
+                          disabled={userData.excludeCached === true}
+                        />
+                        <Combobox
+                          help="Stream types selected here will have their cached results excluded"
+                          label="Exclude Cached From Stream Types"
+                          value={userData.excludeCachedFromStreamTypes ?? []}
+                          onValueChange={(value) => {
+                            setUserData((prev) => ({
+                              ...prev,
+                              excludeCachedFromStreamTypes:
+                                value as StreamType[],
+                            }));
+                          }}
+                          options={STREAM_TYPES.filter(
+                            (streamType) =>
+                              ['debrid', 'usenet'].includes(streamType) // only these 2 stream types can have a service
+                          ).map((streamType) => ({
+                            label: streamType,
+                            value: streamType,
+                            textValue: streamType,
+                          }))}
+                          emptyMessage="This is odd... there aren't any stream types to choose from..."
+                          placeholder="Select stream types..."
+                          multiple
+                          disabled={userData.excludeCached === true}
+                        />
+                        <Select
+                          label="Apply mode"
+                          disabled={userData.excludeCached === true}
+                          help="How these three options (from addons, services and stream types) are applied. AND means a result must match all, OR means a result only needs to match one"
+                          value={userData.excludeCachedMode ?? 'or'}
+                          onValueChange={(value) => {
+                            setUserData((prev) => ({
+                              ...prev,
+                              excludeCachedMode: value as 'or' | 'and',
+                            }));
+                          }}
+                          options={[
+                            { label: 'OR', value: 'or' },
+                            { label: 'AND', value: 'and' },
+                          ]}
+                        />
+                      </>
+                    )}
                   </div>
                 </SettingsCard>
               </div>
@@ -942,153 +983,178 @@ function Content() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col md:flex-row gap-4">
-                      <div className="flex-1 min-w-0">
-                        <Slider
-                          min={MIN_SEEDERS}
-                          max={MAX_SEEDERS}
-                          defaultValue={[MIN_SEEDERS, MAX_SEEDERS]}
-                          value={
-                            userData.excludeSeederRange || [
-                              MIN_SEEDERS,
-                              MAX_SEEDERS,
-                            ]
-                          }
-                          onValueChange={(newValue) =>
-                            newValue !== undefined &&
-                            newValue?.[0] !== undefined &&
-                            newValue?.[1] !== undefined &&
-                            setUserData((prev) => ({
-                              ...prev,
-                              excludeSeederRange: [newValue[0], newValue[1]],
-                            }))
-                          }
-                          minStepsBetweenThumbs={1}
-                          label="Excluded Seeder Range"
-                          help="Streams with seeders in this range will be excluded"
-                        />
-                        <div className="flex justify-between mt-1 text-xs text-[--muted]">
-                          <span>
-                            {userData.excludeSeederRange?.[0] || MIN_SEEDERS}
-                          </span>
-                          <span>
-                            {userData.excludeSeederRange?.[1] || MAX_SEEDERS}
-                          </span>
+                    {mode === 'pro' && (
+                      <>
+                        <div className="flex flex-col md:flex-row gap-4">
+                          <div className="flex-1 min-w-0">
+                            <Slider
+                              min={MIN_SEEDERS}
+                              max={MAX_SEEDERS}
+                              defaultValue={[MIN_SEEDERS, MAX_SEEDERS]}
+                              value={
+                                userData.excludeSeederRange || [
+                                  MIN_SEEDERS,
+                                  MAX_SEEDERS,
+                                ]
+                              }
+                              onValueChange={(newValue) =>
+                                newValue !== undefined &&
+                                newValue?.[0] !== undefined &&
+                                newValue?.[1] !== undefined &&
+                                setUserData((prev) => ({
+                                  ...prev,
+                                  excludeSeederRange: [
+                                    newValue[0],
+                                    newValue[1],
+                                  ],
+                                }))
+                              }
+                              minStepsBetweenThumbs={1}
+                              label="Excluded Seeder Range"
+                              help="Streams with seeders in this range will be excluded"
+                            />
+                            <div className="flex justify-between mt-1 text-xs text-[--muted]">
+                              <span>
+                                {userData.excludeSeederRange?.[0] ||
+                                  MIN_SEEDERS}
+                              </span>
+                              <span>
+                                {userData.excludeSeederRange?.[1] ||
+                                  MAX_SEEDERS}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 md:w-[240px] shrink-0">
+                            <NumberInput
+                              label="Min"
+                              value={
+                                userData.excludeSeederRange?.[0] || MIN_SEEDERS
+                              }
+                              min={MIN_SEEDERS}
+                              max={
+                                userData.excludeSeederRange?.[1] || MAX_SEEDERS
+                              }
+                              onValueChange={(newValue) =>
+                                newValue !== undefined &&
+                                setUserData((prev) => ({
+                                  ...prev,
+                                  excludeSeederRange: [
+                                    newValue,
+                                    prev.excludeSeederRange?.[1] || MAX_SEEDERS,
+                                  ],
+                                }))
+                              }
+                            />
+                            <NumberInput
+                              label="Max"
+                              value={
+                                userData.excludeSeederRange?.[1] || MAX_SEEDERS
+                              }
+                              min={
+                                userData.excludeSeederRange?.[0] || MIN_SEEDERS
+                              }
+                              max={MAX_SEEDERS}
+                              onValueChange={(newValue) =>
+                                newValue !== undefined &&
+                                setUserData((prev) => ({
+                                  ...prev,
+                                  excludeSeederRange: [
+                                    prev.excludeSeederRange?.[0] || MIN_SEEDERS,
+                                    newValue,
+                                  ],
+                                }))
+                              }
+                            />
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex gap-2 md:w-[240px] shrink-0">
-                        <NumberInput
-                          label="Min"
-                          value={
-                            userData.excludeSeederRange?.[0] || MIN_SEEDERS
-                          }
-                          min={MIN_SEEDERS}
-                          max={userData.excludeSeederRange?.[1] || MAX_SEEDERS}
-                          onValueChange={(newValue) =>
-                            newValue !== undefined &&
-                            setUserData((prev) => ({
-                              ...prev,
-                              excludeSeederRange: [
-                                newValue,
-                                prev.excludeSeederRange?.[1] || MAX_SEEDERS,
-                              ],
-                            }))
-                          }
-                        />
-                        <NumberInput
-                          label="Max"
-                          value={
-                            userData.excludeSeederRange?.[1] || MAX_SEEDERS
-                          }
-                          min={userData.excludeSeederRange?.[0] || MIN_SEEDERS}
-                          max={MAX_SEEDERS}
-                          onValueChange={(newValue) =>
-                            newValue !== undefined &&
-                            setUserData((prev) => ({
-                              ...prev,
-                              excludeSeederRange: [
-                                prev.excludeSeederRange?.[0] || MIN_SEEDERS,
-                                newValue,
-                              ],
-                            }))
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col md:flex-row gap-4">
-                      <div className="flex-1 min-w-0">
-                        <Slider
-                          min={MIN_SEEDERS}
-                          max={MAX_SEEDERS}
-                          defaultValue={[MIN_SEEDERS, MAX_SEEDERS]}
-                          value={
-                            userData.includeSeederRange || [
-                              MIN_SEEDERS,
-                              MAX_SEEDERS,
-                            ]
-                          }
-                          onValueChange={(newValue) =>
-                            newValue !== undefined &&
-                            newValue?.[0] !== undefined &&
-                            newValue?.[1] !== undefined &&
-                            setUserData((prev) => ({
-                              ...prev,
-                              includeSeederRange: [newValue[0], newValue[1]],
-                            }))
-                          }
-                          minStepsBetweenThumbs={1}
-                          label="Included Seeder Range"
-                          help="Streams with seeders in this range will be included, ignoring ANY other exclude/required filters, not just for this filter"
-                        />
-                        <div className="flex justify-between mt-1 text-xs text-[--muted]">
-                          <span>
-                            {userData.includeSeederRange?.[0] || MIN_SEEDERS}
-                          </span>
-                          <span>
-                            {userData.includeSeederRange?.[1] || MAX_SEEDERS}
-                          </span>
+                      </>
+                    )}
+                    {mode === 'pro' && (
+                      <>
+                        <div className="flex flex-col md:flex-row gap-4">
+                          <div className="flex-1 min-w-0">
+                            <Slider
+                              min={MIN_SEEDERS}
+                              max={MAX_SEEDERS}
+                              defaultValue={[MIN_SEEDERS, MAX_SEEDERS]}
+                              value={
+                                userData.includeSeederRange || [
+                                  MIN_SEEDERS,
+                                  MAX_SEEDERS,
+                                ]
+                              }
+                              onValueChange={(newValue) =>
+                                newValue !== undefined &&
+                                newValue?.[0] !== undefined &&
+                                newValue?.[1] !== undefined &&
+                                setUserData((prev) => ({
+                                  ...prev,
+                                  includeSeederRange: [
+                                    newValue[0],
+                                    newValue[1],
+                                  ],
+                                }))
+                              }
+                              minStepsBetweenThumbs={1}
+                              label="Included Seeder Range"
+                              help="Streams with seeders in this range will be included, ignoring ANY other exclude/required filters, not just for this filter"
+                            />
+                            <div className="flex justify-between mt-1 text-xs text-[--muted]">
+                              <span>
+                                {userData.includeSeederRange?.[0] ||
+                                  MIN_SEEDERS}
+                              </span>
+                              <span>
+                                {userData.includeSeederRange?.[1] ||
+                                  MAX_SEEDERS}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 md:w-[240px] shrink-0">
+                            <NumberInput
+                              label="Min"
+                              value={
+                                userData.includeSeederRange?.[0] || MIN_SEEDERS
+                              }
+                              min={MIN_SEEDERS}
+                              max={
+                                userData.includeSeederRange?.[1] || MAX_SEEDERS
+                              }
+                              onValueChange={(newValue) =>
+                                newValue !== undefined &&
+                                setUserData((prev) => ({
+                                  ...prev,
+                                  includeSeederRange: [
+                                    newValue,
+                                    prev.includeSeederRange?.[1] || MAX_SEEDERS,
+                                  ],
+                                }))
+                              }
+                            />
+                            <NumberInput
+                              label="Max"
+                              value={
+                                userData.includeSeederRange?.[1] || MAX_SEEDERS
+                              }
+                              min={
+                                userData.includeSeederRange?.[0] || MIN_SEEDERS
+                              }
+                              max={MAX_SEEDERS}
+                              onValueChange={(newValue) =>
+                                newValue !== undefined &&
+                                setUserData((prev) => ({
+                                  ...prev,
+                                  includeSeederRange: [
+                                    prev.includeSeederRange?.[0] || MIN_SEEDERS,
+                                    newValue,
+                                  ],
+                                }))
+                              }
+                            />
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex gap-2 md:w-[240px] shrink-0">
-                        <NumberInput
-                          label="Min"
-                          value={
-                            userData.includeSeederRange?.[0] || MIN_SEEDERS
-                          }
-                          min={MIN_SEEDERS}
-                          max={userData.includeSeederRange?.[1] || MAX_SEEDERS}
-                          onValueChange={(newValue) =>
-                            newValue !== undefined &&
-                            setUserData((prev) => ({
-                              ...prev,
-                              includeSeederRange: [
-                                newValue,
-                                prev.includeSeederRange?.[1] || MAX_SEEDERS,
-                              ],
-                            }))
-                          }
-                        />
-                        <NumberInput
-                          label="Max"
-                          value={
-                            userData.includeSeederRange?.[1] || MAX_SEEDERS
-                          }
-                          min={userData.includeSeederRange?.[0] || MIN_SEEDERS}
-                          max={MAX_SEEDERS}
-                          onValueChange={(newValue) =>
-                            newValue !== undefined &&
-                            setUserData((prev) => ({
-                              ...prev,
-                              includeSeederRange: [
-                                prev.includeSeederRange?.[0] || MIN_SEEDERS,
-                                newValue,
-                              ],
-                            }))
-                          }
-                        />
-                      </div>
-                    </div>
+                      </>
+                    )}
                   </div>
 
                   <div className="space-y-4">
@@ -1574,28 +1640,32 @@ function Content() {
                 </p>
               </div>
               <div className="space-y-4">
-                <TextInputs
-                  label="Required Keywords"
-                  help="Streams that do not contain any of these keywords will be excluded"
-                  itemName="Keyword"
-                  values={userData.requiredKeywords || []}
-                  onValuesChange={(values) => {
-                    setUserData((prev) => ({
-                      ...prev,
-                      requiredKeywords: values,
-                    }));
-                  }}
-                  onValueChange={(value, index) => {
-                    setUserData((prev) => ({
-                      ...prev,
-                      requiredKeywords: [
-                        ...(prev.requiredKeywords || []).slice(0, index),
-                        value,
-                        ...(prev.requiredKeywords || []).slice(index + 1),
-                      ],
-                    }));
-                  }}
-                />
+                {mode === 'pro' && (
+                  <>
+                    <TextInputs
+                      label="Required Keywords"
+                      help="Streams that do not contain any of these keywords will be excluded"
+                      itemName="Keyword"
+                      values={userData.requiredKeywords || []}
+                      onValuesChange={(values) => {
+                        setUserData((prev) => ({
+                          ...prev,
+                          requiredKeywords: values,
+                        }));
+                      }}
+                      onValueChange={(value, index) => {
+                        setUserData((prev) => ({
+                          ...prev,
+                          requiredKeywords: [
+                            ...(prev.requiredKeywords || []).slice(0, index),
+                            value,
+                            ...(prev.requiredKeywords || []).slice(index + 1),
+                          ],
+                        }));
+                      }}
+                    />
+                  </>
+                )}
                 <TextInputs
                   label="Excluded Keywords"
                   help="Streams that contain any of these keywords will be excluded"
@@ -1618,28 +1688,32 @@ function Content() {
                     }));
                   }}
                 />
-                <TextInputs
-                  label="Included Keywords"
-                  help="Streams that contain any of these keywords will be included, ignoring ANY other exclude/required filters, not just for this filter"
-                  itemName="Keyword"
-                  values={userData.includedKeywords || []}
-                  onValuesChange={(values) => {
-                    setUserData((prev) => ({
-                      ...prev,
-                      includedKeywords: values,
-                    }));
-                  }}
-                  onValueChange={(value, index) => {
-                    setUserData((prev) => ({
-                      ...prev,
-                      includedKeywords: [
-                        ...(prev.includedKeywords || []).slice(0, index),
-                        value,
-                        ...(prev.includedKeywords || []).slice(index + 1),
-                      ],
-                    }));
-                  }}
-                />
+                {mode === 'pro' && (
+                  <>
+                    <TextInputs
+                      label="Included Keywords"
+                      help="Streams that contain any of these keywords will be included, ignoring ANY other exclude/required filters, not just for this filter"
+                      itemName="Keyword"
+                      values={userData.includedKeywords || []}
+                      onValuesChange={(values) => {
+                        setUserData((prev) => ({
+                          ...prev,
+                          includedKeywords: values,
+                        }));
+                      }}
+                      onValueChange={(value, index) => {
+                        setUserData((prev) => ({
+                          ...prev,
+                          includedKeywords: [
+                            ...(prev.includedKeywords || []).slice(0, index),
+                            value,
+                            ...(prev.includedKeywords || []).slice(index + 1),
+                          ],
+                        }));
+                      }}
+                    />
+                  </>
+                )}
                 <TextInputs
                   label="Preferred Keywords"
                   help="Streams that contain any of these keywords will be preferred"
@@ -1740,28 +1814,37 @@ function Content() {
                 )}
               </div>
               <div className="space-y-4">
-                <TextInputs
-                  label="Required Regex"
-                  help="Streams that do not match any of these regular expressions will be excluded"
-                  itemName="Regex"
-                  values={userData.requiredRegexPatterns || []}
-                  onValuesChange={(values) => {
-                    setUserData((prev) => ({
-                      ...prev,
-                      requiredRegexPatterns: values,
-                    }));
-                  }}
-                  onValueChange={(value, index) => {
-                    setUserData((prev) => ({
-                      ...prev,
-                      requiredRegexPatterns: [
-                        ...(prev.requiredRegexPatterns || []).slice(0, index),
-                        value,
-                        ...(prev.requiredRegexPatterns || []).slice(index + 1),
-                      ],
-                    }));
-                  }}
-                />
+                {mode === 'pro' && (
+                  <>
+                    <TextInputs
+                      label="Required Regex"
+                      help="Streams that do not match any of these regular expressions will be excluded"
+                      itemName="Regex"
+                      values={userData.requiredRegexPatterns || []}
+                      onValuesChange={(values) => {
+                        setUserData((prev) => ({
+                          ...prev,
+                          requiredRegexPatterns: values,
+                        }));
+                      }}
+                      onValueChange={(value, index) => {
+                        setUserData((prev) => ({
+                          ...prev,
+                          requiredRegexPatterns: [
+                            ...(prev.requiredRegexPatterns || []).slice(
+                              0,
+                              index
+                            ),
+                            value,
+                            ...(prev.requiredRegexPatterns || []).slice(
+                              index + 1
+                            ),
+                          ],
+                        }));
+                      }}
+                    />
+                  </>
+                )}
                 <TextInputs
                   label="Excluded Regex"
                   help="Streams that match any of these regular expressions will be excluded"
@@ -1784,28 +1867,37 @@ function Content() {
                     }));
                   }}
                 />
-                <TextInputs
-                  label="Included Regex"
-                  help="Streams that match any of these regular expressions will be included, ignoring other exclude/required filters"
-                  itemName="Regex"
-                  values={userData.includedRegexPatterns || []}
-                  onValuesChange={(values) => {
-                    setUserData((prev) => ({
-                      ...prev,
-                      includedRegexPatterns: values,
-                    }));
-                  }}
-                  onValueChange={(value, index) => {
-                    setUserData((prev) => ({
-                      ...prev,
-                      includedRegexPatterns: [
-                        ...(prev.includedRegexPatterns || []).slice(0, index),
-                        value,
-                        ...(prev.includedRegexPatterns || []).slice(index + 1),
-                      ],
-                    }));
-                  }}
-                />
+                {mode === 'pro' && (
+                  <>
+                    <TextInputs
+                      label="Included Regex"
+                      help="Streams that match any of these regular expressions will be included, ignoring other exclude/required filters"
+                      itemName="Regex"
+                      values={userData.includedRegexPatterns || []}
+                      onValuesChange={(values) => {
+                        setUserData((prev) => ({
+                          ...prev,
+                          includedRegexPatterns: values,
+                        }));
+                      }}
+                      onValueChange={(value, index) => {
+                        setUserData((prev) => ({
+                          ...prev,
+                          includedRegexPatterns: [
+                            ...(prev.includedRegexPatterns || []).slice(
+                              0,
+                              index
+                            ),
+                            value,
+                            ...(prev.includedRegexPatterns || []).slice(
+                              index + 1
+                            ),
+                          ],
+                        }));
+                      }}
+                    />
+                  </>
+                )}
                 <TwoTextInputs
                   title="Preferred Regex Patterns"
                   description="Define regex patterns with names for easy reference"
@@ -1907,62 +1999,64 @@ function Content() {
                   />
                 </SettingsCard>
 
-                <SettingsCard
-                  title="Resolution-Specific"
-                  description="Set size limits for specific resolutions"
-                >
-                  <div className="space-y-8">
-                    {RESOLUTIONS.map((resolution) => (
-                      <SizeRangeSlider
-                        key={resolution}
-                        label={resolution}
-                        help={`Set the minimum and maximum size for ${resolution} results`}
-                        moviesValue={
-                          userData.size?.resolution?.[resolution]?.movies || [
-                            MIN_SIZE,
-                            MAX_SIZE,
-                          ]
-                        }
-                        seriesValue={
-                          userData.size?.resolution?.[resolution]?.series || [
-                            MIN_SIZE,
-                            MAX_SIZE,
-                          ]
-                        }
-                        onMoviesChange={(value) => {
-                          setUserData((prev: any) => ({
-                            ...prev,
-                            size: {
-                              ...prev.size,
-                              resolution: {
-                                ...prev.size?.resolution,
-                                [resolution]: {
-                                  ...prev.size?.resolution?.[resolution],
-                                  movies: value,
+                {mode === 'pro' && (
+                  <SettingsCard
+                    title="Resolution-Specific"
+                    description="Set size limits for specific resolutions"
+                  >
+                    <div className="space-y-8">
+                      {RESOLUTIONS.map((resolution) => (
+                        <SizeRangeSlider
+                          key={resolution}
+                          label={resolution}
+                          help={`Set the minimum and maximum size for ${resolution} results`}
+                          moviesValue={
+                            userData.size?.resolution?.[resolution]?.movies || [
+                              MIN_SIZE,
+                              MAX_SIZE,
+                            ]
+                          }
+                          seriesValue={
+                            userData.size?.resolution?.[resolution]?.series || [
+                              MIN_SIZE,
+                              MAX_SIZE,
+                            ]
+                          }
+                          onMoviesChange={(value) => {
+                            setUserData((prev: any) => ({
+                              ...prev,
+                              size: {
+                                ...prev.size,
+                                resolution: {
+                                  ...prev.size?.resolution,
+                                  [resolution]: {
+                                    ...prev.size?.resolution?.[resolution],
+                                    movies: value,
+                                  },
                                 },
                               },
-                            },
-                          }));
-                        }}
-                        onSeriesChange={(value) => {
-                          setUserData((prev: any) => ({
-                            ...prev,
-                            size: {
-                              ...prev.size,
-                              resolution: {
-                                ...prev.size?.resolution,
-                                [resolution]: {
-                                  ...prev.size?.resolution?.[resolution],
-                                  series: value,
+                            }));
+                          }}
+                          onSeriesChange={(value) => {
+                            setUserData((prev: any) => ({
+                              ...prev,
+                              size: {
+                                ...prev.size,
+                                resolution: {
+                                  ...prev.size?.resolution,
+                                  [resolution]: {
+                                    ...prev.size?.resolution?.[resolution],
+                                    series: value,
+                                  },
                                 },
                               },
-                            },
-                          }));
-                        }}
-                      />
-                    ))}
-                  </div>
-                </SettingsCard>
+                            }));
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </SettingsCard>
+                )}
               </div>
             </>
           </TabsContent>
@@ -1987,38 +2081,43 @@ function Content() {
                       }));
                     }}
                   />
-                  <NumberInput
-                    help="Limit for results by service"
-                    label="Service Limit"
-                    value={userData.resultLimits?.service || undefined}
-                    min={0}
-                    defaultValue={undefined}
-                    onValueChange={(value) => {
-                      setUserData((prev) => ({
-                        ...prev,
-                        resultLimits: {
-                          ...prev.resultLimits,
-                          service: value || undefined,
-                        },
-                      }));
-                    }}
-                  />
-                  <NumberInput
-                    help="Limit for results by addon"
-                    label="Addon Limit"
-                    value={userData.resultLimits?.addon || undefined}
-                    min={0}
-                    defaultValue={undefined}
-                    onValueChange={(value) => {
-                      setUserData((prev) => ({
-                        ...prev,
-                        resultLimits: {
-                          ...prev.resultLimits,
-                          addon: value || undefined,
-                        },
-                      }));
-                    }}
-                  />
+                  {mode === 'pro' && (
+                    <NumberInput
+                      help="Limit for results by service"
+                      label="Service Limit"
+                      value={userData.resultLimits?.service || undefined}
+                      min={0}
+                      defaultValue={undefined}
+                      onValueChange={(value) => {
+                        setUserData((prev) => ({
+                          ...prev,
+                          resultLimits: {
+                            ...prev.resultLimits,
+                            service: value || undefined,
+                          },
+                        }));
+                      }}
+                    />
+                  )}
+                  {mode === 'pro' && (
+                    <NumberInput
+                      help="Limit for results by addon"
+                      label="Addon Limit"
+                      value={userData.resultLimits?.addon || undefined}
+                      min={0}
+                      defaultValue={undefined}
+                      onValueChange={(value) => {
+                        setUserData((prev) => ({
+                          ...prev,
+                          resultLimits: {
+                            ...prev.resultLimits,
+                            addon: value || undefined,
+                          },
+                        }));
+                      }}
+                    />
+                  )}
+
                   <NumberInput
                     help="Limit for results by resolution"
                     label="Resolution Limit"
@@ -2035,54 +2134,61 @@ function Content() {
                       }));
                     }}
                   />
-                  <NumberInput
-                    help="Limit for results by quality"
-                    label="Quality Limit"
-                    value={userData.resultLimits?.quality || undefined}
-                    min={0}
-                    defaultValue={undefined}
-                    onValueChange={(value) => {
-                      setUserData((prev) => ({
-                        ...prev,
-                        resultLimits: {
-                          ...prev.resultLimits,
-                          quality: value || undefined,
-                        },
-                      }));
-                    }}
-                  />
-                  <NumberInput
-                    help="Limit for results by indexer"
-                    label="Indexer Limit"
-                    value={userData.resultLimits?.indexer || undefined}
-                    min={0}
-                    defaultValue={undefined}
-                    onValueChange={(value) => {
-                      setUserData((prev) => ({
-                        ...prev,
-                        resultLimits: {
-                          ...prev.resultLimits,
-                          indexer: value || undefined,
-                        },
-                      }));
-                    }}
-                  />
-                  <NumberInput
-                    help="Limit for results by release group"
-                    label="Release Group Limit"
-                    value={userData.resultLimits?.releaseGroup || undefined}
-                    min={0}
-                    defaultValue={undefined}
-                    onValueChange={(value) => {
-                      setUserData((prev) => ({
-                        ...prev,
-                        resultLimits: {
-                          ...prev.resultLimits,
-                          releaseGroup: value || undefined,
-                        },
-                      }));
-                    }}
-                  />
+
+                  {mode === 'pro' && (
+                    <NumberInput
+                      help="Limit for results by quality"
+                      label="Quality Limit"
+                      value={userData.resultLimits?.quality || undefined}
+                      min={0}
+                      defaultValue={undefined}
+                      onValueChange={(value) => {
+                        setUserData((prev) => ({
+                          ...prev,
+                          resultLimits: {
+                            ...prev.resultLimits,
+                            quality: value || undefined,
+                          },
+                        }));
+                      }}
+                    />
+                  )}
+                  {mode === 'pro' && (
+                    <NumberInput
+                      help="Limit for results by indexer"
+                      label="Indexer Limit"
+                      value={userData.resultLimits?.indexer || undefined}
+                      min={0}
+                      defaultValue={undefined}
+                      onValueChange={(value) => {
+                        setUserData((prev) => ({
+                          ...prev,
+                          resultLimits: {
+                            ...prev.resultLimits,
+                            indexer: value || undefined,
+                          },
+                        }));
+                      }}
+                    />
+                  )}
+                  {mode === 'pro' && (
+                    <NumberInput
+                      help="Limit for results by release group"
+                      label="Release Group Limit"
+                      value={userData.resultLimits?.releaseGroup || undefined}
+                      min={0}
+                      defaultValue={undefined}
+                      onValueChange={(value) => {
+                        setUserData((prev) => ({
+                          ...prev,
+                          resultLimits: {
+                            ...prev.resultLimits,
+                            releaseGroup: value || undefined,
+                          },
+                        }));
+                      }}
+                    />
+                  )}
                 </div>
               </SettingsCard>
             </>
@@ -2109,173 +2215,181 @@ function Content() {
                     }}
                   />
                 </SettingsCard>
+                {mode === 'pro' && (
+                  <>
+                    <SettingsCard
+                      title="Group Handling"
+                      description={
+                        <div>
+                          Sets of duplicates are separated into groups based on
+                          the streams' type. (e.g. cached, uncached, p2p, etc.)
+                          These options control how each set of duplicates are
+                          handled.
+                        </div>
+                      }
+                    >
+                      <div className="mt-2 space-y-2">
+                        <div>
+                          <span className="font-medium">Single Result</span>
+                          <p className="text-sm text-[--muted] mt-1">
+                            Keeps only one result from your highest priority
+                            service and highest priority addon. If it is a P2P
+                            or uncached result, it prioritises the number of
+                            seeders over addon priority.
+                          </p>
+                        </div>
+                        <div>
+                          <span className="font-medium">Per Service</span>
+                          <p className="text-sm text-[--muted] mt-1">
+                            This keeps one result per service, and choses each
+                            result using the same criteria above.
+                          </p>
+                        </div>
+                        <div>
+                          <span className="font-medium">Per Addon</span>
+                          <p className="text-sm text-[--muted] mt-1">
+                            This keeps one result per addon, and choses each
+                            result from your highest priority service, and for
+                            P2P/uncached results it looks at the number of
+                            seeders.
+                          </p>
+                        </div>
+                      </div>
+                      <Select
+                        disabled={!userData.deduplicator?.enabled}
+                        label="Cached Results"
+                        value={userData.deduplicator?.cached ?? 'disabled'}
+                        options={[
+                          { label: 'Disabled', value: 'disabled' },
+                          { label: 'Single Result', value: 'single_result' },
+                          { label: 'Per Service', value: 'per_service' },
+                          { label: 'Per Addon', value: 'per_addon' },
+                        ]}
+                        onValueChange={(value) => {
+                          setUserData((prev) => ({
+                            ...prev,
+                            deduplicator: {
+                              ...prev.deduplicator,
+                              cached: value as
+                                | 'single_result'
+                                | 'per_service'
+                                | 'per_addon'
+                                | 'disabled',
+                            },
+                          }));
+                        }}
+                      />
 
-                <SettingsCard
-                  title="Group Handling"
-                  description={
-                    <div>
-                      Sets of duplicates are separated into groups based on the
-                      streams' type. (e.g. cached, uncached, p2p, etc.) These
-                      options control how each set of duplicates are handled.
-                    </div>
-                  }
-                >
-                  <div className="mt-2 space-y-2">
-                    <div>
-                      <span className="font-medium">Single Result</span>
-                      <p className="text-sm text-[--muted] mt-1">
-                        Keeps only one result from your highest priority service
-                        and highest priority addon. If it is a P2P or uncached
-                        result, it prioritises the number of seeders over addon
-                        priority.
-                      </p>
-                    </div>
-                    <div>
-                      <span className="font-medium">Per Service</span>
-                      <p className="text-sm text-[--muted] mt-1">
-                        This keeps one result per service, and choses each
-                        result using the same criteria above.
-                      </p>
-                    </div>
-                    <div>
-                      <span className="font-medium">Per Addon</span>
-                      <p className="text-sm text-[--muted] mt-1">
-                        This keeps one result per addon, and choses each result
-                        from your highest priority service, and for P2P/uncached
-                        results it looks at the number of seeders.
-                      </p>
-                    </div>
-                  </div>
-                  <Select
-                    disabled={!userData.deduplicator?.enabled}
-                    label="Cached Results"
-                    value={userData.deduplicator?.cached ?? 'disabled'}
-                    options={[
-                      { label: 'Disabled', value: 'disabled' },
-                      { label: 'Single Result', value: 'single_result' },
-                      { label: 'Per Service', value: 'per_service' },
-                      { label: 'Per Addon', value: 'per_addon' },
-                    ]}
-                    onValueChange={(value) => {
-                      setUserData((prev) => ({
-                        ...prev,
-                        deduplicator: {
-                          ...prev.deduplicator,
-                          cached: value as
-                            | 'single_result'
-                            | 'per_service'
-                            | 'per_addon'
-                            | 'disabled',
-                        },
-                      }));
-                    }}
-                  />
+                      <Select
+                        disabled={!userData.deduplicator?.enabled}
+                        label="Uncached Results"
+                        value={userData.deduplicator?.uncached ?? 'disabled'}
+                        options={[
+                          { label: 'Disabled', value: 'disabled' },
+                          { label: 'Single Result', value: 'single_result' },
+                          { label: 'Per Service', value: 'per_service' },
+                          { label: 'Per Addon', value: 'per_addon' },
+                        ]}
+                        onValueChange={(value) => {
+                          setUserData((prev) => ({
+                            ...prev,
+                            deduplicator: {
+                              ...prev.deduplicator,
+                              uncached: value as
+                                | 'single_result'
+                                | 'per_service'
+                                | 'per_addon'
+                                | 'disabled',
+                            },
+                          }));
+                        }}
+                      />
 
-                  <Select
-                    disabled={!userData.deduplicator?.enabled}
-                    label="Uncached Results"
-                    value={userData.deduplicator?.uncached ?? 'disabled'}
-                    options={[
-                      { label: 'Disabled', value: 'disabled' },
-                      { label: 'Single Result', value: 'single_result' },
-                      { label: 'Per Service', value: 'per_service' },
-                      { label: 'Per Addon', value: 'per_addon' },
-                    ]}
-                    onValueChange={(value) => {
-                      setUserData((prev) => ({
-                        ...prev,
-                        deduplicator: {
-                          ...prev.deduplicator,
-                          uncached: value as
-                            | 'single_result'
-                            | 'per_service'
-                            | 'per_addon'
-                            | 'disabled',
-                        },
-                      }));
-                    }}
-                  />
+                      <Select
+                        disabled={!userData.deduplicator?.enabled}
+                        label="P2P Results"
+                        value={userData.deduplicator?.p2p ?? 'disabled'}
+                        options={[
+                          { label: 'Disabled', value: 'disabled' },
+                          { label: 'Single Result', value: 'single_result' },
+                          { label: 'Per Service', value: 'per_service' },
+                          { label: 'Per Addon', value: 'per_addon' },
+                        ]}
+                        onValueChange={(value) => {
+                          setUserData((prev) => ({
+                            ...prev,
+                            deduplicator: {
+                              ...prev.deduplicator,
+                              p2p: value as
+                                | 'single_result'
+                                | 'per_service'
+                                | 'per_addon'
+                                | 'disabled',
+                            },
+                          }));
+                        }}
+                      />
+                    </SettingsCard>
 
-                  <Select
-                    disabled={!userData.deduplicator?.enabled}
-                    label="P2P Results"
-                    value={userData.deduplicator?.p2p ?? 'disabled'}
-                    options={[
-                      { label: 'Disabled', value: 'disabled' },
-                      { label: 'Single Result', value: 'single_result' },
-                      { label: 'Per Service', value: 'per_service' },
-                      { label: 'Per Addon', value: 'per_addon' },
-                    ]}
-                    onValueChange={(value) => {
-                      setUserData((prev) => ({
-                        ...prev,
-                        deduplicator: {
-                          ...prev.deduplicator,
-                          p2p: value as
-                            | 'single_result'
-                            | 'per_service'
-                            | 'per_addon'
-                            | 'disabled',
-                        },
-                      }));
-                    }}
-                  />
-                </SettingsCard>
+                    <SettingsCard title="Other">
+                      <Combobox
+                        disabled={!userData.deduplicator?.enabled}
+                        label="Detection Methods"
+                        multiple
+                        help="Select the methods used to detect duplicates"
+                        value={
+                          userData.deduplicator?.keys ?? [
+                            'filename',
+                            'infoHash',
+                          ]
+                        }
+                        emptyMessage="No detection methods available"
+                        onValueChange={(value) => {
+                          setUserData((prev) => ({
+                            ...prev,
+                            deduplicator: {
+                              ...prev.deduplicator,
+                              keys: value as (typeof DEDUPLICATOR_KEYS)[number][],
+                            },
+                          }));
+                        }}
+                        options={DEDUPLICATOR_KEYS.map((key) => ({
+                          label: key,
+                          value: key,
+                        }))}
+                      />
 
-                <SettingsCard title="Other">
-                  <Combobox
-                    disabled={!userData.deduplicator?.enabled}
-                    label="Detection Methods"
-                    multiple
-                    help="Select the methods used to detect duplicates"
-                    value={
-                      userData.deduplicator?.keys ?? ['filename', 'infoHash']
-                    }
-                    emptyMessage="No detection methods available"
-                    onValueChange={(value) => {
-                      setUserData((prev) => ({
-                        ...prev,
-                        deduplicator: {
-                          ...prev.deduplicator,
-                          keys: value as (typeof DEDUPLICATOR_KEYS)[number][],
-                        },
-                      }));
-                    }}
-                    options={DEDUPLICATOR_KEYS.map((key) => ({
-                      label: key,
-                      value: key,
-                    }))}
-                  />
-
-                  <Select
-                    label="Multi-Group Behaviour"
-                    help={`Configure how duplicates across multiple types are handled. e.g. if a given duplicate set has both cached and uncached streams, what should be done.
+                      <Select
+                        label="Multi-Group Behaviour"
+                        help={`Configure how duplicates across multiple types are handled. e.g. if a given duplicate set has both cached and uncached streams, what should be done.
                       ${deduplicatorMultiGroupBehaviourHelp[userData.deduplicator?.multiGroupBehaviour || defaultDeduplicatorMultiGroupBehaviour]}
                       `}
-                    value={
-                      userData.deduplicator?.multiGroupBehaviour ??
-                      defaultDeduplicatorMultiGroupBehaviour
-                    }
-                    onValueChange={(value) => {
-                      setUserData((prev) => ({
-                        ...prev,
-                        deduplicator: {
-                          ...prev.deduplicator,
-                          multiGroupBehaviour: value as
-                            | 'conservative'
-                            | 'aggressive'
-                            | 'keep_all',
-                        },
-                      }));
-                    }}
-                    disabled={!userData.deduplicator?.enabled}
-                    options={[
-                      { label: 'Conservative', value: 'conservative' },
-                      { label: 'Aggressive', value: 'aggressive' },
-                      { label: 'Keep All', value: 'keep_all' },
-                    ]}
-                  />
-                </SettingsCard>
+                        value={
+                          userData.deduplicator?.multiGroupBehaviour ??
+                          defaultDeduplicatorMultiGroupBehaviour
+                        }
+                        onValueChange={(value) => {
+                          setUserData((prev) => ({
+                            ...prev,
+                            deduplicator: {
+                              ...prev.deduplicator,
+                              multiGroupBehaviour: value as
+                                | 'conservative'
+                                | 'aggressive'
+                                | 'keep_all',
+                            },
+                          }));
+                        }}
+                        disabled={!userData.deduplicator?.enabled}
+                        options={[
+                          { label: 'Conservative', value: 'conservative' },
+                          { label: 'Aggressive', value: 'aggressive' },
+                          { label: 'Keep All', value: 'keep_all' },
+                        ]}
+                      />
+                    </SettingsCard>
+                  </>
+                )}
               </div>
             </>
           </TabsContent>
@@ -2397,6 +2511,7 @@ function FilterSettings<T extends string>({
   const [preferred, setPreferred] = useState<T[]>(preferredOptions);
   const [included, setIncluded] = useState<T[]>(includedOptions);
   const [isDragging, setIsDragging] = useState(false);
+  const { mode } = useMode();
 
   const filterToAllowedValues = (filter: T[]) => {
     return filter.filter((value) => options.some((opt) => opt.value === value));
@@ -2472,7 +2587,7 @@ function FilterSettings<T extends string>({
         description={`Configure required, excluded, and preferred ${filterName.toLowerCase()}`}
       >
         <div className="space-y-4">
-          <div>
+          {mode === 'pro' && (
             <Combobox
               label={`Required ${filterName}`}
               help={`Any stream that is not one of the required ${filterName.toLowerCase()} will be excluded.`}
@@ -2490,7 +2605,7 @@ function FilterSettings<T extends string>({
               emptyMessage={`No ${filterName.toLowerCase()} available`}
               placeholder={`Select required ${filterName.toLowerCase()}...`}
             />
-          </div>
+          )}
           <div>
             <Combobox
               label={`Excluded ${filterName}`}
@@ -2510,25 +2625,28 @@ function FilterSettings<T extends string>({
               placeholder={`Select excluded ${filterName.toLowerCase()}...`}
             />
           </div>
-          <div>
-            <Combobox
-              label={`Included ${filterName}`}
-              value={included}
-              help={`Included ${filterName.toLowerCase()} will be included regardless of ANY other exclude/required filters, not just for ${filterName.toLowerCase()}`}
-              onValueChange={(values) => {
-                setIncluded(values as T[]);
-                onIncludedChange(values as T[]);
-              }}
-              options={options.map((opt) => ({
-                value: opt.value,
-                label: opt.name,
-                textValue: opt.name,
-              }))}
-              multiple
-              emptyMessage={`No ${filterName.toLowerCase()} available`}
-              placeholder={`Select included ${filterName.toLowerCase()}...`}
-            />
-          </div>
+          {mode === 'pro' && (
+            <div>
+              <Combobox
+                label={`Included ${filterName}`}
+                value={included}
+                help={`Included ${filterName.toLowerCase()} will be included regardless of ANY other exclude/required filters, not just for ${filterName.toLowerCase()}`}
+                onValueChange={(values) => {
+                  setIncluded(values as T[]);
+                  onIncludedChange(values as T[]);
+                }}
+                options={options.map((opt) => ({
+                  value: opt.value,
+                  label: opt.name,
+                  textValue: opt.name,
+                }))}
+                multiple
+                emptyMessage={`No ${filterName.toLowerCase()} available`}
+                placeholder={`Select included ${filterName.toLowerCase()}...`}
+              />
+            </div>
+          )}
+
           <div>
             <Combobox
               label={`Preferred ${filterName}`}

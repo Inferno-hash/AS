@@ -33,7 +33,7 @@ router.get(
       if (id.startsWith('aiostreamserror.')) {
         res.status(200).json({
           meta: StremioTransformer.createErrorMeta(
-            JSON.parse(decodeURIComponent(id.split('.').slice(0).join('.')))
+            JSON.parse(decodeURIComponent(id.split('.').slice(1).join('.')))
           ),
         });
         return;

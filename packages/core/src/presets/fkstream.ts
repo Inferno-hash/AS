@@ -49,6 +49,7 @@ export class FKStreamPreset extends StremThruPreset {
           'Include P2P streams in the addon even when using a debrid service',
         type: 'boolean',
         default: false,
+        showInNoobMode: false,
       },
       {
         id: 'services',
@@ -57,6 +58,7 @@ export class FKStreamPreset extends StremThruPreset {
           'Optionally override the services that are used. If not specified, then the services that are enabled and supported will be used.',
         type: 'multi-select',
         required: false,
+        showInNoobMode: false,
         options: supportedServices.map((service) => ({
           value: service,
           label: constants.SERVICE_DETAILS[service].name,

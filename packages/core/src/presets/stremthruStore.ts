@@ -51,7 +51,8 @@ export class StremthruStorePreset extends StremThruPreset {
       ...baseOptions(
         'StremThru Store',
         supportedResources,
-        Env.DEFAULT_STREMTHRU_STORE_TIMEOUT
+        Env.DEFAULT_STREMTHRU_STORE_TIMEOUT,
+        Env.STREMTHRU_STORE_URL
       ),
       {
         id: 'services',
@@ -60,6 +61,7 @@ export class StremthruStorePreset extends StremThruPreset {
           'Optionally override the services that are used. If not specified, then the services that are enabled and supported will be used.',
         type: 'multi-select',
         required: false,
+        showInNoobMode: false,
         options: StremThruPreset.supportedServices.map((service) => ({
           value: service,
           label: constants.SERVICE_DETAILS[service].name,
@@ -87,7 +89,7 @@ export class StremthruStorePreset extends StremThruPreset {
       ID: 'stremthruStore',
       NAME: 'StremThru Store',
       LOGO: 'https://emojiapi.dev/api/v1/sparkles/256.png',
-      URL: Env.STREMTHRU_STORE_URL,
+      URL: Env.STREMTHRU_STORE_URL[0],
       TIMEOUT: Env.DEFAULT_STREMTHRU_STORE_TIMEOUT || Env.DEFAULT_TIMEOUT,
       USER_AGENT:
         Env.DEFAULT_STREMTHRU_STORE_USER_AGENT || Env.DEFAULT_USER_AGENT,

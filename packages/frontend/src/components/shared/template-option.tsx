@@ -190,6 +190,75 @@ const TemplateOption: React.FC<TemplateOptionProps> = ({
           )}
         </div>
       );
+    case 'select-with-custom': {
+      const isExistingOption = (val: string) => {
+        return options?.some((opt) => opt.value === val);
+      };
+
+      const onValueChange = (val: string) => {
+        if (val === 'undefined') {
+          onChange(undefined);
+        } else {
+          onChange(val);
+        }
+      };
+
+      const effectiveValue = forcedValue ?? value ?? defaultValue;
+      const isCustom = !isExistingOption(effectiveValue);
+
+      // When a user selects from the dropdown
+      const handleSelectChange = (val: string) => {
+        if (val === 'Custom') {
+          // When "Custom" is selected, we clear the value to allow for new input.
+          onValueChange('');
+        } else {
+          onValueChange(val);
+        }
+      };
+
+      // When a user types in the custom input
+      const handleCustomInputChange = (val: string) => {
+        onValueChange(val);
+      };
+
+      const optionsWithCustom = [
+        ...(options?.map((opt) => ({ label: opt.label, value: opt.value })) ??
+          []),
+        { label: 'Custom', value: 'Custom' },
+      ];
+
+      // The select's value is 'Custom' if the effectiveValue is not an existing option.
+      const selectValue = isCustom ? 'Custom' : effectiveValue;
+
+      // The custom text input should be shown if the mode is 'Custom'.
+      const showCustomInput = selectValue === 'Custom';
+
+      return (
+        <div>
+          <Select
+            label={name}
+            value={selectValue}
+            onValueChange={handleSelectChange}
+            options={optionsWithCustom}
+            required={required}
+            disabled={isDisabled}
+          />
+          {showCustomInput && (
+            <TextInput
+              label="Custom"
+              // The text input shows the custom value.
+              value={effectiveValue}
+              onValueChange={handleCustomInputChange}
+              required={required}
+              disabled={isDisabled}
+            />
+          )}
+          {description && (
+            <div className="text-xs text-[--muted] mt-1">{description}</div>
+          )}
+        </div>
+      );
+    }
     case 'multi-select':
       return (
         <div>

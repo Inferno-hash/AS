@@ -46,8 +46,14 @@ async function start() {
       startAutoPrune();
     }
     logStartupInfo();
-    app.listen(Env.PORT, () => {
-      logger.info(`Server running on port ${Env.PORT}`);
+    const server = app.listen(Env.PORT, (error) => {
+      if (error) {
+        logger.error('Failed to start server:', error);
+        process.exit(1);
+      }
+      logger.info(
+        `Server running on port ${Env.PORT}: ${JSON.stringify(server.address())}`
+      );
     });
   } catch (error) {
     logger.error('Failed to start server:', error);

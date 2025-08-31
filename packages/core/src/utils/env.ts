@@ -89,6 +89,37 @@ const namedRegexes = makeValidator((x) => {
   return parsed;
 });
 
+const removeTrailingSlash = (x: string) =>
+  x.endsWith('/') ? x.slice(0, -1) : x;
+
+const presetUrls = makeExactValidator<string[]>((x) => {
+  if (typeof x !== 'string') {
+    throw new EnvError('Preset URLs must be a string or an array of strings');
+  }
+  const validateUrl = (x: string) => {
+    try {
+      new URL(x);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  };
+  try {
+    const urls = JSON.parse(x);
+    if (!Array.isArray(urls) || urls.some((x) => !validateUrl(x))) {
+      throw new EnvError(
+        'Preset URLs must be an array of URLs or a single URL'
+      );
+    }
+    return urls.map(removeTrailingSlash);
+  } catch (e) {
+    if (typeof x === 'string' && validateUrl(x)) {
+      return [removeTrailingSlash(x)];
+    }
+    throw new EnvError('Preset URLs must be an array of URLs or a single URL');
+  }
+});
+
 const url = makeValidator((x) => {
   if (x === '') {
     throw new EnvMissingError(`URL cannot be empty`);
@@ -99,7 +130,7 @@ const url = makeValidator((x) => {
     throw new EnvError(`Invalid URL: ${x}`);
   }
   // remove trailing slash
-  return x.endsWith('/') ? x.slice(0, -1) : x;
+  return removeTrailingSlash(x);
 });
 
 export const forcedPort = makeValidator<string>((input: string) => {
@@ -160,6 +191,17 @@ const readonly = makeValidator((x) => {
   return x;
 });
 
+const boolOrList = makeValidator((x) => {
+  if (typeof x !== 'string') {
+    return undefined;
+  }
+  x = x.toLowerCase();
+  if (['true', 'false', '1', '0'].includes(x)) {
+    return x === 'true' || x === '1';
+  }
+  return x.split(',').map((x) => x.trim());
+});
+
 const urlMappings = makeValidator<Record<string, string>>((x) => {
   // json object with string properties
   const parsed = JSON.parse(x);
@@ -174,10 +216,8 @@ const urlMappings = makeValidator<Record<string, string>>((x) => {
       );
     }
     try {
-      const keyUrl = new URL(key.endsWith('/') ? key.slice(0, -1) : key);
-      const valueUrl = new URL(
-        value.endsWith('/') ? value.slice(0, -1) : value
-      );
+      const keyUrl = new URL(removeTrailingSlash(key));
+      const valueUrl = new URL(removeTrailingSlash(value));
       mappings[keyUrl.origin] = valueUrl.origin;
     } catch (e) {
       throw new EnvError(
@@ -317,7 +357,18 @@ export const Env = cleanEnv(process.env, {
     default: undefined,
     desc: 'TMDB API Key. Used for fetching metadata for the strict title matching option.',
   }),
-
+  PROVIDE_STREAM_DATA: boolOrList<boolean | string[] | undefined>({
+    default: undefined,
+    desc: 'Provide stream data to the client in stream responses. Required for users to wrap this addon within another AIOStreams instance.',
+  }),
+  TRUSTED_IPS: commaSeparated({
+    default: ['172.17.0.0/16', '127.0.0.1/32', '::1/128'],
+    desc: 'Comma separated list of trusted IPs / IP ranges. Used when determining the requesting IP. Not required for user IP as all headers are always trusted for user IP.',
+  }),
+  ENABLE_SEARCH_API: bool({
+    default: true,
+    desc: 'Enable the search API. If true, the search API will be enabled.',
+  }),
   // logging settings
   LOG_SENSITIVE_INFO: bool({
     default: false,
@@ -749,8 +800,13 @@ export const Env = cleanEnv(process.env, {
     desc: 'Mapping of URLs to another, converts stream URLs from the original URL to the mapped URL',
   }),
 
-  COMET_URL: url({
-    default: 'https://comet.elfhosted.com',
+  AIOSTREAMS_USER_AGENT: userAgent({
+    default: `AIOStreams/${metadata?.version || 'unknown'}`,
+    desc: 'AIOStreams user agent',
+  }),
+
+  COMET_URL: presetUrls({
+    default: ['https://comet.elfhosted.com'],
     desc: 'Comet URL',
   }),
   FORCE_COMET_HOSTNAME: host({
@@ -776,8 +832,8 @@ export const Env = cleanEnv(process.env, {
   }),
 
   // MediaFusion settings
-  MEDIAFUSION_URL: url({
-    default: 'https://mediafusion.elfhosted.com',
+  MEDIAFUSION_URL: presetUrls({
+    default: ['https://mediafusion.elfhosted.com'],
     desc: 'MediaFusion URL',
   }),
   MEDIAFUSION_API_PASSWORD: str({
@@ -802,8 +858,8 @@ export const Env = cleanEnv(process.env, {
   }),
 
   // Jackettio settings
-  JACKETTIO_URL: url({
-    default: 'https://jackettio.elfhosted.com',
+  JACKETTIO_URL: presetUrls({
+    default: ['https://jackettio.elfhosted.com'],
     desc: 'Jackettio URL',
   }),
   DEFAULT_JACKETTIO_INDEXERS: json({
@@ -1005,8 +1061,8 @@ export const Env = cleanEnv(process.env, {
   }),
 
   // StremThru Store settings
-  STREMTHRU_STORE_URL: url({
-    default: 'https://stremthru.elfhosted.com/stremio/store',
+  STREMTHRU_STORE_URL: presetUrls({
+    default: ['https://stremthru.elfhosted.com/stremio/store'],
     desc: 'StremThru Store URL',
   }),
   DEFAULT_STREMTHRU_STORE_TIMEOUT: num({
@@ -1032,8 +1088,8 @@ export const Env = cleanEnv(process.env, {
   }),
 
   // StremThru Torz settings
-  STREMTHRU_TORZ_URL: url({
-    default: 'https://stremthru.elfhosted.com/stremio/torz',
+  STREMTHRU_TORZ_URL: presetUrls({
+    default: ['https://stremthru.elfhosted.com/stremio/torz'],
     desc: 'StremThru Torz URL',
   }),
   DEFAULT_STREMTHRU_TORZ_TIMEOUT: num({
@@ -1539,11 +1595,11 @@ export const Env = cleanEnv(process.env, {
     default: 5, // allow 100 requests per IP per minute
   }),
   STREAM_API_RATE_LIMIT_WINDOW: num({
-    default: 5, // 1 minute
+    default: 10, // 1 minute
     desc: 'Time window for stream API rate limiting in seconds',
   }),
   STREAM_API_RATE_LIMIT_MAX_REQUESTS: num({
-    default: 10, // allow 100 requests per IP per minute
+    default: 5, // allow 100 requests per IP per minute
   }),
   FORMAT_API_RATE_LIMIT_WINDOW: num({
     default: 5, // 10 seconds

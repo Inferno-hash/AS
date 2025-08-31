@@ -48,7 +48,8 @@ export class StremioTransformer {
     formatter: {
       format: (stream: ParsedStream) => { name: string; description: string };
     },
-    index: number
+    index: number,
+    provideStreamData: boolean
   ): Promise<AIOStream> {
     const { name, description } = stream.addon.formatPassthrough
       ? {
@@ -69,7 +70,9 @@ export class StremioTransformer {
       .map((attribute) => {
         switch (attribute) {
           case 'service':
-            return stream.service?.id;
+            return stream.service?.id ?? 'no service';
+          case 'type':
+            return stream.type;
           case 'proxied':
             return stream.proxied;
           case 'addon':
@@ -168,26 +171,28 @@ export class StremioTransformer {
         videoSize: stream.size,
         filename: stream.filename,
       },
-      streamData: {
-        type: stream.type,
-        proxied: stream.proxied,
-        indexer: stream.indexer,
-        age: stream.age,
-        duration: stream.duration,
-        library: stream.library,
-        size: stream.size,
-        folderSize: stream.folderSize,
-        torrent: stream.torrent,
-        addon: stream.addon.name,
-        filename: stream.filename,
-        folderName: stream.folderName,
-        service: stream.service,
-        parsedFile: stream.parsedFile,
-        message: stream.message,
-        regexMatched: stream.regexMatched,
-        keywordMatched: stream.keywordMatched,
-        id: stream.id,
-      },
+      streamData: provideStreamData
+        ? {
+            type: stream.type,
+            proxied: stream.proxied,
+            indexer: stream.indexer,
+            age: stream.age,
+            duration: stream.duration,
+            library: stream.library,
+            size: stream.size,
+            folderSize: stream.folderSize,
+            torrent: stream.torrent,
+            addon: stream.addon.name,
+            filename: stream.filename,
+            folderName: stream.folderName,
+            service: stream.service,
+            parsedFile: stream.parsedFile,
+            message: stream.message,
+            regexMatched: stream.regexMatched,
+            keywordMatched: stream.keywordMatched,
+            id: stream.id,
+          }
+        : undefined,
     };
   }
 
@@ -195,12 +200,14 @@ export class StremioTransformer {
     response: AIOStreamsResponse<{
       streams: ParsedStream[];
       statistics: { title: string; description: string }[];
-    }>
+    }>,
+    options?: { provideStreamData: boolean }
   ): Promise<AIOStreamResponse> {
     const {
       data: { streams, statistics },
       errors,
     } = response;
+    const { provideStreamData } = options ?? {};
 
     let transformedStreams: AIOStream[] = [];
 
@@ -212,7 +219,12 @@ export class StremioTransformer {
 
     transformedStreams = await Promise.all(
       streams.map((stream: ParsedStream, index: number) =>
-        this.convertParsedStreamToStream(stream, formatter, index)
+        this.convertParsedStreamToStream(
+          stream,
+          formatter,
+          index,
+          provideStreamData ?? false
+        )
       )
     );
 
@@ -293,9 +305,11 @@ export class StremioTransformer {
   }
 
   async transformMeta(
-    response: AIOStreamsResponse<ParsedMeta | null>
+    response: AIOStreamsResponse<ParsedMeta | null>,
+    options?: { provideStreamData: boolean }
   ): Promise<MetaResponse | null> {
     const { data: meta, errors } = response;
+    const { provideStreamData } = options ?? {};
 
     if (!meta && errors.length === 0) {
       return null;
@@ -326,7 +340,12 @@ export class StremioTransformer {
         if (video.streams && video.streams.length > 0) {
           const transformedStreams = await Promise.all(
             video.streams.map((stream, index) =>
-              this.convertParsedStreamToStream(stream, formatter!, index)
+              this.convertParsedStreamToStream(
+                stream,
+                formatter!,
+                index,
+                provideStreamData ?? false
+              )
             )
           );
           video.streams = transformedStreams as unknown as ParsedStream[];

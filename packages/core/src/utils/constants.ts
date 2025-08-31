@@ -111,9 +111,14 @@ const HEADERS_FOR_IP_FORWARDING = [
   'Forwarded-For',
 ];
 
-export const INTERNAL_SECRET_HEADER = 'X-AIOStreams-Internal-Secret';
+export const INTERNAL_SECRET_HEADER = Buffer.from(
+  'WC1BSU9TdHJlYW1zLUludGVybmFsLVNlY3JldA==',
+  'base64'
+).toString('utf8');
 
 const API_VERSION = 1;
+
+export const REDIS_PREFIX = 'aiostreams:';
 
 export const GDRIVE_FORMATTER = 'gdrive';
 export const LIGHT_GDRIVE_FORMATTER = 'lightgdrive';
@@ -517,12 +522,15 @@ export const AUTO_PLAY_ATTRIBUTES = [
   'visualTags',
   'languages',
   'releaseGroup',
+  'type',
   'infoHash',
   'size',
 ] as const;
 
+const NON_DEFAULT_AUTO_PLAY_ATTRIBUTES = ['infoHash', 'size', 'type', 'addon'];
+
 export const DEFAULT_AUTO_PLAY_ATTRIBUTES = AUTO_PLAY_ATTRIBUTES.filter(
-  (attribute) => attribute !== 'addon' && attribute !== 'infoHash'
+  (attribute) => !NON_DEFAULT_AUTO_PLAY_ATTRIBUTES.includes(attribute)
 );
 
 export const AUTO_PLAY_METHODS = [

@@ -153,6 +153,7 @@ export class TorrentioPreset extends Preset {
         type: 'multi-select',
         required: false,
         options: TorrentioPreset.defaultProviders,
+        showInNoobMode: false,
       },
       {
         id: 'services',
@@ -161,6 +162,7 @@ export class TorrentioPreset extends Preset {
           'Optionally override the services that are used. If not specified, then the services that are enabled and supported will be used.',
         type: 'multi-select',
         required: false,
+        showInNoobMode: false,
         options: supportedServices.map((service) => ({
           value: service,
           label: constants.SERVICE_DETAILS[service].name,
@@ -176,6 +178,7 @@ export class TorrentioPreset extends Preset {
         type: 'boolean',
         default: false,
         required: true,
+        showInNoobMode: false,
       },
     ];
 
