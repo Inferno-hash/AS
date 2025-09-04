@@ -92,7 +92,7 @@ const namedRegexes = makeValidator((x) => {
 const removeTrailingSlash = (x: string) =>
   x.endsWith('/') ? x.slice(0, -1) : x;
 
-const presetUrls = makeExactValidator<string[]>((x) => {
+const presetUrls = makeExactValidator<readonly string[]>((x) => {
   if (typeof x !== 'string') {
     throw new EnvError('Preset URLs must be a string or an array of strings');
   }
@@ -111,10 +111,10 @@ const presetUrls = makeExactValidator<string[]>((x) => {
         'Preset URLs must be an array of URLs or a single URL'
       );
     }
-    return urls.map(removeTrailingSlash);
+    return Object.freeze(urls.map(removeTrailingSlash));
   } catch (e) {
     if (typeof x === 'string' && validateUrl(x)) {
-      return [removeTrailingSlash(x)];
+      return Object.freeze([removeTrailingSlash(x)]);
     }
     throw new EnvError('Preset URLs must be an array of URLs or a single URL');
   }

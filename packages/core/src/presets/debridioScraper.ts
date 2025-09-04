@@ -18,6 +18,7 @@ export class DebridioPreset extends Preset {
       constants.PREMIUMIZE_SERVICE,
       constants.TORBOX_SERVICE,
       constants.EASYDEBRID_SERVICE,
+      constants.DEBRIDER_SERVICE,
     ];
     const supportedResources = [constants.STREAM_RESOURCE];
 

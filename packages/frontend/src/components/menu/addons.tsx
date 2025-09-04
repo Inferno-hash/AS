@@ -104,6 +104,7 @@ const manifestCache = new Map<string, any>();
 
 function Content() {
   const { status } = useStatus();
+  const { mode } = useMode();
   const { userData, setUserData } = useUserData();
   const [page, setPage] = useState<'installed' | 'marketplace'>('installed');
   const [search, setSearch] = useState('');
@@ -426,7 +427,9 @@ function Content() {
 
             {userData.presets.length > 0 && <CatalogSettingsCard />}
 
-            {userData.presets.length > 0 && <AddonGroupCard />}
+            {userData.presets.length > 0 && mode === 'pro' && (
+              <AddonGroupCard />
+            )}
           </PageWrapper>
         )}
 

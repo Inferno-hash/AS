@@ -35,7 +35,7 @@ export const baseOptions = (
   name: string,
   resources: Resource[],
   timeout: number = Env.DEFAULT_TIMEOUT,
-  baseUrls?: string[]
+  baseUrls?: readonly string[]
 ): Option[] => {
   const urlOption: Option = {
     id: 'url',
@@ -55,7 +55,7 @@ export const baseOptions = (
         label: baseUrls[0],
         value: 'undefined',
       },
-      ...baseUrls.splice(1).map((url) => ({
+      ...baseUrls.slice(1).map((url) => ({
         label: url,
         value: url,
       })),

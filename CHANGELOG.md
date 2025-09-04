@@ -1,5 +1,31 @@
 # Changelog
 
+## [2.12.2](https://github.com/Viren070/AIOStreams/compare/v2.12.1...v2.12.2) (2025-09-02)
+
+
+### Bug Fixes
+
+* await regexAllowed check in validateRegexes function ([be1a257](https://github.com/Viren070/AIOStreams/commit/be1a257477f8a8f82a49b06e1cc35dc526c79f6e))
+* **debridio-scraper:** add debrider to supported services ([24d0974](https://github.com/Viren070/AIOStreams/commit/24d097464c3a09f65dec5a16726786cc61d85e66))
+* move cache hit message into debug level ([c515e19](https://github.com/Viren070/AIOStreams/commit/c515e19f196ce3b8c42604bf6c1f0c36f3f615c1))
+
+## [2.12.1](https://github.com/Viren070/AIOStreams/compare/v2.12.0...v2.12.1) (2025-08-31)
+
+
+### Bug Fixes
+
+* add groups to pro mode ([cc51cc0](https://github.com/Viren070/AIOStreams/commit/cc51cc006c4fe19897219b1280a88d30e3f05c55))
+* assign trusted and ip in userdata for search api ([78c94df](https://github.com/Viren070/AIOStreams/commit/78c94dfec3d56757f77aeb4ddc1435f282972c80))
+* handle default undefined value of select-with-custom during validation ([6acc26f](https://github.com/Viren070/AIOStreams/commit/6acc26f9879874fbbfc3cc4e4420280e464a0a2c))
+* make global size filter optional to allow only resolution-specific ([735bba5](https://github.com/Viren070/AIOStreams/commit/735bba5e33436753eea630a7079ece6be67fb14a))
+* remove debug logging in year matching ([408a288](https://github.com/Viren070/AIOStreams/commit/408a28825942186bdc94001658cb537b8f62d845))
+* remove size and type from default auto play attributes ([1968a1c](https://github.com/Viren070/AIOStreams/commit/1968a1c7e18be78064d94bceb64eb9c17eef234f))
+* remove trailing slashes in presetUrls validator ([f613772](https://github.com/Viren070/AIOStreams/commit/f6137721adf7316dc077e9c46eaccfc1be1742ba))
+* support year ranges during year matching ([a39a85b](https://github.com/Viren070/AIOStreams/commit/a39a85b97ba0f28aa927bee3fb8232b34ad6d502))
+* update alias route to handle requested path correctly with express 5 ([bd88d3d](https://github.com/Viren070/AIOStreams/commit/bd88d3de8b534fba227881b68d4dfdf93081f0cb))
+* use partial record instead of record in schemas ([61cd2bc](https://github.com/Viren070/AIOStreams/commit/61cd2bc29e1e1c53b4add011b8352be24b49c574))
+* use slice instead of splice to avoid modifying value of environment variable ([ee2ea41](https://github.com/Viren070/AIOStreams/commit/ee2ea419ba3c8d03403b0d02540c4d324d496a24))
+
 ## [2.12.0](https://github.com/Viren070/AIOStreams/compare/v2.11.6...v2.12.0) (2025-08-30)
 
 

@@ -197,13 +197,29 @@ class StreamFilterer {
         // only filter out movies without a year as series results usually don't include a year
         return false;
       }
-      return streamYear
-        ? requestedMetadata.year === streamYear ||
-            (yearMatchingOptions.tolerance !== undefined
-              ? Math.abs(Number(requestedMetadata.year) - Number(streamYear)) <=
-                yearMatchingOptions.tolerance
-              : false)
-        : true;
+      if (!streamYear) {
+        // non-movie results without a year can be kept in
+        return true;
+      }
+      // streamYear can be a string like "2004" or "2012-2020"
+      const requestedYear = Number(requestedMetadata.year);
+      let streamYearRange: [number, number] | undefined;
+      if (streamYear && streamYear.includes('-')) {
+        const [min, max] = streamYear.split('-').map(Number);
+        streamYearRange = [min, max];
+      } else {
+        streamYearRange = [Number(streamYear), Number(streamYear)];
+      }
+
+      let tolerance = yearMatchingOptions.tolerance ?? 1;
+      streamYearRange[0] = streamYearRange[0] - tolerance;
+      streamYearRange[1] = streamYearRange[1] + tolerance;
+
+      // requested year should be within the stream year range
+      return (
+        requestedYear >= streamYearRange[0] &&
+        requestedYear <= streamYearRange[1]
+      );
     };
 
     const performSeasonEpisodeMatch = (stream: ParsedStream) => {

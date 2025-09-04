@@ -369,7 +369,7 @@ export class Wrapper {
     if (cacher) {
       const cached = await cacher.get(cacheKey);
       if (cached) {
-        logger.info(
+        logger.debug(
           `Returning cached ${resourceName} for ${this.getAddonName(this.addon)}`
         );
         return cached;

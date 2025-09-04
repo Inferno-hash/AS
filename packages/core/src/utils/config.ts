@@ -495,7 +495,7 @@ async function validateRegexes(config: UserData) {
   const includedRegexes = config.includedRegexPatterns;
   const requiredRegexes = config.requiredRegexPatterns;
   const preferredRegexes = config.preferredRegexPatterns;
-  const regexAllowed = FeatureControl.isRegexAllowed(config);
+  const regexAllowed = await FeatureControl.isRegexAllowed(config);
 
   const regexes = [
     ...(excludedRegexes ?? []),
@@ -653,6 +653,9 @@ function validateOption(
   value: any,
   decryptValues: boolean = false
 ): any {
+  if (typeof value === 'string' && value === 'undefined') {
+    value = undefined;
+  }
   const forcedValue =
     option.forced !== undefined && option.forced !== null
       ? option.forced

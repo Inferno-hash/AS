@@ -60,6 +60,7 @@ router.get(
             Buffer.from(encodedUserData, 'base64').toString('utf-8')
           );
           if (userData) {
+            userData.trusted = false;
             logger.debug(`Using encodedUserData for Search API request`);
           }
         } catch (error: any) {
@@ -123,6 +124,7 @@ router.get(
       if (!userData) {
         throw new APIError(constants.ErrorCode.USER_INVALID_DETAILS);
       }
+      userData.ip = req.userIp;
       try {
         userData = await validateConfig(userData, true, true);
       } catch (error: any) {
