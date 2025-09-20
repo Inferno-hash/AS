@@ -13,7 +13,4 @@ primary_region = "bom"
 
 [[vm]]
   size = "shared-cpu-1x"
-  memory = "512mb"
-
-[deploy]
-  command = ["node", "--max-old-space-size=384", "/app/addon/server.js"]
+  memory = "2048mb"
