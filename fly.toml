@@ -5,7 +5,7 @@ primary_region = "bom"
   image = "ghcr.io/viren070/aiostreams:nightly"
 
 [http_service]
-internal_port = 3_000
+internal_port = 3000
 
 [[mounts]]
 destination = "/app/data"
@@ -13,4 +13,7 @@ source = "data_volume"
 
 [[vm]]
 size = "shared-cpu-1x"
-memory ="512mb"
+memory = "512mb"
+
+[processes]
+app = "node --max-old-space-size=384 /app/addon/server.js"
