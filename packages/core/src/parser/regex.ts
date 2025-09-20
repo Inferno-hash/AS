@@ -1,9 +1,10 @@
-import { AUDIO_TAGS, QUALITIES, RESOLUTIONS } from '../utils/constants';
-import { VISUAL_TAGS } from '../utils/constants';
-import { ENCODES } from '../utils/constants';
-import { LANGUAGES } from '../utils/constants';
-import { AUDIO_CHANNELS } from '../utils/constants';
-import { FakeVisualTag } from '../utils/constants';
+// import { AUDIO_TAGS, QUALITIES, RESOLUTIONS } from '../utils/constants';
+// import { VISUAL_TAGS } from '../utils/constants';
+// import { ENCODES } from '../utils/constants';
+// import { LANGUAGES } from '../utils/constants';
+// import { AUDIO_CHANNELS } from '../utils/constants';
+// import { FakeVisualTag } from '../utils/constants';
+import { constants } from '../utils/index.js';
 const createRegex = (pattern: string): RegExp =>
   new RegExp(`(?<![^\\s\\[(_\\-.,])(${pattern})(?=[\\s\\)\\]_.\\-,]|$)`, 'i');
 
@@ -11,19 +12,31 @@ const createLanguageRegex = (pattern: string): RegExp =>
   createRegex(`${pattern}(?![ .\\-_]?sub(title)?s?)`);
 
 type PARSE_REGEX = {
-  resolutions: Omit<Record<(typeof RESOLUTIONS)[number], RegExp>, 'Unknown'>;
-  qualities: Omit<Record<(typeof QUALITIES)[number], RegExp>, 'Unknown'>;
-  visualTags: Omit<
-    Record<(typeof VISUAL_TAGS)[number], RegExp>,
-    'Unknown' | FakeVisualTag
-  >;
-  audioTags: Omit<Record<(typeof AUDIO_TAGS)[number], RegExp>, 'Unknown'>;
-  audioChannels: Omit<
-    Record<(typeof AUDIO_CHANNELS)[number], RegExp>,
+  resolutions: Omit<
+    Record<(typeof constants.RESOLUTIONS)[number], RegExp>,
     'Unknown'
   >;
-  languages: Omit<Record<(typeof LANGUAGES)[number], RegExp>, 'Unknown'>;
-  encodes: Omit<Record<(typeof ENCODES)[number], RegExp>, 'Unknown'>;
+  qualities: Omit<
+    Record<(typeof constants.QUALITIES)[number], RegExp>,
+    'Unknown'
+  >;
+  visualTags: Omit<
+    Record<(typeof constants.VISUAL_TAGS)[number], RegExp>,
+    'Unknown' | constants.FakeVisualTag
+  >;
+  audioTags: Omit<
+    Record<(typeof constants.AUDIO_TAGS)[number], RegExp>,
+    'Unknown'
+  >;
+  audioChannels: Omit<
+    Record<(typeof constants.AUDIO_CHANNELS)[number], RegExp>,
+    'Unknown'
+  >;
+  languages: Omit<
+    Record<(typeof constants.LANGUAGES)[number], RegExp>,
+    'Unknown'
+  >;
+  encodes: Omit<Record<(typeof constants.ENCODES)[number], RegExp>, 'Unknown'>;
   releaseGroup: RegExp;
 };
 
@@ -55,7 +68,7 @@ export const PARSE_REGEX: PARSE_REGEX = {
     WEBRip: createRegex('web[ .\\-_]?rip'),
     HDRip: createRegex('hd[ .\\-_]?rip|web[ .\\-_]?dl[ .\\-_]?rip'),
     'HC HD-Rip': createRegex('hc|hd[ .\\-_]?rip'),
-    DVDRip: createRegex('dvd[ .\\-_]?(rip|mux|r|full|5|9)'),
+    DVDRip: createRegex('dvd[ .\\-_]?(rip|mux|r|full|5|9)?'),
     HDTV: createRegex(
       '(hd|pd)tv|tv[ .\\-_]?rip|hdtv[ .\\-_]?rip|dsr(ip)?|sat[ .\\-_]?rip'
     ),
@@ -81,7 +94,7 @@ export const PARSE_REGEX: PARSE_REGEX = {
       '(d(olby)?[ .\\-_]?d(igital)?[ .\\-_]?(p(lus)?|\\+)(?:[ .\\-_]?(5[ .\\-_]?1|7[ .\\-_]?1))?)|e[ .\\-_]?ac[ .\\-_]?3'
     ),
     DD: createRegex(
-      '(d(olby)?[ .\\-_]?d(igital)?(?:[ .\\-_]?(5[ .\\-_]?1|7[ .\\-_]?1))?)|(?<!e[ .\\-_]?)ac[ .\\-_]?3'
+      '(d(olby)?[ .\\-_]?d(igital)?(?:[ .\\-_]?(5[ .\\-_]?1|7[ .\\-_]?1|2[ .\\-_]?0?))?)|(?<!e[ .\\-_]?)ac[ .\\-_]?3'
     ),
     'DTS-HD MA': createRegex('dts[ .\\-_]?hd[ .\\-_]?ma'),
     'DTS-HD': createRegex('dts[ .\\-_]?hd(?![ .\\-_]?ma)'),
@@ -93,7 +106,7 @@ export const PARSE_REGEX: PARSE_REGEX = {
     FLAC: createRegex('flac(?:[ .\\-_]?(lossless|2\\.0|x[2-4]))?'),
   },
   audioChannels: {
-    '2.0': createRegex('(2[ .\\-_]?0)(ch)?'),
+    '2.0': createRegex('(d(olby)?[ .\\-_]?d(igital)?)?2[ .\\-_]?0(ch)?'),
     '5.1': createRegex(
       '(d(olby)?[ .\\-_]?d(igital)?[ .\\-_]?(p(lus)?|\\+)?)?5[ .\\-_]?1(ch)?'
     ),

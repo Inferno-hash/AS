@@ -6,9 +6,9 @@ import {
   UserData,
   PresetMetadata,
   Addon,
-} from '../db';
-import { StreamParser } from '../parser';
-import { Env, ServiceId, constants } from '../utils';
+} from '../db/index.js';
+import { StreamParser } from '../parser/index.js';
+import { Env, ServiceId, constants } from '../utils/index.js';
 /**
  *
  * What modifications are needed for each preset:

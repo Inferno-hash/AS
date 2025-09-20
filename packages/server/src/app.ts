@@ -1,5 +1,4 @@
-import express, { Request, Response } from 'express';
-
+import express, { Request, Response, Express } from 'express';
 import {
   userApi,
   healthApi,
@@ -10,7 +9,8 @@ import {
   gdriveApi,
   debridApi,
   searchApi,
-} from './routes/api';
+  animeApi,
+} from './routes/api/index.js';
 import {
   configure,
   manifest,
@@ -20,8 +20,14 @@ import {
   subtitle,
   addonCatalog,
   alias,
-} from './routes/stremio';
-import { gdrive, torboxSearch } from './routes/builtins';
+} from './routes/stremio/index.js';
+import {
+  gdrive,
+  torboxSearch,
+  torznab,
+  newznab,
+  prowlarr,
+} from './routes/builtins/index.js';
 import {
   ipMiddleware,
   loggerMiddleware,
@@ -31,28 +37,33 @@ import {
   staticRateLimiter,
   internalMiddleware,
   stremioStreamRateLimiter,
-} from './middlewares';
+} from './middlewares/index.js';
 
 import { constants, createLogger, Env } from '@aiostreams/core';
 import { StremioTransformer } from '@aiostreams/core';
-import { createResponse } from './utils/responses';
+import { createResponse } from './utils/responses.js';
 import path from 'path';
 import fs from 'fs';
-const app = express();
+import { fileURLToPath } from 'url';
+const app: Express = express();
 const logger = createLogger('server');
+
+export enum StaticFiles {
+  DOWNLOAD_FAILED = 'download_failed.mp4',
+  DOWNLOADING = 'downloading.mp4',
+  UNAVAILABLE_FOR_LEGAL_REASONS = 'unavailable_for_legal_reasons.mp4',
+  CONTENT_PROXY_LIMIT_REACHED = 'content_proxy_limit_reached.mp4',
+  INTERNAL_SERVER_ERROR = '500.mp4',
+  FORBIDDEN = '403.mp4',
+  UNAUTHORIZED = '401.mp4',
+  NO_MATCHING_FILE = 'no_matching_file.mp4',
+}
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export const frontendRoot = path.join(__dirname, '../../frontend/out');
 export const staticRoot = path.join(__dirname, './static');
-export const STATIC_DOWNLOAD_FAILED = 'download_failed.mp4';
-export const STATIC_DOWNLOADING = 'downloading.mp4';
-export const STATIC_UNAVAILABLE_FOR_LEGAL_REASONS =
-  'unavailable_for_legal_reasons.mp4';
-export const STATIC_CONTENT_PROXY_LIMIT_REACHED =
-  'content_proxy_limit_reached.mp4';
-export const STATIC_INTERNAL_SERVER_ERROR = '500.mp4';
-export const STATIC_FORBIDDEN = '403.mp4';
-export const STATIC_UNAUTHORIZED = '401.mp4';
-export const STATIC_NO_MATCHING_FILE = 'no_matching_file.mp4';
 
 app.use(ipMiddleware);
 app.use(loggerMiddleware);
@@ -78,6 +89,7 @@ apiRouter.use('/debrid', debridApi);
 if (Env.ENABLE_SEARCH_API) {
   apiRouter.use('/search', searchApi);
 }
+apiRouter.use('/anime', animeApi);
 app.use(`/api/v${constants.API_VERSION}`, apiRouter);
 
 // Stremio Routes
@@ -115,6 +127,9 @@ const builtinsRouter = express.Router();
 builtinsRouter.use(internalMiddleware);
 builtinsRouter.use('/gdrive', gdrive);
 builtinsRouter.use('/torbox-search', torboxSearch);
+builtinsRouter.use('/torznab', torznab);
+builtinsRouter.use('/newznab', newznab);
+builtinsRouter.use('/prowlarr', prowlarr);
 app.use('/builtins', builtinsRouter);
 
 app.get(

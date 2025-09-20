@@ -1,12 +1,11 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { stremioStreamRateLimiter } from '../../middlewares/ratelimit';
 import {
   createLogger,
   TorBoxSearchAddon,
   TorBoxSearchAddonError,
 } from '@aiostreams/core';
-import { createResponse } from '../../utils/responses';
-const router = Router();
+import { createResponse } from '../../utils/responses.js';
+const router: Router = Router();
 
 const logger = createLogger('builtins:torbox-search');
 

@@ -1,5 +1,9 @@
 import { Parser } from 'expr-eval';
-import { ParsedStream, ParsedStreams, ParsedStreamSchema } from '../db';
+import {
+  ParsedStream,
+  ParsedStreams,
+  ParsedStreamSchema,
+} from '../db/schemas.js';
 import bytes from 'bytes';
 
 export abstract class StreamExpressionEngine {
@@ -642,8 +646,11 @@ export class GroupConditionEvaluator extends StreamExpressionEngine {
 }
 
 export class StreamSelector extends StreamExpressionEngine {
-  constructor() {
+  private queryType: string;
+  constructor(queryType: string) {
     super();
+    this.queryType = queryType;
+    this.parser.consts.queryType = queryType;
   }
 
   async select(
@@ -674,7 +681,7 @@ export class StreamSelector extends StreamExpressionEngine {
   }
 
   static async testSelect(condition: string): Promise<ParsedStream[]> {
-    const parser = new StreamSelector();
+    const parser = new StreamSelector('movie');
     const streams = [
       parser.createTestStream({ type: 'debrid' }),
       parser.createTestStream({ type: 'debrid' }),

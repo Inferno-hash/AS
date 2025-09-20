@@ -1,15 +1,15 @@
-import { Addon, Option, ParsedStream, Stream, UserData } from '../db';
-import { Preset, baseOptions } from './preset';
-import { constants, Env } from '../utils';
-import { FileParser, StreamParser } from '../parser';
+import { Addon, Option, ParsedStream, Stream, UserData } from '../db/index.js';
+import { Preset, baseOptions } from './preset.js';
+import { constants, Env } from '../utils/index.js';
+import { FileParser, StreamParser } from '../parser/index.js';
 import {
   debridioSocialOption,
   debridioApiKeyOption,
   debridioLogo,
-} from './debridio';
+} from './debridio.js';
 
 class DebridioWatchtowerStreamParser extends StreamParser {
-  parse(stream: Stream): ParsedStream {
+  override parse(stream: Stream): ParsedStream | { skip: true } {
     let parsedStream: ParsedStream = {
       id: this.getRandomId(),
       addon: this.addon,
@@ -26,6 +26,10 @@ class DebridioWatchtowerStreamParser extends StreamParser {
     };
 
     stream.description = stream.description || stream.title;
+
+    if (stream.description?.toLowerCase().includes('no streams available')) {
+      return { skip: true };
+    }
 
     parsedStream.type = 'http';
     let resolution = (stream as any).resolution;

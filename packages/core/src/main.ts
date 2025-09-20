@@ -4,7 +4,7 @@ import {
   Resource,
   StrictManifestResource,
   UserData,
-} from './db';
+} from './db/index.js';
 import {
   constants,
   createLogger,
@@ -15,22 +15,26 @@ import {
   Cache,
   ExtrasParser,
   makeUrlLogSafe,
-} from './utils';
-import { Wrapper } from './wrapper';
-import { PresetManager } from './presets';
+  AnimeDatabase,
+  ParsedId,
+  IdParser,
+} from './utils/index.js';
+import { Wrapper } from './wrapper.js';
+import { PresetManager } from './presets/index.js';
 import {
   AddonCatalog,
   Meta,
   MetaPreview,
   ParsedMeta,
   ParsedStream,
+  Preset,
   Subtitle,
-} from './db/schemas';
-import { createProxy } from './proxy';
-import { RPDB } from './utils/rpdb';
-import { FeatureControl } from './utils/feature';
-import Proxifier from './streams/proxifier';
-import StreamLimiter from './streams/limiter';
+} from './db/schemas.js';
+import { createProxy } from './proxy/index.js';
+import { RPDB } from './utils/rpdb.js';
+import { FeatureControl } from './utils/feature.js';
+import Proxifier from './streams/proxifier.js';
+import StreamLimiter from './streams/limiter.js';
 import {
   StreamFetcher as Fetcher,
   StreamFilterer as Filterer,
@@ -38,9 +42,10 @@ import {
   StreamDeduplicator as Deduplicator,
   StreamPrecomputer as Precomputer,
   StreamUtils,
-} from './streams';
-import { getAddonName } from './utils/general';
-import { TMDBMetadata, TMDBMetadataResponse } from './metadata/tmdb';
+} from './streams/index.js';
+import { getAddonName } from './utils/general.js';
+import { TMDBMetadata } from './metadata/tmdb.js';
+import { Metadata } from './metadata/utils.js';
 const logger = createLogger('core');
 
 const shuffleCache = Cache.getInstance<string, MetaPreview[]>('shuffle');
@@ -61,8 +66,15 @@ export interface AIOStreamsResponse<T> {
   errors: AIOStreamsError[];
 }
 
+export interface AIOStreamsOptions {
+  skipFailedAddons?: boolean;
+  increasedManifestTimeout?: boolean;
+  bypassManifestCache?: boolean;
+}
+
 export class AIOStreams {
   private userData: UserData;
+  private options: AIOStreamsOptions | undefined;
   private manifestUrl: string;
   private manifests: Record<string, Manifest | null>;
   private supportedResources: Record<string, StrictManifestResource[]>;
@@ -71,7 +83,6 @@ export class AIOStreams {
   private finalAddonCatalogs: Manifest['addonCatalogs'] = [];
   private isInitialised: boolean = false;
   private addons: Addon[] = [];
-  private skipFailedAddons: boolean = true;
   private proxifier: Proxifier;
   private limiter: StreamLimiter;
   private fetcher: Fetcher;
@@ -81,24 +92,24 @@ export class AIOStreams {
   private precomputer: Precomputer;
 
   private addonInitialisationErrors: {
-    addon: Addon;
+    addon: Addon | Preset;
     error: string;
   }[] = [];
 
-  constructor(userData: UserData, options?: { skipFailedAddons: boolean }) {
+  constructor(userData: UserData, options?: AIOStreamsOptions) {
     this.addonInitialisationErrors = [];
     this.userData = userData;
     this.manifestUrl = `${Env.BASE_URL}/stremio/${this.userData.uuid}/${this.userData.encryptedPassword}/manifest.json`;
     this.manifests = {};
     this.supportedResources = {};
-    this.skipFailedAddons = options?.skipFailedAddons ?? true;
+    this.options = options;
     this.proxifier = new Proxifier(userData);
     this.limiter = new StreamLimiter(userData);
-    this.fetcher = new Fetcher(userData);
     this.filterer = new Filterer(userData);
+    this.precomputer = new Precomputer(userData);
+    this.fetcher = new Fetcher(userData, this.filterer, this.precomputer);
     this.deduplicator = new Deduplicator(userData);
     this.sorter = new Sorter(userData);
-    this.precomputer = new Precomputer(userData);
   }
 
   private setUserData(userData: UserData) {
@@ -134,7 +145,7 @@ export class AIOStreams {
     }>
   > {
     logger.info(`Handling stream request`, { type, id });
-
+    const statistics: { title: string; description: string }[] = [];
     // get a list of all addons that support the stream resource with the given type and id.
     const supportedAddons = [];
     for (const [instanceId, addonResources] of Object.entries(
@@ -163,11 +174,15 @@ export class AIOStreams {
       }
     );
 
-    const { streams, errors, statistics } = await this.fetcher.fetch(
-      supportedAddons,
-      type,
-      id
-    );
+    const {
+      streams,
+      errors,
+      statistics: addonStatistics,
+    } = await this.fetcher.fetch(supportedAddons, type, id);
+
+    if (this.userData.statistics?.statsToShow?.includes('addon')) {
+      statistics.push(...addonStatistics);
+    }
 
     // append initialisation errors to the errors array
     errors.push(
@@ -208,6 +223,50 @@ export class AIOStreams {
       }
     }
 
+    const { filterDetails, includedDetails } =
+      this.filterer.getFormattedFilterDetails();
+
+    // append formatted filter statistics to the statistics array
+    // Helper to split details array into groups by 📌
+    function splitByPin(details: string[]): string[][] {
+      const groups: string[][] = [];
+      let currentGroup: string[] = [];
+      for (const line of details) {
+        if (line.trim().startsWith('📌')) {
+          if (currentGroup.length > 0) {
+            groups.push(currentGroup);
+          }
+          currentGroup = [line];
+        } else {
+          currentGroup.push(line);
+        }
+      }
+      if (currentGroup.length > 0) {
+        groups.push(currentGroup);
+      }
+      return groups;
+    }
+
+    if (this.userData.statistics?.statsToShow?.includes('filter')) {
+      if (filterDetails.length > 0) {
+        const removalGroups = splitByPin(filterDetails);
+        for (const group of removalGroups) {
+          statistics.push({
+            title: '🔍 Removal Reasons',
+            description: group.join('\n').trim(),
+          });
+        }
+      }
+      if (includedDetails.length > 0) {
+        const includedGroups = splitByPin(includedDetails);
+        for (const group of includedGroups) {
+          statistics.push({
+            title: '🔍 Included Reasons',
+            description: group.join('\n').trim(),
+          });
+        }
+      }
+    }
     // return the final list of streams, followed by the error streams.
     logger.info(
       `Returning ${finalStreams.length} streams and ${errors.length} errors and ${statistics.length} statistic`
@@ -668,24 +727,38 @@ export class AIOStreams {
     }
 
     for (const preset of this.userData.presets.filter((p) => p.enabled)) {
-      const addons = await PresetManager.fromId(preset.type).generateAddons(
-        this.userData,
-        preset.options
-      );
-      this.addons.push(
-        ...addons.map(
-          (a): Addon => ({
-            ...a,
-            preset: {
-              ...a.preset,
-              id: preset.instanceId,
-            },
-            // if no identifier is present, we can assume that the preset can only generate one addon at a time and so no
-            // unique identifier is needed as the preset instance id is enough to identify the addon
-            instanceId: `${preset.instanceId}${getSimpleTextHash(`${a.identifier ?? ''}`).slice(0, 4)}`,
-          })
-        )
-      );
+      try {
+        const addons = await PresetManager.fromId(preset.type).generateAddons(
+          this.userData,
+          preset.options
+        );
+        this.addons.push(
+          ...addons.map(
+            (a): Addon => ({
+              ...a,
+              preset: {
+                ...a.preset,
+                id: preset.instanceId,
+              },
+              // if no identifier is present, we can assume that the preset can only generate one addon at a time and so no
+              // unique identifier is needed as the preset instance id is enough to identify the addon
+              instanceId: `${preset.instanceId}${getSimpleTextHash(`${a.identifier ?? ''}`).slice(0, 4)}`,
+            })
+          )
+        );
+      } catch (error) {
+        if (this.options?.skipFailedAddons !== false) {
+          this.addonInitialisationErrors.push({
+            addon: preset,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          logger.error(
+            `${error instanceof Error ? error.message : String(error)}, skipping`
+          );
+        } else {
+          throw error;
+        }
+      }
     }
 
     if (this.addons.length > Env.MAX_ADDONS) {
@@ -701,9 +774,17 @@ export class AIOStreams {
         this.addons.map(async (addon) => {
           try {
             this.validateAddon(addon);
-            return [addon.instanceId, await new Wrapper(addon).getManifest()];
+            return [
+              addon.instanceId,
+              await new Wrapper(addon).getManifest({
+                timeout: this.options?.increasedManifestTimeout
+                  ? Env.MANIFEST_INCREASED_TIMEOUT
+                  : undefined,
+                bypassCache: this.options?.bypassManifestCache,
+              }),
+            ];
           } catch (error: any) {
-            if (this.skipFailedAddons) {
+            if (this.options?.skipFailedAddons !== false) {
               this.addonInitialisationErrors.push({
                 addon: addon,
                 error: error.message,
@@ -1163,18 +1244,16 @@ export class AIOStreams {
     });
   }
 
-  private async getMetadata(
-    id: string
-  ): Promise<TMDBMetadataResponse | undefined> {
+  private async getMetadata(parsedId: ParsedId): Promise<Metadata | undefined> {
     try {
       const metadata = await new TMDBMetadata({
         accessToken: this.userData.tmdbAccessToken,
         apiKey: this.userData.tmdbApiKey,
-      }).getMetadata(id, 'series');
+      }).getMetadata(parsedId);
       return metadata;
     } catch (error) {
       logger.warn(
-        `Error getting metadata for ${id}, will not be able to precache next season if necessary`,
+        `Error getting metadata for ${parsedId.fullId}, will not be able to precache next season if necessary`,
         {
           error: error instanceof Error ? error.message : String(error),
         }
@@ -1184,17 +1263,18 @@ export class AIOStreams {
   }
 
   private _getNextEpisode(
-    currentSeason: number,
+    currentSeason: number | undefined,
     currentEpisode: number,
-    metadata?: TMDBMetadataResponse
+    metadata?: Metadata
   ): {
-    season: number;
+    season: number | undefined;
     episode: number;
   } {
     let season = currentSeason;
     let episode = currentEpisode + 1;
+    if (!currentSeason) return { season, episode };
     const episodeCount = metadata?.seasons?.find(
-      (s) => s.season_number === Number(season)
+      (s) => s.season_number === season
     )?.episode_count;
 
     // If we are at the last episode of the season, try to move to the next season
@@ -1228,7 +1308,7 @@ export class AIOStreams {
     processedStreams = await this.deduplicator.deduplicate(processedStreams);
 
     if (isMeta) {
-      await this.precomputer.precompute(processedStreams);
+      await this.precomputer.precompute(processedStreams, type, id);
     }
 
     let finalStreams = this.applyModifications(
@@ -1237,9 +1317,11 @@ export class AIOStreams {
           await this.limiter.limit(
             await this.sorter.sort(
               processedStreams,
-              id.startsWith('kitsu') ? 'anime' : type
+              AnimeDatabase.getInstance().isAnime(id) ? 'anime' : type
             )
-          )
+          ),
+          type,
+          id
         )
       )
     ).map((stream) => {
@@ -1309,22 +1391,31 @@ export class AIOStreams {
   }
 
   private async precacheNextEpisode(type: string, id: string) {
-    const seasonEpisodeRegex = /:(\d+):(\d+)$/;
-    const match = id.match(seasonEpisodeRegex);
-    if (!match) {
+    const parsedId = IdParser.parse(id, type);
+    if (!parsedId) {
       return;
     }
-    const titleId = id.replace(seasonEpisodeRegex, '');
-    const currentSeason = Number(match[1]);
-    const currentEpisode = Number(match[2]);
 
-    const metadata = await this.getMetadata(id);
+    const currentSeason = parsedId.season ? Number(parsedId.season) : undefined;
+    const currentEpisode = parsedId.episode
+      ? Number(parsedId.episode)
+      : undefined;
+    if (!currentEpisode) {
+      return;
+    }
+
+    const metadata = await this.getMetadata(parsedId);
 
     const { season: seasonToPrecache, episode: episodeToPrecache } =
       this._getNextEpisode(currentSeason, currentEpisode, metadata);
 
-    const precacheId = `${titleId}:${seasonToPrecache}:${episodeToPrecache}`;
-    logger.info(`Pre-caching next episode of ${titleId}`, {
+    const precacheId = parsedId.generator(
+      parsedId.value,
+      seasonToPrecache?.toString(),
+      episodeToPrecache?.toString()
+    );
+    logger.info(`Pre-caching next episode`, {
+      titleId: parsedId.value,
       currentSeason,
       currentEpisode,
       episodeToPrecache,

@@ -6,9 +6,9 @@ import {
   encryptString,
   UserRepository,
 } from '@aiostreams/core';
-import { userApiRateLimiter } from '../../middlewares/ratelimit';
-import { createResponse } from '../../utils/responses';
-const router = Router();
+import { userApiRateLimiter } from '../../middlewares/ratelimit.js';
+import { createResponse } from '../../utils/responses.js';
+const router: Router = Router();
 
 const logger = createLogger('server');
 
@@ -105,7 +105,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // new user creation
-router.put('/', async (req, res, next) => {
+router.post('/', async (req, res, next) => {
   const { config, password } = req.body;
   if (!config || !password) {
     next(
@@ -143,7 +143,7 @@ router.put('/', async (req, res, next) => {
 });
 
 // updating user details
-router.post('/', async (req, res, next) => {
+router.put('/', async (req, res, next) => {
   const { uuid, password, config } = req.body;
   if (!uuid || !password || !config) {
     next(

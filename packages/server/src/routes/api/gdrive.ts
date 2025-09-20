@@ -1,8 +1,13 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { createResponse } from '../../utils/responses';
-import { APIError, constants, createLogger, GDriveAPI } from '@aiostreams/core';
-import { GoogleOAuth } from '@aiostreams/core';
-const router = Router();
+import { createResponse } from '../../utils/responses.js';
+import {
+  APIError,
+  constants,
+  createLogger,
+  GoogleOAuth,
+} from '@aiostreams/core';
+
+const router: Router = Router();
 const logger = createLogger('server');
 
 router.post('/', async (req: Request, res: Response, next: NextFunction) => {

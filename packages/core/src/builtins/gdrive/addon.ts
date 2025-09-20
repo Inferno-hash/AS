@@ -1,18 +1,29 @@
-import { Manifest, Meta, MetaPreview, Stream, Subtitle } from '../../db';
-import { Env, ExtrasParser, createLogger } from '../../utils';
+import {
+  Manifest,
+  Meta,
+  MetaPreview,
+  Stream,
+  Subtitle,
+} from '../../db/index.js';
+import {
+  AnimeDatabase,
+  Env,
+  ExtrasParser,
+  createLogger,
+} from '../../utils/index.js';
 import {
   GDriveAPI,
   GoogleOAuth,
   GoogleOAuthError,
   GoogleOAuthErrorCode,
-} from './api';
-import { GDriveFile, UserData } from './schemas';
-import { IMDBMetadata } from '../../metadata/imdb';
-import { TMDBMetadata } from '../../metadata/tmdb';
-import { KitsuMetadata } from '../../metadata/kitsu';
-import { formatBytes, formatDuration } from '../../formatters';
-import { IdParser, ParsedId } from '../utils/id-parser';
-import { TorboxSearchApiIdType } from '../torbox-search/search-api';
+} from './api.js';
+import { GDriveFile, UserData } from './schemas.js';
+import { IMDBMetadata } from '../../metadata/imdb.js';
+import { TMDBMetadata } from '../../metadata/tmdb.js';
+import { formatBytes, formatDuration } from '../../formatters/index.js';
+import { IdParser, ParsedId } from '../../utils/id-parser.js';
+import { IdType } from '../../utils/id-parser.js';
+import { getTraktAliases } from '../../metadata/trakt.js';
 
 const logger = createLogger('gdrive');
 
@@ -21,15 +32,13 @@ export class GDriveAddon {
   private api: GDriveAPI;
   private oauth: GoogleOAuth;
   private manifest: Manifest;
-  private static supportedIdTypes: TorboxSearchApiIdType[] = [
-    'imdb_id',
-    'tmdb',
-    'thetvdb_id',
-    'kitsu_id',
+  private static readonly supportedIdTypes: IdType[] = [
+    'imdbId',
+    'themoviedbId',
+    'thetvdbId',
+    'kitsuId',
+    'malId',
   ];
-  private static readonly idParser: IdParser = new IdParser(
-    GDriveAddon.supportedIdTypes
-  );
 
   constructor(userData: UserData) {
     this.userData = UserData.parse(userData);
@@ -88,7 +97,7 @@ export class GDriveAddon {
         {
           name: 'stream',
           types: ['movie', 'series', 'anime'],
-          idPrefixes: GDriveAddon.idParser.supportedPrefixes,
+          idPrefixes: IdParser.getPrefixes(GDriveAddon.supportedIdTypes),
         },
         {
           name: 'catalog',
@@ -116,12 +125,12 @@ export class GDriveAddon {
   }
 
   public async getStreams(type: string, id: string): Promise<Stream[]> {
-    const parsedId = GDriveAddon.idParser.parse(id);
-    if (!parsedId) {
+    const parsedId = IdParser.parse(id, type);
+    if (!parsedId || !GDriveAddon.supportedIdTypes.includes(parsedId.type)) {
       throw new Error(`Requested ID ${id} is not a valid or supported ID`);
     }
     logger.debug(`Parsed ID: ${id}`, parsedId);
-    const { id: titleId, season, episode } = parsedId;
+    const { value: idValue, type: idType, season, episode } = parsedId;
     let searchQuery: string;
     try {
       const { titles, year } = await this.getMetadata(parsedId, type);
@@ -129,7 +138,7 @@ export class GDriveAddon {
       logger.debug(`Search query: ${searchQuery}`);
     } catch (error) {
       logger.error(
-        `Failed to get metadata for ${titleId}: ${error instanceof Error ? error.message : error}`
+        `Failed to get metadata for ${idType}:${idValue}: ${error instanceof Error ? error.message : error}`
       );
       throw new Error('Failed to get metadata');
     }
@@ -176,20 +185,41 @@ export class GDriveAddon {
 
   private async getMetadata(parsedId: ParsedId, type: string) {
     let titles: string[];
-    let year: number;
+    let year: number | undefined;
 
     switch (true) {
-      case parsedId.type === 'kitsu_id': {
-        const kitsuMetadata = new KitsuMetadata();
-        const metadata = await kitsuMetadata.getMetadata(parsedId, type);
-        titles = metadata.titles ?? [metadata.title];
-        year = metadata.year;
+      case parsedId.type === 'malId':
+      case parsedId.type === 'kitsuId': {
+        const animeEntry = AnimeDatabase.getInstance().getEntryById(
+          parsedId.type,
+          parsedId.value
+        );
+        if (!animeEntry || !animeEntry.animeSeason?.year) {
+          throw new Error('Anime entry not found');
+        }
+        titles = [];
+        if (animeEntry.synonyms) {
+          titles.push(...animeEntry.synonyms);
+        }
+        if (animeEntry.title) {
+          titles.push(animeEntry.title);
+        }
+        titles = [...new Set(titles)];
+        year = animeEntry.animeSeason?.year;
         break;
       }
       case this.userData.metadataSource === 'imdb': {
         const imdbMetadata = new IMDBMetadata();
-        const metadata = await imdbMetadata.getTitleAndYear(parsedId.id, type);
+        const metadata = await imdbMetadata.getTitleAndYear(
+          parsedId.value.toString(),
+          type
+        );
         titles = metadata.titles ?? [metadata.title];
+        const traktAliases = await getTraktAliases(parsedId);
+        if (traktAliases) {
+          titles.push(...traktAliases);
+        }
+        titles = [...new Set(titles)];
         year = metadata.year;
         break;
       }
@@ -200,12 +230,16 @@ export class GDriveAddon {
         const tmdbMetadata = new TMDBMetadata({
           accessToken: this.userData.tmdbReadAccessToken,
         });
-        const metadata = await tmdbMetadata.getMetadata(
-          parsedId.id,
-          type as any
-        );
-        titles = metadata.titles;
+        const metadata = await tmdbMetadata.getMetadata(parsedId);
+        titles = metadata.titles ?? [metadata.title];
         year = Number(metadata.year);
+        if (parsedId.type === 'imdbId') {
+          const traktAliases = await getTraktAliases(parsedId);
+          if (traktAliases) {
+            titles.push(...traktAliases);
+          }
+          titles = [...new Set(titles)];
+        }
         break;
       }
       default:
@@ -216,7 +250,7 @@ export class GDriveAddon {
 
   private buildSearchQuery(
     titles: string[],
-    year: number,
+    year?: number,
     season?: string,
     episode?: string
   ) {
@@ -247,7 +281,7 @@ export class GDriveAddon {
       ])
     );
 
-    if (isShow) {
+    if (isShow || !year) {
       query += ` and (${possibleTitles.map((title) => `name contains '${title}'`).join(' or ')})`;
     } else {
       query += ` and (${possibleTitles.map((title) => `name contains '${title} ${year}'`).join(' or ')})`;

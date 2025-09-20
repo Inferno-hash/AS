@@ -6,23 +6,29 @@ import {
   Option,
   StreamProxyConfig,
   Group,
-} from '../db/schemas';
-import { AIOStreams } from '../main';
-import { Preset, PresetManager } from '../presets';
-import { createProxy } from '../proxy';
-import { constants } from '.';
-import { TMDBMetadata } from '../metadata/tmdb';
-import { isEncrypted, decryptString, encryptString } from './crypto';
-import { Env } from './env';
-import { createLogger, maskSensitiveInfo } from './logger';
+} from '../db/schemas.js';
+import { AIOStreams } from '../main.js';
+import { Preset, PresetManager } from '../presets/index.js';
+import { createProxy } from '../proxy/index.js';
+import { TMDBMetadata } from '../metadata/tmdb.js';
+import {
+  isEncrypted,
+  decryptString,
+  encryptString,
+  Env,
+  maskSensitiveInfo,
+  RPDB,
+  FeatureControl,
+  compileRegex,
+  constants,
+} from './index.js';
 import { ZodError } from 'zod';
 import {
   GroupConditionEvaluator,
   StreamSelector,
-} from '../parser/streamExpression';
-import { RPDB } from './rpdb';
-import { FeatureControl } from './feature';
-import { compileRegex } from './regex';
+} from '../parser/streamExpression.js';
+import { createLogger } from './logger.js';
+import { TVDBMetadata } from '../metadata/tvdb.js';
 
 const logger = createLogger('core');
 
@@ -265,10 +271,16 @@ export function getEnvironmentServiceDetails(): typeof constants.SERVICE_DETAILS
   ) as typeof constants.SERVICE_DETAILS;
 }
 
+export interface ValidateConfigOptions {
+  skipErrorsFromAddonsOrProxies?: boolean;
+  decryptValues?: boolean;
+  increasedManifestTimeout?: boolean;
+  bypassManifestCache?: boolean;
+}
+
 export async function validateConfig(
   data: any,
-  skipErrorsFromAddonsOrProxies: boolean = false,
-  decryptValues: boolean = false
+  options?: ValidateConfigOptions
 ): Promise<UserData> {
   const {
     success,
@@ -338,7 +350,7 @@ export async function validateConfig(
       try {
         validatePreset(preset);
       } catch (error) {
-        if (!skipErrorsFromAddonsOrProxies) {
+        if (!options?.skipErrorsFromAddonsOrProxies) {
           throw error;
         }
         logger.warn(`Invalid preset ${preset.instanceId}: ${error}`);
@@ -346,8 +358,8 @@ export async function validateConfig(
     }
   }
 
-  if (config.groups) {
-    for (const group of config.groups) {
+  if (config.groups?.groupings) {
+    for (const group of config.groups.groupings) {
       await validateGroup(group);
     }
   }
@@ -370,14 +382,14 @@ export async function validateConfig(
 
   if (config.services) {
     config.services = config.services.map((service: Service) =>
-      validateService(service, decryptValues)
+      validateService(service, options?.decryptValues)
     );
   }
 
   config.proxy = await validateProxy(
     config,
-    skipErrorsFromAddonsOrProxies,
-    decryptValues
+    options?.skipErrorsFromAddonsOrProxies,
+    options?.decryptValues
   );
 
   if (config.rpdbApiKey) {
@@ -385,7 +397,7 @@ export async function validateConfig(
       const rpdb = new RPDB(config.rpdbApiKey);
       await rpdb.validateApiKey();
     } catch (error) {
-      if (!skipErrorsFromAddonsOrProxies) {
+      if (!options?.skipErrorsFromAddonsOrProxies) {
         throw new Error(`Invalid RPDB API key: ${error}`);
       }
       logger.warn(`Invalid RPDB API key: ${error}`);
@@ -400,10 +412,24 @@ export async function validateConfig(
       });
       await tmdb.validateAuthorisation();
     } catch (error) {
-      if (!skipErrorsFromAddonsOrProxies) {
+      if (!options?.skipErrorsFromAddonsOrProxies) {
         throw new Error(`Invalid TMDB access token: ${error}`);
       }
       logger.warn(`Invalid TMDB access token: ${error}`);
+    }
+  }
+
+  if (config.tvdbApiKey) {
+    try {
+      const tvdb = new TVDBMetadata({
+        apiKey: config.tvdbApiKey,
+      });
+      await tvdb.validateApiKey();
+    } catch (error) {
+      if (!options?.skipErrorsFromAddonsOrProxies) {
+        throw new Error(`Invalid TVDB API key: ${error}`);
+      }
+      logger.warn(`Invalid TVDB API key: ${error}`);
     }
   }
 
@@ -415,10 +441,12 @@ export async function validateConfig(
     }
   }
 
-  await validateRegexes(config);
+  await validateRegexes(config, options?.skipErrorsFromAddonsOrProxies);
 
   await new AIOStreams(ensureDecrypted(config), {
-    skipFailedAddons: skipErrorsFromAddonsOrProxies,
+    skipFailedAddons: options?.skipErrorsFromAddonsOrProxies ?? false,
+    increasedManifestTimeout: options?.increasedManifestTimeout ?? false,
+    bypassManifestCache: options?.bypassManifestCache ?? false,
   }).initialise();
 
   return config;
@@ -448,8 +476,8 @@ function removeInvalidPresetReferences(config: UserData) {
         existingPresetIds?.includes(addon)
       );
   }
-  if (config.groups) {
-    config.groups = config.groups.map((group) => ({
+  if (config.groups?.groupings) {
+    config.groups.groupings = config.groups.groupings.map((group) => ({
       ...group,
       addons: group.addons?.filter((addon) =>
         existingPresetIds?.includes(addon)
@@ -459,7 +487,7 @@ function removeInvalidPresetReferences(config: UserData) {
   return config;
 }
 
-export function applyMigrations(config: UserData): UserData {
+export function applyMigrations(config: any): UserData {
   if (
     config.deduplicator &&
     typeof config.deduplicator.multiGroupBehaviour === 'string'
@@ -487,10 +515,28 @@ export function applyMigrations(config: UserData): UserData {
     };
     delete config.titleMatching.matchYear;
   }
+
+  if (Array.isArray(config.groups)) {
+    config.groups = {
+      enabled: config.disableGroups ? false : true,
+      groupings: config.groups,
+      behaviour: 'parallel',
+    };
+  }
+
+  if (config.showStatistics || config.statisticsPosition) {
+    config.statistics = {
+      enabled: config.showStatistics ?? false,
+      position: config.statisticsPosition ?? 'bottom',
+      statsToShow: ['addon', 'filter'],
+    };
+    delete config.showStatistics;
+    delete config.statisticsPosition;
+  }
   return config;
 }
 
-async function validateRegexes(config: UserData) {
+async function validateRegexes(config: UserData, skipErrors: boolean = false) {
   const excludedRegexes = config.excludedRegexPatterns;
   const includedRegexes = config.includedRegexPatterns;
   const requiredRegexes = config.requiredRegexPatterns;
@@ -511,14 +557,20 @@ async function validateRegexes(config: UserData) {
       allowedPatterns.includes(regex)
     );
     if (allowedRegexes.length === 0) {
-      throw new Error(
-        'You do not have permission to use regex filters, please remove them from your config'
-      );
+      if (!skipErrors) {
+        throw new Error(
+          'You do not have permission to use regex filters, please remove them from your config'
+        );
+      }
+      return;
     }
     if (allowedRegexes.length !== regexes.length) {
-      throw new Error(
-        `You are only permitted to use specific regex patterns, you have ${regexes.length - allowedRegexes.length} / ${regexes.length} regexes that are not allowed. Please remove them from your config.`
-      );
+      if (!skipErrors) {
+        throw new Error(
+          `You are only permitted to use specific regex patterns, you have ${regexes.length - allowedRegexes.length} / ${regexes.length} regexes that are not allowed. Please remove them from your config.`
+        );
+      }
+      return;
     }
   }
 

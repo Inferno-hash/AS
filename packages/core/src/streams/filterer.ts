@@ -1,26 +1,204 @@
-import { ParsedStream, UserData } from '../db/schemas';
+import { ParsedStream, UserData } from '../db/schemas.js';
 import {
   createLogger,
   FeatureControl,
   getTimeTakenSincePoint,
   constants,
-} from '../utils';
-import { TYPES } from '../utils/constants';
-import { compileRegex } from '../utils/regex';
-import { formRegexFromKeywords } from '../utils/regex';
-import { safeRegexTest } from '../utils/regex';
-import { StreamType } from '../utils/constants';
-import { StreamSelector } from '../parser/streamExpression';
-import StreamUtils from './utils';
-import { TMDBMetadata, TMDBMetadataResponse } from '../metadata/tmdb';
+  AnimeDatabase,
+  IdParser,
+  compileRegex,
+  formRegexFromKeywords,
+  safeRegexTest,
+} from '../utils/index.js';
+import { StreamType } from '../utils/constants.js';
+import { StreamSelector } from '../parser/streamExpression.js';
+import StreamUtils from './utils.js';
+import { MetadataService } from '../metadata/service.js';
+import { Metadata } from '../metadata/utils.js';
+import { titleMatch } from '../parser/utils.js';
+import { partial_ratio } from 'fuzzball';
+import { calculateAbsoluteEpisode } from '../builtins/utils/general.js';
+import { formatBytes } from '../formatters/utils.js';
 
 const logger = createLogger('filterer');
 
+interface Reason {
+  total: number;
+  details: Record<string, number>;
+}
+
+export interface FilterStatistics {
+  removed: {
+    titleMatching: Reason;
+    yearMatching: Reason;
+    seasonEpisodeMatching: Reason;
+    excludedStreamType: Reason;
+    requiredStreamType: Reason;
+    excludedResolution: Reason;
+    requiredResolution: Reason;
+    excludedQuality: Reason;
+    requiredQuality: Reason;
+    excludedEncode: Reason;
+    requiredEncode: Reason;
+    excludedVisualTag: Reason;
+    requiredVisualTag: Reason;
+    excludedAudioTag: Reason;
+    requiredAudioTag: Reason;
+    excludedAudioChannel: Reason;
+    requiredAudioChannel: Reason;
+    excludedLanguage: Reason;
+    requiredLanguage: Reason;
+    excludedCached: Reason;
+    excludedUncached: Reason;
+    excludedRegex: Reason;
+    requiredRegex: Reason;
+    excludedKeywords: Reason;
+    requiredKeywords: Reason;
+    excludedSeederRange: Reason;
+    requiredSeederRange: Reason;
+    excludedFilterCondition: Reason;
+    requiredFilterCondition: Reason;
+    size: Reason;
+  };
+  included: {
+    passthrough: Reason;
+    resolution: Reason;
+    quality: Reason;
+    encode: Reason;
+    visualTag: Reason;
+    audioTag: Reason;
+    audioChannel: Reason;
+    language: Reason;
+    streamType: Reason;
+    size: Reason;
+    seeder: Reason;
+    regex: Reason;
+    keywords: Reason;
+    streamExpression: Reason;
+  };
+}
+
 class StreamFilterer {
   private userData: UserData;
+  private filterStatistics: FilterStatistics;
 
   constructor(userData: UserData) {
     this.userData = userData;
+    this.filterStatistics = {
+      removed: {
+        titleMatching: { total: 0, details: {} },
+        yearMatching: { total: 0, details: {} },
+        seasonEpisodeMatching: { total: 0, details: {} },
+        excludedStreamType: { total: 0, details: {} },
+        requiredStreamType: { total: 0, details: {} },
+        excludedResolution: { total: 0, details: {} },
+        requiredResolution: { total: 0, details: {} },
+        excludedQuality: { total: 0, details: {} },
+        requiredQuality: { total: 0, details: {} },
+        excludedEncode: { total: 0, details: {} },
+        requiredEncode: { total: 0, details: {} },
+        excludedVisualTag: { total: 0, details: {} },
+        requiredVisualTag: { total: 0, details: {} },
+        excludedAudioTag: { total: 0, details: {} },
+        requiredAudioTag: { total: 0, details: {} },
+        excludedAudioChannel: { total: 0, details: {} },
+        requiredAudioChannel: { total: 0, details: {} },
+        excludedLanguage: { total: 0, details: {} },
+        requiredLanguage: { total: 0, details: {} },
+        excludedCached: { total: 0, details: {} },
+        excludedUncached: { total: 0, details: {} },
+        excludedRegex: { total: 0, details: {} },
+        requiredRegex: { total: 0, details: {} },
+        excludedKeywords: { total: 0, details: {} },
+        requiredKeywords: { total: 0, details: {} },
+        excludedSeederRange: { total: 0, details: {} },
+        requiredSeederRange: { total: 0, details: {} },
+        excludedFilterCondition: { total: 0, details: {} },
+        requiredFilterCondition: { total: 0, details: {} },
+        size: { total: 0, details: {} },
+      },
+      included: {
+        passthrough: { total: 0, details: {} },
+        resolution: { total: 0, details: {} },
+        quality: { total: 0, details: {} },
+        encode: { total: 0, details: {} },
+        visualTag: { total: 0, details: {} },
+        audioTag: { total: 0, details: {} },
+        audioChannel: { total: 0, details: {} },
+        language: { total: 0, details: {} },
+        streamType: { total: 0, details: {} },
+        size: { total: 0, details: {} },
+        seeder: { total: 0, details: {} },
+        regex: { total: 0, details: {} },
+        keywords: { total: 0, details: {} },
+        streamExpression: { total: 0, details: {} },
+      },
+    };
+  }
+
+  private incrementRemovalReason(
+    reason: keyof FilterStatistics['removed'],
+    detail?: string
+  ) {
+    this.filterStatistics.removed[reason].total++;
+    if (detail) {
+      this.filterStatistics.removed[reason].details[detail] =
+        (this.filterStatistics.removed[reason].details[detail] || 0) + 1;
+    }
+  }
+
+  private incrementIncludedReason(
+    reason: keyof FilterStatistics['included'],
+    detail?: string
+  ) {
+    this.filterStatistics.included[reason].total++;
+    if (detail) {
+      this.filterStatistics.included[reason].details[detail] =
+        (this.filterStatistics.included[reason].details[detail] || 0) + 1;
+    }
+  }
+
+  public getFilterStatistics() {
+    return this.filterStatistics;
+  }
+
+  public getFormattedFilterDetails(): {
+    filterDetails: string[];
+    includedDetails: string[];
+  } {
+    const filterDetails: string[] = [];
+    for (const [reason, stats] of Object.entries(
+      this.filterStatistics.removed
+    )) {
+      if (stats.total > 0) {
+        // Convert camelCase to Title Case with spaces
+        const formattedReason = reason
+          .replace(/([A-Z])/g, ' $1')
+          .replace(/^./, (str) => str.toUpperCase());
+
+        filterDetails.push(`\n  📌 ${formattedReason} (${stats.total})`);
+        for (const [detail, count] of Object.entries(stats.details)) {
+          filterDetails.push(`    • ${count}× ${detail}`);
+        }
+      }
+    }
+
+    const includedDetails: string[] = [];
+    for (const [reason, stats] of Object.entries(
+      this.filterStatistics.included
+    )) {
+      if (stats.total > 0) {
+        const formattedReason = reason
+          .replace(/([A-Z])/g, ' $1')
+          .replace(/^./, (str) => str.toUpperCase());
+        includedDetails.push(`\n  📌 ${formattedReason} (${stats.total})`);
+        for (const [detail, count] of Object.entries(stats.details)) {
+          includedDetails.push(`    • ${count}× ${detail}`);
+        }
+      }
+    }
+
+    return { filterDetails, includedDetails };
   }
 
   public async filter(
@@ -28,62 +206,12 @@ class StreamFilterer {
     type: string,
     id: string
   ): Promise<ParsedStream[]> {
-    interface SkipReason {
-      total: number;
-      details: Record<string, number>;
-    }
-    const isAnime = id.startsWith('kitsu');
-    const skipReasons: Record<string, SkipReason> = {
-      titleMatching: { total: 0, details: {} },
-      yearMatching: { total: 0, details: {} },
-      seasonEpisodeMatching: { total: 0, details: {} },
-      excludedStreamType: { total: 0, details: {} },
-      requiredStreamType: { total: 0, details: {} },
-      excludedResolution: { total: 0, details: {} },
-      requiredResolution: { total: 0, details: {} },
-      excludedQuality: { total: 0, details: {} },
-      requiredQuality: { total: 0, details: {} },
-      excludedEncode: { total: 0, details: {} },
-      requiredEncode: { total: 0, details: {} },
-      excludedVisualTag: { total: 0, details: {} },
-      requiredVisualTag: { total: 0, details: {} },
-      excludedAudioTag: { total: 0, details: {} },
-      requiredAudioTag: { total: 0, details: {} },
-      excludedAudioChannel: { total: 0, details: {} },
-      requiredAudioChannel: { total: 0, details: {} },
-      excludedLanguage: { total: 0, details: {} },
-      requiredLanguage: { total: 0, details: {} },
-      excludedCached: { total: 0, details: {} },
-      requiredCached: { total: 0, details: {} },
-      excludedUncached: { total: 0, details: {} },
-      requiredUncached: { total: 0, details: {} },
-      excludedRegex: { total: 0, details: {} },
-      requiredRegex: { total: 0, details: {} },
-      excludedKeywords: { total: 0, details: {} },
-      requiredKeywords: { total: 0, details: {} },
-      requiredSeederRange: { total: 0, details: {} },
-      excludedSeederRange: { total: 0, details: {} },
-      excludedFilterCondition: { total: 0, details: {} },
-      requiredFilterCondition: { total: 0, details: {} },
-      size: { total: 0, details: {} },
-    };
+    const parsedId = IdParser.parse(id, type);
+    let isAnime = id.startsWith('kitsu');
 
-    const includedReasons: Record<string, SkipReason> = {
-      passthrough: { total: 0, details: {} },
-      resolution: { total: 0, details: {} },
-      quality: { total: 0, details: {} },
-      encode: { total: 0, details: {} },
-      visualTag: { total: 0, details: {} },
-      audioTag: { total: 0, details: {} },
-      audioChannel: { total: 0, details: {} },
-      language: { total: 0, details: {} },
-      streamType: { total: 0, details: {} },
-      size: { total: 0, details: {} },
-      seeder: { total: 0, details: {} },
-      regex: { total: 0, details: {} },
-      keywords: { total: 0, details: {} },
-      streamExpression: { total: 0, details: {} },
-    };
+    if (AnimeDatabase.getInstance().isAnime(id)) {
+      isAnime = true;
+    }
 
     const start = Date.now();
     const isRegexAllowed = await FeatureControl.isRegexAllowed(this.userData, [
@@ -92,17 +220,52 @@ class StreamFilterer {
       ...(this.userData.includedRegexPatterns ?? []),
     ]);
 
-    let requestedMetadata: TMDBMetadataResponse | undefined;
+    let requestedMetadata:
+      | (Metadata & { absoluteEpisode?: number })
+      | undefined;
     if (
       (this.userData.titleMatching?.enabled ||
-        this.userData.yearMatching?.enabled) &&
-      TYPES.includes(type as any)
+        this.userData.yearMatching?.enabled ||
+        this.userData.seasonEpisodeMatching?.enabled) &&
+      constants.TYPES.includes(type as any)
     ) {
       try {
-        requestedMetadata = await new TMDBMetadata({
-          accessToken: this.userData.tmdbAccessToken,
-          apiKey: this.userData.tmdbApiKey,
-        }).getMetadata(id, type as any);
+        if (!parsedId) {
+          throw new Error(`Invalid ID: ${id}`);
+        }
+        const animeEntry = AnimeDatabase.getInstance().getEntryById(
+          parsedId.type,
+          parsedId.value
+        );
+        if (animeEntry && !parsedId.season) {
+          parsedId.season =
+            animeEntry.imdb?.fromImdbSeason?.toString() ??
+            animeEntry.trakt?.season?.toString();
+        }
+        requestedMetadata = await new MetadataService({
+          tmdbAccessToken: this.userData.tmdbAccessToken,
+          tmdbApiKey: this.userData.tmdbApiKey,
+          tvdbApiKey: this.userData.tvdbApiKey,
+        }).getMetadata(parsedId, type as any);
+        if (
+          isAnime &&
+          parsedId.season &&
+          parsedId.episode &&
+          requestedMetadata.seasons
+        ) {
+          const seasons = requestedMetadata.seasons.map(
+            ({ season_number, episode_count }) => ({
+              number: season_number.toString(),
+              episodes: episode_count,
+            })
+          );
+          logger.debug(
+            `Calculating absolute episode with current season and episode: ${parsedId.season}, ${parsedId.episode} and seasons: ${JSON.stringify(seasons)}`
+          );
+          requestedMetadata.absoluteEpisode = Number(
+            calculateAbsoluteEpisode(parsedId.season, parsedId.episode, seasons)
+          );
+        }
         logger.info(`Fetched metadata for ${id}`, requestedMetadata);
       } catch (error) {
         logger.warn(
@@ -127,7 +290,11 @@ class StreamFilterer {
       if (!titleMatchingOptions || !titleMatchingOptions.enabled) {
         return true;
       }
-      if (!requestedMetadata || requestedMetadata.titles.length === 0) {
+      if (
+        !requestedMetadata ||
+        !requestedMetadata.titles ||
+        requestedMetadata.titles.length === 0
+      ) {
         return true;
       }
 
@@ -153,12 +320,21 @@ class StreamFilterer {
       }
 
       if (titleMatchingOptions.mode === 'exact') {
-        return requestedMetadata?.titles.some(
-          (title) => normaliseTitle(title) === normaliseTitle(streamTitle)
+        return titleMatch(
+          normaliseTitle(streamTitle),
+          requestedMetadata.titles.map(normaliseTitle),
+          {
+            threshold: 0.85,
+          }
         );
       } else {
-        return requestedMetadata?.titles.some((title) =>
-          normaliseTitle(streamTitle).includes(normaliseTitle(title))
+        return titleMatch(
+          normaliseTitle(streamTitle),
+          requestedMetadata.titles.map(normaliseTitle),
+          {
+            threshold: 0.85,
+            scorer: partial_ratio,
+          }
         );
       }
     };
@@ -193,33 +369,40 @@ class StreamFilterer {
       }
 
       const streamYear = stream.parsedFile?.year;
-      if (!streamYear && type === 'movie') {
-        // only filter out movies without a year as series results usually don't include a year
-        return false;
-      }
       if (!streamYear) {
-        // non-movie results without a year can be kept in
-        return true;
+        // if no year is present, filter out if its a movie, keep otherwise
+        return type === 'movie' ? false : true;
       }
+
       // streamYear can be a string like "2004" or "2012-2020"
-      const requestedYear = Number(requestedMetadata.year);
-      let streamYearRange: [number, number] | undefined;
-      if (streamYear && streamYear.includes('-')) {
+      // Calculate the requested year range
+      let requestedYearRange: [number, number] = [
+        requestedMetadata.year,
+        requestedMetadata.year,
+      ];
+      if (requestedMetadata.yearEnd) {
+        requestedYearRange[1] = requestedMetadata.yearEnd;
+      }
+
+      // Calculate the stream year range
+      let streamYearRange: [number, number];
+      if (streamYear.includes('-')) {
         const [min, max] = streamYear.split('-').map(Number);
         streamYearRange = [min, max];
       } else {
-        streamYearRange = [Number(streamYear), Number(streamYear)];
+        const yearNum = Number(streamYear);
+        streamYearRange = [yearNum, yearNum];
       }
 
-      let tolerance = yearMatchingOptions.tolerance ?? 1;
-      streamYearRange[0] = streamYearRange[0] - tolerance;
-      streamYearRange[1] = streamYearRange[1] + tolerance;
+      // Apply tolerance to the stream year range
+      const tolerance = yearMatchingOptions.tolerance ?? 1;
+      streamYearRange[0] -= tolerance;
+      streamYearRange[1] += tolerance;
 
-      // requested year should be within the stream year range
-      return (
-        requestedYear >= streamYearRange[0] &&
-        requestedYear <= streamYearRange[1]
-      );
+      // If the requested year range and stream year range overlap, accept the stream
+      const [requestedStart, requestedEnd] = requestedYearRange;
+      const [streamStart, streamEnd] = streamYearRange;
+      return requestedStart <= streamEnd && requestedEnd >= streamStart;
     };
 
     const performSeasonEpisodeMatch = (stream: ParsedStream) => {
@@ -231,17 +414,13 @@ class StreamFilterer {
         return true;
       }
 
-      // parse the id to get the season and episode
-      const seasonEpisodeRegex = /:(\d+):(\d+)$/;
-      const match = id.match(seasonEpisodeRegex);
-
-      if (!match || !match[1] || !match[2]) {
-        // only if both season and episode are present, we can filter
-        return true;
-      }
-
-      const requestedSeason = parseInt(match[1]);
-      const requestedEpisode = parseInt(match[2]);
+      if (!parsedId) return true;
+      const requestedSeason = Number.isInteger(Number(parsedId.season))
+        ? Number(parsedId.season)
+        : undefined;
+      const requestedEpisode = Number.isInteger(Number(parsedId.episode))
+        ? Number(parsedId.episode)
+        : undefined;
 
       if (
         seasonEpisodeMatchingOptions.requestTypes?.length &&
@@ -270,11 +449,14 @@ class StreamFilterer {
         return false;
       }
 
-      // is requested episode present
+      // is the present episode incorrect (does not match either the requested episode or absolute episode if present)
       if (
         requestedEpisode &&
         stream.parsedFile?.episode &&
-        stream.parsedFile.episode !== requestedEpisode
+        stream.parsedFile.episode !== requestedEpisode &&
+        (requestedMetadata?.absoluteEpisode
+          ? stream.parsedFile.episode !== requestedMetadata.absoluteEpisode
+          : true)
       ) {
         return false;
       }
@@ -441,9 +623,7 @@ class StreamFilterer {
       const file = stream.parsedFile;
 
       if (stream.addon.resultPassthrough) {
-        includedReasons.passthrough.total++;
-        includedReasons.passthrough.details[stream.addon.name] =
-          (includedReasons.passthrough.details[stream.addon.name] || 0) + 1;
+        this.incrementIncludedReason('passthrough', stream.addon.name);
         return true;
       }
 
@@ -479,9 +659,7 @@ class StreamFilterer {
 
       // carry out include checks first
       if (this.userData.includedStreamTypes?.includes(stream.type)) {
-        includedReasons.streamType.total++;
-        includedReasons.streamType.details[stream.type] =
-          (includedReasons.streamType.details[stream.type] || 0) + 1;
+        this.incrementIncludedReason('streamType', stream.type);
         return true;
       }
 
@@ -494,9 +672,7 @@ class StreamFilterer {
           (resolution) => (file?.resolution || 'Unknown') === resolution
         );
         if (resolution) {
-          includedReasons.resolution.total++;
-          includedReasons.resolution.details[resolution] =
-            (includedReasons.resolution.details[resolution] || 0) + 1;
+          this.incrementIncludedReason('resolution', resolution);
         }
         return true;
       }
@@ -510,9 +686,7 @@ class StreamFilterer {
           (quality) => (file?.quality || 'Unknown') === quality
         );
         if (quality) {
-          includedReasons.quality.total++;
-          includedReasons.quality.details[quality] =
-            (includedReasons.quality.details[quality] || 0) + 1;
+          this.incrementIncludedReason('quality', quality);
         }
         return true;
       }
@@ -530,9 +704,7 @@ class StreamFilterer {
           )
         );
         if (tag) {
-          includedReasons.visualTag.total++;
-          includedReasons.visualTag.details[tag] =
-            (includedReasons.visualTag.details[tag] || 0) + 1;
+          this.incrementIncludedReason('visualTag', tag);
         }
         return true;
       }
@@ -546,9 +718,7 @@ class StreamFilterer {
           (file?.audioTags.length ? file.audioTags : ['Unknown']).includes(tag)
         );
         if (tag) {
-          includedReasons.audioTag.total++;
-          includedReasons.audioTag.details[tag] =
-            (includedReasons.audioTag.details[tag] || 0) + 1;
+          this.incrementIncludedReason('audioTag', tag);
         }
         return true;
       }
@@ -567,9 +737,7 @@ class StreamFilterer {
             : ['Unknown']
           ).includes(channel)
         );
-        includedReasons.audioChannel.total++;
-        includedReasons.audioChannel.details[channel!] =
-          (includedReasons.audioChannel.details[channel!] || 0) + 1;
+        this.incrementIncludedReason('audioChannel', channel!);
         return true;
       }
 
@@ -581,9 +749,7 @@ class StreamFilterer {
         const lang = this.userData.includedLanguages.find((lang) =>
           (file?.languages.length ? file.languages : ['Unknown']).includes(lang)
         );
-        includedReasons.language.total++;
-        includedReasons.language.details[lang!] =
-          (includedReasons.language.details[lang!] || 0) + 1;
+        this.incrementIncludedReason('language', lang!);
         return true;
       }
 
@@ -596,9 +762,7 @@ class StreamFilterer {
           (encode) => (file?.encode || 'Unknown') === encode
         );
         if (encode) {
-          includedReasons.encode.total++;
-          includedReasons.encode.details[encode] =
-            (includedReasons.encode.details[encode] || 0) + 1;
+          this.incrementIncludedReason('encode', encode);
         }
         return true;
       }
@@ -607,10 +771,7 @@ class StreamFilterer {
         includedRegexPatterns &&
         (await testRegexes(stream, includedRegexPatterns))
       ) {
-        includedReasons.regex.total++;
-        includedReasons.regex.details[includedRegexPatterns[0].source] =
-          (includedReasons.regex.details[includedRegexPatterns[0].source] ||
-            0) + 1;
+        this.incrementIncludedReason('regex', includedRegexPatterns[0].source);
         return true;
       }
 
@@ -618,10 +779,10 @@ class StreamFilterer {
         includedKeywordsPattern &&
         (await testRegexes(stream, [includedKeywordsPattern]))
       ) {
-        includedReasons.keywords.total++;
-        includedReasons.keywords.details[includedKeywordsPattern.source] =
-          (includedReasons.keywords.details[includedKeywordsPattern.source] ||
-            0) + 1;
+        this.incrementIncludedReason(
+          'keywords',
+          includedKeywordsPattern.source
+        );
         return true;
       }
 
@@ -647,27 +808,21 @@ class StreamFilterer {
           includedSeederRange[0] &&
           (stream.torrent?.seeders ?? 0) > includedSeederRange[0]
         ) {
-          includedReasons.seeder.total++;
-          includedReasons.seeder.details[includedSeederRange[0]] =
-            (includedReasons.seeder.details[includedSeederRange[0]] || 0) + 1;
+          this.incrementIncludedReason('seeder', `>${includedSeederRange[0]}`);
           return true;
         }
         if (
           includedSeederRange[1] &&
           (stream.torrent?.seeders ?? 0) < includedSeederRange[1]
         ) {
-          includedReasons.seeder.total++;
-          includedReasons.seeder.details[includedSeederRange[1]] =
-            (includedReasons.seeder.details[includedSeederRange[1]] || 0) + 1;
+          this.incrementIncludedReason('seeder', `<${includedSeederRange[1]}`);
           return true;
         }
       }
 
       if (this.userData.excludedStreamTypes?.includes(stream.type)) {
         // Track stream type exclusions
-        skipReasons.excludedStreamType.total++;
-        skipReasons.excludedStreamType.details[stream.type] =
-          (skipReasons.excludedStreamType.details[stream.type] || 0) + 1;
+        this.incrementRemovalReason('excludedStreamType', stream.type);
         return false;
       }
 
@@ -677,9 +832,7 @@ class StreamFilterer {
         this.userData.requiredStreamTypes.length > 0 &&
         !this.userData.requiredStreamTypes.includes(stream.type)
       ) {
-        skipReasons.requiredStreamType.total++;
-        skipReasons.requiredStreamType.details[stream.type] =
-          (skipReasons.requiredStreamType.details[stream.type] || 0) + 1;
+        this.incrementRemovalReason('requiredStreamType', stream.type);
         return false;
       }
 
@@ -689,11 +842,10 @@ class StreamFilterer {
           (file?.resolution || 'Unknown') as any
         )
       ) {
-        skipReasons.excludedResolution.total++;
-        skipReasons.excludedResolution.details[file?.resolution || 'Unknown'] =
-          (skipReasons.excludedResolution.details[
-            file?.resolution || 'Unknown'
-          ] || 0) + 1;
+        this.incrementRemovalReason(
+          'excludedResolution',
+          file?.resolution || 'Unknown'
+        );
         return false;
       }
 
@@ -704,11 +856,10 @@ class StreamFilterer {
           (file?.resolution || 'Unknown') as any
         )
       ) {
-        skipReasons.requiredResolution.total++;
-        skipReasons.requiredResolution.details[file?.resolution || 'Unknown'] =
-          (skipReasons.requiredResolution.details[
-            file?.resolution || 'Unknown'
-          ] || 0) + 1;
+        this.incrementRemovalReason(
+          'requiredResolution',
+          file?.resolution || 'Unknown'
+        );
         return false;
       }
 
@@ -718,10 +869,10 @@ class StreamFilterer {
           (file?.quality || 'Unknown') as any
         )
       ) {
-        skipReasons.excludedQuality.total++;
-        skipReasons.excludedQuality.details[file?.quality || 'Unknown'] =
-          (skipReasons.excludedQuality.details[file?.quality || 'Unknown'] ||
-            0) + 1;
+        this.incrementRemovalReason(
+          'excludedQuality',
+          file?.quality || 'Unknown'
+        );
         return false;
       }
 
@@ -732,10 +883,10 @@ class StreamFilterer {
           (file?.quality || 'Unknown') as any
         )
       ) {
-        skipReasons.requiredQuality.total++;
-        skipReasons.requiredQuality.details[file?.quality || 'Unknown'] =
-          (skipReasons.requiredQuality.details[file?.quality || 'Unknown'] ||
-            0) + 1;
+        this.incrementRemovalReason(
+          'requiredQuality',
+          file?.quality || 'Unknown'
+        );
         return false;
       }
 
@@ -745,10 +896,10 @@ class StreamFilterer {
           file?.encode || ('Unknown' as any)
         )
       ) {
-        skipReasons.excludedEncode.total++;
-        skipReasons.excludedEncode.details[file?.encode || 'Unknown'] =
-          (skipReasons.excludedEncode.details[file?.encode || 'Unknown'] || 0) +
-          1;
+        this.incrementRemovalReason(
+          'excludedEncode',
+          file?.encode || 'Unknown'
+        );
         return false;
       }
 
@@ -759,10 +910,10 @@ class StreamFilterer {
           file?.encode || ('Unknown' as any)
         )
       ) {
-        skipReasons.requiredEncode.total++;
-        skipReasons.requiredEncode.details[file?.encode || 'Unknown'] =
-          (skipReasons.requiredEncode.details[file?.encode || 'Unknown'] || 0) +
-          1;
+        this.incrementRemovalReason(
+          'requiredEncode',
+          file?.encode || 'Unknown'
+        );
         return false;
       }
 
@@ -778,9 +929,7 @@ class StreamFilterer {
             tag
           )
         );
-        skipReasons.excludedVisualTag.total++;
-        skipReasons.excludedVisualTag.details[tag!] =
-          (skipReasons.excludedVisualTag.details[tag!] || 0) + 1;
+        this.incrementRemovalReason('excludedVisualTag', tag!);
         return false;
       }
 
@@ -793,13 +942,10 @@ class StreamFilterer {
           )
         )
       ) {
-        skipReasons.requiredVisualTag.total++;
-        skipReasons.requiredVisualTag.details[
-          `${this.userData.requiredVisualTags.join(', ')}`
-        ] =
-          (skipReasons.requiredVisualTag.details[
-            `${this.userData.requiredVisualTags.join(', ')}`
-          ] || 0) + 1;
+        this.incrementRemovalReason(
+          'requiredVisualTag',
+          file?.visualTags.length ? file.visualTags.join(', ') : 'Unknown'
+        );
         return false;
       }
 
@@ -811,9 +957,7 @@ class StreamFilterer {
         const tag = this.userData.excludedAudioTags.find((tag) =>
           (file?.audioTags.length ? file.audioTags : ['Unknown']).includes(tag)
         );
-        skipReasons.excludedAudioTag.total++;
-        skipReasons.excludedAudioTag.details[tag!] =
-          (skipReasons.excludedAudioTag.details[tag!] || 0) + 1;
+        this.incrementRemovalReason('excludedAudioTag', tag!);
         return false;
       }
 
@@ -824,12 +968,10 @@ class StreamFilterer {
           (file?.audioTags.length ? file.audioTags : ['Unknown']).includes(tag)
         )
       ) {
-        const tag = this.userData.requiredAudioTags.find((tag) =>
-          (file?.audioTags.length ? file.audioTags : ['Unknown']).includes(tag)
+        this.incrementRemovalReason(
+          'requiredAudioTag',
+          file?.audioTags.length ? file.audioTags.join(', ') : 'Unknown'
         );
-        skipReasons.requiredAudioTag.total++;
-        skipReasons.requiredAudioTag.details[tag!] =
-          (skipReasons.requiredAudioTag.details[tag!] || 0) + 1;
         return false;
       }
 
@@ -847,9 +989,7 @@ class StreamFilterer {
             : ['Unknown']
           ).includes(channel)
         );
-        skipReasons.excludedAudioChannel.total++;
-        skipReasons.excludedAudioChannel.details[channel!] =
-          (skipReasons.excludedAudioChannel.details[channel!] || 0) + 1;
+        this.incrementRemovalReason('excludedAudioChannel', channel!);
         return false;
       }
 
@@ -863,15 +1003,10 @@ class StreamFilterer {
           ).includes(channel)
         )
       ) {
-        const channel = this.userData.requiredAudioChannels.find((channel) =>
-          (file?.audioChannels.length
-            ? file.audioChannels
-            : ['Unknown']
-          ).includes(channel)
+        this.incrementRemovalReason(
+          'requiredAudioChannel',
+          file?.audioChannels.length ? file.audioChannels.join(', ') : 'Unknown'
         );
-        skipReasons.requiredAudioChannel.total++;
-        skipReasons.requiredAudioChannel.details[channel!] =
-          (skipReasons.requiredAudioChannel.details[channel!] || 0) + 1;
         return false;
       }
 
@@ -882,10 +1017,10 @@ class StreamFilterer {
           this.userData.excludedLanguages!.includes(lang as any)
         )
       ) {
-        const lang = file?.languages[0] || 'Unknown';
-        skipReasons.excludedLanguage.total++;
-        skipReasons.excludedLanguage.details[lang] =
-          (skipReasons.excludedLanguage.details[lang] || 0) + 1;
+        this.incrementRemovalReason(
+          'excludedLanguage',
+          file?.languages.length ? file.languages.join(', ') : 'Unknown'
+        );
         return false;
       }
 
@@ -896,24 +1031,22 @@ class StreamFilterer {
           (file?.languages.length ? file.languages : ['Unknown']).includes(lang)
         )
       ) {
-        const lang = this.userData.requiredLanguages.find((lang) =>
-          (file?.languages.length ? file.languages : ['Unknown']).includes(lang)
+        this.incrementRemovalReason(
+          'requiredLanguage',
+          file?.languages.length ? file.languages.join(', ') : 'Unknown'
         );
-        skipReasons.requiredLanguage.total++;
-        skipReasons.requiredLanguage.details[lang!] =
-          (skipReasons.requiredLanguage.details[lang!] || 0) + 1;
         return false;
       }
 
       // uncached
 
       if (this.userData.excludeUncached && stream.service?.cached === false) {
-        skipReasons.excludedUncached.total++;
+        this.incrementRemovalReason('excludedUncached');
         return false;
       }
 
       if (this.userData.excludeCached && stream.service?.cached === true) {
-        skipReasons.excludedCached.total++;
+        this.incrementRemovalReason('excludedCached');
         return false;
       }
 
@@ -927,7 +1060,7 @@ class StreamFilterer {
           true
         ) === false
       ) {
-        skipReasons.excludedCached.total++;
+        this.incrementRemovalReason('excludedCached');
         return false;
       }
 
@@ -941,7 +1074,7 @@ class StreamFilterer {
           false
         ) === false
       ) {
-        skipReasons.excludedUncached.total++;
+        this.incrementRemovalReason('excludedUncached');
         return false;
       }
 
@@ -949,7 +1082,7 @@ class StreamFilterer {
         excludedRegexPatterns &&
         (await testRegexes(stream, excludedRegexPatterns))
       ) {
-        skipReasons.excludedRegex.total++;
+        this.incrementRemovalReason('excludedRegex');
         return false;
       }
       if (
@@ -957,7 +1090,7 @@ class StreamFilterer {
         requiredRegexPatterns.length > 0 &&
         !(await testRegexes(stream, requiredRegexPatterns))
       ) {
-        skipReasons.requiredRegex.total++;
+        this.incrementRemovalReason('requiredRegex');
         return false;
       }
 
@@ -965,7 +1098,7 @@ class StreamFilterer {
         excludedKeywordsPattern &&
         (await testRegexes(stream, [excludedKeywordsPattern]))
       ) {
-        skipReasons.excludedKeywords.total++;
+        this.incrementRemovalReason('excludedKeywords');
         return false;
       }
 
@@ -973,7 +1106,7 @@ class StreamFilterer {
         requiredKeywordsPattern &&
         !(await testRegexes(stream, [requiredKeywordsPattern]))
       ) {
-        skipReasons.requiredKeywords.total++;
+        this.incrementRemovalReason('requiredKeywords');
         return false;
       }
 
@@ -987,13 +1120,10 @@ class StreamFilterer {
           requiredSeederRange[0] &&
           (stream.torrent?.seeders ?? 0) < requiredSeederRange[0]
         ) {
-          skipReasons.requiredSeederRange.total++;
-          skipReasons.requiredSeederRange.details[
-            `Less than ${requiredSeederRange[0]}`
-          ] =
-            (skipReasons.requiredSeederRange.details[
-              `Less than ${requiredSeederRange[0]}`
-            ] || 0) + 1;
+          this.incrementRemovalReason(
+            'requiredSeederRange',
+            `< ${requiredSeederRange[0]}`
+          );
           return false;
         }
         if (
@@ -1001,13 +1131,10 @@ class StreamFilterer {
           requiredSeederRange[1] &&
           (stream.torrent?.seeders ?? 0) > requiredSeederRange[1]
         ) {
-          skipReasons.requiredSeederRange.total++;
-          skipReasons.requiredSeederRange.details[
-            `Greater than ${requiredSeederRange[1]}`
-          ] =
-            (skipReasons.requiredSeederRange.details[
-              `Greater than ${requiredSeederRange[1]}`
-            ] || 0) + 1;
+          this.incrementRemovalReason(
+            'requiredSeederRange',
+            `> ${requiredSeederRange[1]}`
+          );
           return false;
         }
       }
@@ -1022,49 +1149,37 @@ class StreamFilterer {
           excludedSeederRange[0] &&
           (stream.torrent?.seeders ?? 0) > excludedSeederRange[0]
         ) {
-          skipReasons.excludedSeederRange.total++;
-          skipReasons.excludedSeederRange.details[
-            `Less than ${excludedSeederRange[0]}`
-          ] =
-            (skipReasons.excludedSeederRange.details[
-              `Less than ${excludedSeederRange[0]}`
-            ] || 0) + 1;
+          this.incrementRemovalReason(
+            'excludedSeederRange',
+            `< ${excludedSeederRange[0]}`
+          );
           return false;
         }
         if (
           excludedSeederRange[1] &&
           (stream.torrent?.seeders ?? 0) < excludedSeederRange[1]
         ) {
-          skipReasons.excludedSeederRange.total++;
-          skipReasons.excludedSeederRange.details[
-            `Greater than ${excludedSeederRange[1]}`
-          ] =
-            (skipReasons.excludedSeederRange.details[
-              `Greater than ${excludedSeederRange[1]}`
-            ] || 0) + 1;
+          this.incrementRemovalReason(
+            'excludedSeederRange',
+            `> ${excludedSeederRange[1]}`
+          );
           return false;
         }
       }
 
       if (!performTitleMatch(stream)) {
-        skipReasons.titleMatching.total++;
-        skipReasons.titleMatching.details[
+        this.incrementRemovalReason(
+          'titleMatching',
           `${stream.parsedFile?.title || 'Unknown Title'}${type === 'movie' ? ` - (${stream.parsedFile?.year || 'Unknown Year'})` : ''}`
-        ] =
-          (skipReasons.titleMatching.details[
-            `${stream.parsedFile?.title || 'Unknown Title'}${type === 'movie' ? ` - (${stream.parsedFile?.year || 'Unknown Year'})` : ''}`
-          ] || 0) + 1;
+        );
         return false;
       }
 
       if (!performYearMatch(stream)) {
-        skipReasons.yearMatching.total++;
-        skipReasons.yearMatching.details[
+        this.incrementRemovalReason(
+          'yearMatching',
           `${stream.parsedFile?.title || 'Unknown Title'} - ${stream.parsedFile?.year || 'Unknown Year'}`
-        ] =
-          (skipReasons.yearMatching.details[
-            `${stream.parsedFile?.title || 'Unknown Title'} - ${stream.parsedFile?.year || 'Unknown Year'}`
-          ] || 0) + 1;
+        );
         return false;
       }
 
@@ -1074,9 +1189,7 @@ class StreamFilterer {
           ' ' +
           (stream.parsedFile?.seasonEpisode?.join(' x ') || 'Unknown');
 
-        skipReasons.seasonEpisodeMatching.total++;
-        skipReasons.seasonEpisodeMatching.details[detail] =
-          (skipReasons.seasonEpisodeMatching.details[detail] || 0) + 1;
+        this.incrementRemovalReason('seasonEpisodeMatching', detail);
         return false;
       }
 
@@ -1101,11 +1214,17 @@ class StreamFilterer {
 
       if (minMax) {
         if (stream.size && minMax[0] && stream.size < minMax[0]) {
-          skipReasons.size.total++;
+          this.incrementRemovalReason(
+            'size',
+            `< ${formatBytes(minMax[0], 1000)}`
+          );
           return false;
         }
         if (stream.size && minMax[1] && stream.size > minMax[1]) {
-          skipReasons.size.total++;
+          this.incrementRemovalReason(
+            'size',
+            `> ${formatBytes(minMax[1], 1000)}`
+          );
           return false;
         }
       }
@@ -1114,7 +1233,7 @@ class StreamFilterer {
     };
 
     const includedStreamsByExpression =
-      await this.applyIncludedStreamExpressions(streams);
+      await this.applyIncludedStreamExpressions(streams, type, id);
     if (includedStreamsByExpression.length > 0) {
       logger.info(
         `${includedStreamsByExpression.length} streams were included by stream expressions`
@@ -1138,7 +1257,7 @@ class StreamFilterer {
       ...filteredStreams,
     ]);
 
-    // Log filter summary
+    // L// filter summary
     const totalFiltered = streams.length - finalStreams.length;
 
     const summary = [
@@ -1151,44 +1270,16 @@ class StreamFilterer {
     ];
 
     // Add filter details if any streams were filtered
-    const filterDetails: string[] = [];
-    for (const [reason, stats] of Object.entries(skipReasons)) {
-      if (stats.total > 0) {
-        // Convert camelCase to Title Case with spaces
-        const formattedReason = reason
-          .replace(/([A-Z])/g, ' $1')
-          .replace(/^./, (str) => str.toUpperCase());
-
-        filterDetails.push(`\n  📌 ${formattedReason} (${stats.total})`);
-        for (const [detail, count] of Object.entries(stats.details)) {
-          filterDetails.push(`    • ${count}× ${detail}`);
-        }
-      }
-    }
-
-    const includedDetails: string[] = [];
-    for (const [reason, stats] of Object.entries(includedReasons)) {
-      if (stats.total > 0) {
-        const formattedReason = reason
-          .replace(/([A-Z])/g, ' $1')
-          .replace(/^./, (str) => str.toUpperCase());
-        includedDetails.push(`\n  📌 ${formattedReason} (${stats.total})`);
-        for (const [detail, count] of Object.entries(stats.details)) {
-          includedDetails.push(`    • ${count}× ${detail}`);
-        }
-      }
-    }
+    const { filterDetails, includedDetails } = this.getFormattedFilterDetails();
 
     if (filterDetails.length > 0) {
       summary.push('\n  🔎 Filter Details:');
       summary.push(...filterDetails);
     }
-
     if (includedDetails.length > 0) {
       summary.push('\n  🔎 Included Details:');
       summary.push(...includedDetails);
     }
-
     summary.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     logger.info(summary.join('\n'));
 
@@ -1197,9 +1288,16 @@ class StreamFilterer {
   }
 
   public async applyIncludedStreamExpressions(
-    streams: ParsedStream[]
+    streams: ParsedStream[],
+    type: string,
+    id: string
   ): Promise<ParsedStream[]> {
-    const selector = new StreamSelector();
+    let queryType = type;
+
+    if (AnimeDatabase.getInstance().isAnime(id)) {
+      queryType = 'anime';
+    }
+    const selector = new StreamSelector(queryType);
     const streamsToKeep = new Set<string>();
     if (
       !this.userData.includedStreamExpressions ||
@@ -1209,27 +1307,27 @@ class StreamFilterer {
     }
     for (const expression of this.userData.includedStreamExpressions) {
       const selectedStreams = await selector.select(streams, expression);
+      this.filterStatistics.included.streamExpression.total +=
+        selectedStreams.length;
+      this.filterStatistics.included.streamExpression.details[expression] =
+        (this.filterStatistics.included.streamExpression.details[expression] ||
+          0) + selectedStreams.length;
       selectedStreams.forEach((stream) => streamsToKeep.add(stream.id));
     }
     return streams.filter((stream) => streamsToKeep.has(stream.id));
   }
 
   public async applyStreamExpressionFilters(
-    streams: ParsedStream[]
+    streams: ParsedStream[],
+    type: string,
+    id: string
   ): Promise<ParsedStream[]> {
-    const skipReasons: Record<
-      string,
-      { total: number; details: Record<string, number> }
-    > = {
-      excludedFilterCondition: {
-        total: 0,
-        details: {},
-      },
-      requiredFilterCondition: {
-        total: 0,
-        details: {},
-      },
-    };
+    let queryType = type;
+
+    if (AnimeDatabase.getInstance().isAnime(id)) {
+      queryType = 'anime';
+    }
+
     const passthroughStreams = streams
       .filter((stream) => stream.addon.resultPassthrough)
       .map((stream) => stream.id);
@@ -1237,7 +1335,7 @@ class StreamFilterer {
       this.userData.excludedStreamExpressions &&
       this.userData.excludedStreamExpressions.length > 0
     ) {
-      const selector = new StreamSelector();
+      const selector = new StreamSelector(queryType);
       const streamsToRemove = new Set<string>(); // Track actual stream objects to be removed
 
       for (const expression of this.userData.excludedStreamExpressions) {
@@ -1257,9 +1355,14 @@ class StreamFilterer {
 
           // Update skip reasons for this condition (only count newly selected streams)
           if (selectedStreams.length > 0) {
-            skipReasons.excludedFilterCondition.total += selectedStreams.length;
-            skipReasons.excludedFilterCondition.details[expression] =
+            this.filterStatistics.removed.excludedFilterCondition.total +=
               selectedStreams.length;
+            this.filterStatistics.removed.excludedFilterCondition.details[
+              expression
+            ] =
+              (this.filterStatistics.removed.excludedFilterCondition.details[
+                expression
+              ] || 0) + selectedStreams.length;
           }
         } catch (error) {
           logger.error(
@@ -1281,7 +1384,7 @@ class StreamFilterer {
       this.userData.requiredStreamExpressions &&
       this.userData.requiredStreamExpressions.length > 0
     ) {
-      const selector = new StreamSelector();
+      const selector = new StreamSelector(queryType);
       const streamsToKeep = new Set<string>(); // Track actual stream objects to be removed
       passthroughStreams.forEach((stream) => streamsToKeep.add(stream));
 
@@ -1297,10 +1400,14 @@ class StreamFilterer {
 
           // Update skip reasons for this condition (only count newly selected streams)
           if (selectedStreams.length > 0) {
-            skipReasons.requiredFilterCondition.total +=
-              streams.length - selectedStreams.length;
-            skipReasons.requiredFilterCondition.details[expression] =
-              streams.length - selectedStreams.length;
+            this.filterStatistics.removed.requiredFilterCondition.total +=
+              selectedStreams.length;
+            this.filterStatistics.removed.requiredFilterCondition.details[
+              expression
+            ] =
+              (this.filterStatistics.removed.requiredFilterCondition.details[
+                expression
+              ] || 0) + selectedStreams.length;
           }
         } catch (error) {
           logger.error(

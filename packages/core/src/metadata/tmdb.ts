@@ -1,11 +1,14 @@
 import { Headers } from 'undici';
-import { Env, Cache, TYPES, makeRequest } from '../utils';
-export type ExternalIdType = 'imdb' | 'tmdb' | 'tvdb';
+import { Env, Cache, makeRequest, ParsedId, IdType } from '../utils/index.js';
+import { Metadata } from './utils.js';
+import { z } from 'zod';
 
-interface ExternalId {
-  type: ExternalIdType;
-  value: string;
-}
+export type TMDBIdType = 'imdb_id' | 'tmdb_id' | 'tvdb_id';
+
+// interface ExternalId {
+//   type: ExternalIdType;
+//   value: string;
+// }
 
 const API_BASE_URL = 'https://api.themoviedb.org/3';
 const FIND_BY_ID_PATH = '/find';
@@ -18,14 +21,62 @@ const ID_CACHE_TTL = 30 * 24 * 60 * 60; // 30 days
 const TITLE_CACHE_TTL = 7 * 24 * 60 * 60; // 7 days
 const AUTHORISATION_CACHE_TTL = 2 * 24 * 60 * 60; // 2 days
 
-export interface TMDBMetadataResponse {
-  titles: string[];
-  year: string;
-  seasons?: {
-    season_number: number;
-    episode_count: number;
-  }[];
-}
+// Zod schemas for API responses
+const MovieDetailsSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  release_date: z.string().optional(),
+  status: z.string(),
+});
+
+const TVDetailsSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  first_air_date: z.string().optional(),
+  last_air_date: z.string().optional(),
+  status: z.string(),
+  seasons: z.array(
+    z.object({
+      season_number: z.number(),
+      episode_count: z.number(),
+    })
+  ),
+});
+
+const MovieAlternativeTitlesSchema = z.object({
+  titles: z.array(
+    z.object({
+      title: z.string(),
+    })
+  ),
+});
+
+const TVAlternativeTitlesSchema = z.object({
+  results: z.array(
+    z.object({
+      title: z.string(),
+    })
+  ),
+});
+
+const FindResultsSchema = z.object({
+  movie_results: z.array(
+    z.object({
+      id: z.number(),
+    })
+  ),
+  tv_results: z.array(
+    z.object({
+      id: z.number(),
+    })
+  ),
+});
+
+const IdTypeMap: Partial<Record<IdType, TMDBIdType>> = {
+  imdbId: 'imdb_id',
+  thetvdbId: 'tvdb_id',
+  themoviedbId: 'tmdb_id',
+};
 
 export class TMDBMetadata {
   private readonly TMDB_ID_REGEX = /^(?:tmdb)[-:](\d+)(?::\d+:\d+)?$/;
@@ -35,8 +86,8 @@ export class TMDBMetadata {
     string,
     string
   >('tmdb_id_conversion');
-  private static readonly metadataCache: Cache<string, TMDBMetadataResponse> =
-    Cache.getInstance<string, TMDBMetadataResponse>('tmdb_metadata');
+  private static readonly metadataCache: Cache<string, Metadata> =
+    Cache.getInstance<string, Metadata>('tmdb_metadata');
   private readonly accessToken: string | undefined;
   private readonly apiKey: string | undefined;
   private static readonly validationCache: Cache<string, boolean> =
@@ -66,39 +117,20 @@ export class TMDBMetadata {
     return headers;
   }
 
-  private parseExternalId(id: string): ExternalId | null {
-    if (this.TMDB_ID_REGEX.test(id)) {
-      const match = id.match(this.TMDB_ID_REGEX);
-      return match ? { type: 'tmdb', value: match[1] } : null;
-    }
-    if (this.IMDB_ID_REGEX.test(id)) {
-      const match = id.match(this.IMDB_ID_REGEX);
-      return match ? { type: 'imdb', value: `tt${match[1]}` } : null;
-    }
-    if (this.TVDB_ID_REGEX.test(id)) {
-      const match = id.match(this.TVDB_ID_REGEX);
-      return match ? { type: 'tvdb', value: match[1] } : null;
-    }
-    return null;
-  }
-
-  private async convertToTmdbId(
-    id: ExternalId,
-    type: (typeof TYPES)[number]
-  ): Promise<string> {
-    if (id.type === 'tmdb') {
-      return id.value;
+  private async convertToTmdbId(parsedId: ParsedId): Promise<string> {
+    if (parsedId.type === 'themoviedbId') {
+      return parsedId.value.toString();
     }
 
     // Check cache first
-    const cacheKey = `${id.type}:${id.value}:${type}`;
+    const cacheKey = `${parsedId.type}:${parsedId.value}:${parsedId.mediaType}`;
     const cachedId = await TMDBMetadata.idCache.get(cacheKey);
     if (cachedId) {
       return cachedId;
     }
 
-    const url = new URL(API_BASE_URL + FIND_BY_ID_PATH + `/${id.value}`);
-    url.searchParams.set('external_source', `${id.type}_id`);
+    const url = new URL(API_BASE_URL + FIND_BY_ID_PATH + `/${parsedId.value}`);
+    url.searchParams.set('external_source', `${IdTypeMap[parsedId.type]}`);
     this.addSearchParams(url);
     const response = await makeRequest(url.toString(), {
       timeout: 10000,
@@ -109,12 +141,15 @@ export class TMDBMetadata {
       throw new Error(`${response.status} - ${response.statusText}`);
     }
 
-    const data: any = await response.json();
-    const results = type === 'movie' ? data.movie_results : data.tv_results;
-    const meta = results?.[0];
+    const data = FindResultsSchema.parse(await response.json());
+    const results =
+      parsedId.mediaType === 'movie' ? data.movie_results : data.tv_results;
+    const meta = results[0];
 
     if (!meta) {
-      throw new Error(`No ${type} metadata found for ID: ${id.value}`);
+      throw new Error(
+        `No ${parsedId.mediaType} metadata found for ID: ${parsedId.type}:${parsedId.value}`
+      );
     }
 
     const tmdbId = meta.id.toString();
@@ -123,39 +158,35 @@ export class TMDBMetadata {
     return tmdbId;
   }
 
-  private parseReleaseDate(releaseDate: string): string {
+  private parseReleaseDate(releaseDate: string | undefined): string {
+    if (!releaseDate) return '0';
     const date = new Date(releaseDate);
     return date.getFullYear().toString();
   }
 
-  public async getMetadata(
-    id: string,
-    type: (typeof TYPES)[number]
-  ): Promise<TMDBMetadataResponse> {
-    if (!['movie', 'series', 'anime'].includes(type)) {
-      throw new Error(`Invalid type: ${type}`);
+  public async getMetadata(parsedId: ParsedId): Promise<Metadata> {
+    if (!['movie', 'series', 'anime'].includes(parsedId.mediaType)) {
+      throw new Error(`Invalid media type: ${parsedId.mediaType}`);
+    }
+    if (!['imdbId', 'thetvdbId', 'themoviedbId'].includes(parsedId.type)) {
+      throw new Error(`Invalid ID type: ${parsedId.type}`);
     }
 
-    const externalId = this.parseExternalId(id);
-    if (!externalId) {
-      throw new Error(
-        'Invalid ID format. Must be TMDB (tmdb:123) or IMDB (tt123) or TVDB (tvdb:123) format'
-      );
-    }
-
-    const tmdbId = await this.convertToTmdbId(externalId, type);
+    const tmdbId = await this.convertToTmdbId(parsedId);
 
     // Check cache first
-    const cacheKey = `${tmdbId}:${type}`;
+    const cacheKey = `${tmdbId}:${parsedId.mediaType}`;
     const cachedMetadata = await TMDBMetadata.metadataCache.get(cacheKey);
     if (cachedMetadata) {
-      return cachedMetadata;
+      return { ...cachedMetadata, tmdbId: Number(tmdbId) };
     }
 
     // Fetch primary title from details endpoint
     const detailsUrl = new URL(
       API_BASE_URL +
-        (type === 'movie' ? MOVIE_DETAILS_PATH : TV_DETAILS_PATH) +
+        (parsedId.mediaType === 'movie'
+          ? MOVIE_DETAILS_PATH
+          : TV_DETAILS_PATH) +
         `/${tmdbId}`
     );
     this.addSearchParams(detailsUrl);
@@ -168,24 +199,40 @@ export class TMDBMetadata {
       throw new Error(`Failed to fetch details: ${detailsResponse.statusText}`);
     }
 
-    const detailsData: any = await detailsResponse.json();
+    const detailsJson = await detailsResponse.json();
+    const detailsData =
+      parsedId.mediaType === 'movie'
+        ? MovieDetailsSchema.parse(detailsJson)
+        : TVDetailsSchema.parse(detailsJson);
+
     const primaryTitle =
-      type === 'movie' ? detailsData.title : detailsData.name;
+      parsedId.mediaType === 'movie'
+        ? (detailsData as z.infer<typeof MovieDetailsSchema>).title
+        : (detailsData as z.infer<typeof TVDetailsSchema>).name;
     const year = this.parseReleaseDate(
-      type === 'movie' ? detailsData.release_date : detailsData.first_air_date
+      parsedId.mediaType === 'movie'
+        ? (detailsData as z.infer<typeof MovieDetailsSchema>).release_date
+        : (detailsData as z.infer<typeof TVDetailsSchema>).first_air_date
     );
+    const yearEnd =
+      parsedId.mediaType !== 'movie'
+        ? (detailsData as z.infer<typeof TVDetailsSchema>).last_air_date
+          ? this.parseReleaseDate(
+              (detailsData as z.infer<typeof TVDetailsSchema>).last_air_date
+            )
+          : undefined
+        : undefined;
     const seasons =
-      type === 'series'
-        ? detailsData.seasons.map((season: any) => ({
-            season_number: season.season_number,
-            episode_count: season.episode_count,
-          }))
+      parsedId.mediaType !== 'movie'
+        ? (detailsData as z.infer<typeof TVDetailsSchema>).seasons
         : undefined;
 
     // Fetch alternative titles
     const altTitlesUrl = new URL(
       API_BASE_URL +
-        (type === 'movie' ? MOVIE_DETAILS_PATH : TV_DETAILS_PATH) +
+        (parsedId.mediaType === 'movie'
+          ? MOVIE_DETAILS_PATH
+          : TV_DETAILS_PATH) +
         `/${tmdbId}` +
         ALTERNATIVE_TITLES_PATH
     );
@@ -201,23 +248,35 @@ export class TMDBMetadata {
       );
     }
 
-    const altTitlesData: any = await altTitlesResponse.json();
+    const altTitlesJson = await altTitlesResponse.json();
+    const altTitlesData =
+      parsedId.mediaType === 'movie'
+        ? MovieAlternativeTitlesSchema.parse(altTitlesJson)
+        : TVAlternativeTitlesSchema.parse(altTitlesJson);
     const alternativeTitles =
-      type === 'movie'
-        ? altTitlesData.titles.map((title: any) => title.title)
-        : altTitlesData.results.map((title: any) => title.title);
+      parsedId.mediaType === 'movie'
+        ? (
+            altTitlesData as z.infer<typeof MovieAlternativeTitlesSchema>
+          ).titles.map((title) => title.title)
+        : (
+            altTitlesData as z.infer<typeof TVAlternativeTitlesSchema>
+          ).results.map((title) => title.title);
 
     // Combine primary title with alternative titles, ensuring no duplicates
     const allTitles = [primaryTitle, ...alternativeTitles];
     const uniqueTitles = [...new Set(allTitles)];
-    const metadata: TMDBMetadataResponse = {
+    const metadata: Metadata = {
+      title: primaryTitle,
       titles: uniqueTitles,
-      year,
+      year: Number(year),
+      yearEnd: yearEnd ? Number(yearEnd) : undefined,
       seasons,
+      tmdbId: Number(tmdbId),
+      tvdbId: null,
     };
     // Cache the result
     TMDBMetadata.metadataCache.set(cacheKey, metadata, TITLE_CACHE_TTL);
-    return metadata;
+    return { ...metadata, tmdbId: Number(tmdbId) };
   }
 
   private addSearchParams(url: URL) {

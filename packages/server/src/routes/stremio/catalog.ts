@@ -1,12 +1,14 @@
 import { Router, Request, Response } from 'express';
-import { AIOStreams, CatalogResponse, constants } from '@aiostreams/core';
-import { stremioCatalogRateLimiter } from '../../middlewares/ratelimit';
-import { createResponse } from '../../utils/responses';
-import { StremioTransformer } from '@aiostreams/core';
-import { createLogger } from '@aiostreams/core';
+import {
+  AIOStreams,
+  CatalogResponse,
+  createLogger,
+  StremioTransformer,
+} from '@aiostreams/core';
+import { stremioCatalogRateLimiter } from '../../middlewares/ratelimit.js';
 
 const logger = createLogger('server');
-const router = Router();
+const router: Router = Router();
 
 router.use(stremioCatalogRateLimiter);
 

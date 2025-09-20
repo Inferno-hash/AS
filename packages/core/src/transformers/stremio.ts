@@ -1,4 +1,4 @@
-import { constants, Env } from '..';
+import { constants, Env } from '../index.js';
 import {
   Meta,
   MetaPreview,
@@ -16,10 +16,10 @@ import {
   CatalogResponse,
   StreamResponse,
   ParsedMeta,
-} from '../db';
-import { createFormatter } from '../formatters';
-import { AIOStreamsError, AIOStreamsResponse } from '../main';
-import { createLogger } from '../utils';
+} from '../db/index.js';
+import { createFormatter } from '../formatters/index.js';
+import { AIOStreamsError, AIOStreamsResponse } from '../main.js';
+import { createLogger, getTimeTakenSincePoint } from '../utils/index.js';
 
 type ErrorOptions = {
   errorTitle?: string;
@@ -46,7 +46,9 @@ export class StremioTransformer {
   private async convertParsedStreamToStream(
     stream: ParsedStream,
     formatter: {
-      format: (stream: ParsedStream) => { name: string; description: string };
+      format: (
+        stream: ParsedStream
+      ) => Promise<{ name: string; description: string }>;
     },
     index: number,
     provideStreamData: boolean
@@ -56,7 +58,7 @@ export class StremioTransformer {
           name: stream.originalName || stream.addon.name,
           description: stream.originalDescription,
         }
-      : formatter.format(stream);
+      : await formatter.format(stream);
 
     const autoPlaySettings = {
       enabled: this.userData.autoPlay?.enabled ?? true,
@@ -203,6 +205,7 @@ export class StremioTransformer {
     }>,
     options?: { provideStreamData: boolean }
   ): Promise<AIOStreamResponse> {
+    const formatter = createFormatter(this.userData);
     const {
       data: { streams, statistics },
       errors,
@@ -211,11 +214,7 @@ export class StremioTransformer {
 
     let transformedStreams: AIOStream[] = [];
 
-    const formatter = createFormatter(this.userData);
-
-    logger.info(
-      `Transforming ${streams.length} streams, using formatter ${this.userData.formatter.id}`
-    );
+    const start = Date.now();
 
     transformedStreams = await Promise.all(
       streams.map((stream: ParsedStream, index: number) =>
@@ -226,6 +225,10 @@ export class StremioTransformer {
           provideStreamData ?? false
         )
       )
+    );
+
+    logger.info(
+      `Transformed ${streams.length} streams using ${this.userData.formatter.id} formatter in ${getTimeTakenSincePoint(start)}`
     );
 
     // add errors to the end (if this.userData.hideErrors is false  or the resource is not in this.userData.hideErrorsForResources)
@@ -240,8 +243,8 @@ export class StremioTransformer {
       );
     }
 
-    if (this.userData.showStatistics) {
-      let position = this.userData.statisticsPosition || 'bottom';
+    if (this.userData.statistics?.enabled) {
+      let position = this.userData.statistics?.position || 'bottom';
       let statisticStreams = statistics.map((statistic) => ({
         name: statistic.title,
         description: statistic.description,
@@ -326,7 +329,9 @@ export class StremioTransformer {
 
     // Create formatter for stream conversion if needed
     let formatter: {
-      format: (stream: ParsedStream) => { name: string; description: string };
+      format: (
+        stream: ParsedStream
+      ) => Promise<{ name: string; description: string }>;
     } | null = null;
     if (
       meta.videos?.some((video) => video.streams && video.streams.length > 0)

@@ -1,6 +1,6 @@
 import winston from 'winston';
 import moment from 'moment-timezone';
-import { Env } from './env';
+import { Env } from './env.js';
 
 // Map log levels to their full names
 const levelMap: { [key: string]: string } = {
@@ -39,6 +39,12 @@ const moduleMap: { [key: string]: string } = {
   gdrive: '☁️  GDRIVE',
   'torbox-search': '🔍  TORBOX SEARCH',
   debrid: '🔗  DEBRID',
+  'distributed-lock': '🔒  DISTRIBUTED LOCK',
+  'anime-database': '🔍  ANIME DATABASE',
+  torznab: '🔍  TORZNAB',
+  newznab: '🔍  NEWZNAB',
+  'metadata-service': '🔍  METADATA',
+  torrent: '👤  TORRENT',
 };
 
 // Define colors for each log level using full names

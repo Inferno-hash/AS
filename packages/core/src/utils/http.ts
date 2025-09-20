@@ -1,9 +1,13 @@
-import { Cache } from './cache';
-import { HEADERS_FOR_IP_FORWARDING, INTERNAL_SECRET_HEADER } from './constants';
-import { Env } from './env';
-import { createLogger, maskSensitiveInfo } from './logger';
+import {
+  Cache,
+  HEADERS_FOR_IP_FORWARDING,
+  INTERNAL_SECRET_HEADER,
+  Env,
+  maskSensitiveInfo,
+} from './index.js';
 import {
   BodyInit,
+  Dispatcher,
   fetch,
   Headers,
   HeadersInit,
@@ -11,6 +15,7 @@ import {
   RequestInit,
 } from 'undici';
 import { socksDispatcher } from 'fetch-socks';
+import { createLogger } from './logger.js';
 
 const logger = createLogger('http');
 const urlCount = Cache.getInstance<string, number>(
@@ -73,7 +78,7 @@ export async function makeRequest(url: string, options: RequestOptions) {
     }
   }
 
-  const useProxy = shouldProxy(urlObj);
+  const { useProxy, proxyIndex } = shouldProxy(urlObj);
   const headers = new Headers(options.headers);
   if (options.forwardIp) {
     for (const header of HEADERS_FOR_IP_FORWARDING) {
@@ -114,7 +119,7 @@ export async function makeRequest(url: string, options: RequestOptions) {
     await urlCount.set(key, 1, Env.RECURSION_THRESHOLD_WINDOW);
   }
   logger.debug(
-    `Making a ${useProxy ? 'proxied' : 'direct'} request to ${makeUrlLogSafe(
+    `Making a ${useProxy ? 'proxied' : 'direct'}${proxyIndex !== -1 ? ` (proxy ${proxyIndex + 1})` : ''} request to ${makeUrlLogSafe(
       urlObj.toString()
     )} with forwarded ip ${maskSensitiveInfo(options.forwardIp ?? 'none')} and headers ${maskSensitiveInfo(JSON.stringify(Object.fromEntries(headers)))}`
   );
@@ -123,59 +128,102 @@ export async function makeRequest(url: string, options: RequestOptions) {
     method: options.method,
     body: options.body,
     headers: headers,
-    dispatcher: useProxy ? getProxyAgent(Env.ADDON_PROXY!) : undefined,
+    dispatcher: useProxy
+      ? getProxyAgent(Env.ADDON_PROXY![proxyIndex])
+      : undefined,
     signal: AbortSignal.timeout(options.timeout),
   });
 
   return response;
 }
 
-function getProxyAgent(proxyUrl: string) {
+const proxyAgents = new Map<string, Dispatcher>();
+function getProxyAgent(proxyUrl: string): Dispatcher | undefined {
   if (!proxyUrl) {
     return undefined;
   }
-  const proxyUrlObj = new URL(proxyUrl);
-  if (proxyUrlObj.protocol === 'socks5:') {
-    return socksDispatcher({
-      type: 5,
-      port: parseInt(proxyUrlObj.port),
-      host: proxyUrlObj.hostname,
-    });
-  } else {
-    return new ProxyAgent(proxyUrl);
+
+  let proxyAgent = proxyAgents.get(proxyUrl);
+
+  if (!proxyAgent) {
+    const proxyUrlObj = new URL(proxyUrl);
+    if (proxyUrlObj.protocol === 'socks5:') {
+      proxyAgent = socksDispatcher({
+        type: 5,
+        port: parseInt(proxyUrlObj.port),
+        host: proxyUrlObj.hostname,
+        userId: proxyUrlObj.username || undefined,
+        password: proxyUrlObj.password || undefined,
+      });
+    } else {
+      proxyAgent = new ProxyAgent(proxyUrl);
+    }
   }
+
+  return proxyAgent;
 }
 
-function shouldProxy(url: URL) {
-  let shouldProxy = false;
+function shouldProxy(url: URL): {
+  useProxy: boolean;
+  proxyIndex: number;
+} {
+  let useProxy = false;
   let hostname = url.hostname;
+  let proxyIndex = -1;
 
-  if (!Env.ADDON_PROXY) {
-    return false;
+  if (!Env.ADDON_PROXY || Env.ADDON_PROXY.length === 0) {
+    return { useProxy: false, proxyIndex };
   }
 
-  shouldProxy = true;
+  if (hostname === 'localhost') {
+    return { useProxy: false, proxyIndex };
+  }
+
+  useProxy = true;
   if (Env.ADDON_PROXY_CONFIG) {
     for (const rule of Env.ADDON_PROXY_CONFIG.split(',')) {
-      const [ruleHostname, ruleShouldProxy] = rule.split(':');
-      if (['true', 'false'].includes(ruleShouldProxy) === false) {
+      const [ruleHostname, ruleProxyIndexOrBool] = rule.split(':');
+      if (
+        ['true', 'false'].includes(ruleProxyIndexOrBool) === false &&
+        isNaN(parseInt(ruleProxyIndexOrBool))
+      ) {
         logger.error(`Invalid proxy config: ${rule}`);
         continue;
       }
       if (ruleHostname === '*') {
-        shouldProxy = !(ruleShouldProxy === 'false');
+        useProxy = !(ruleProxyIndexOrBool === 'false');
+        proxyIndex = Number.isInteger(parseInt(ruleProxyIndexOrBool))
+          ? parseInt(ruleProxyIndexOrBool)
+          : ruleProxyIndexOrBool === 'true'
+            ? 0
+            : -1;
       } else if (ruleHostname.startsWith('*')) {
         if (hostname.endsWith(ruleHostname.slice(1))) {
-          shouldProxy = !(ruleShouldProxy === 'false');
+          useProxy = !(ruleProxyIndexOrBool === 'false');
+          proxyIndex = Number.isInteger(parseInt(ruleProxyIndexOrBool))
+            ? parseInt(ruleProxyIndexOrBool)
+            : ruleProxyIndexOrBool === 'true'
+              ? 0
+              : -1;
         }
       }
       if (hostname === ruleHostname) {
-        shouldProxy = !(ruleShouldProxy === 'false');
+        useProxy = !(ruleProxyIndexOrBool === 'false');
+        proxyIndex = Number.isInteger(parseInt(ruleProxyIndexOrBool))
+          ? parseInt(ruleProxyIndexOrBool)
+          : ruleProxyIndexOrBool === 'true'
+            ? 0
+            : -1;
       }
     }
   }
 
-  return shouldProxy;
+  if (useProxy && Env.ADDON_PROXY[proxyIndex] === undefined) {
+    logger.error(`Invalid proxy index: ${proxyIndex}, does not exist`);
+    return { useProxy: false, proxyIndex: -1 };
+  }
+
+  return { useProxy, proxyIndex };
 }
 
 function domainHasUserAgent(url: URL) {

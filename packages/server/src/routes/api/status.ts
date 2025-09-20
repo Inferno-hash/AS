@@ -8,9 +8,9 @@ import {
 import { StatusResponse } from '@aiostreams/core';
 import { encryptString } from '@aiostreams/core';
 import { FeatureControl } from '@aiostreams/core';
-import { createResponse } from '../../utils/responses';
+import { createResponse } from '../../utils/responses.js';
 
-const router = Router();
+const router: Router = Router();
 
 const statusInfo = async (): Promise<StatusResponse> => {
   const userCount = await UserRepository.getUserCount();

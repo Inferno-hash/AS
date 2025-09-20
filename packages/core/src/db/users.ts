@@ -1,21 +1,19 @@
-// import { UserDataSchema, UserData, DB } from '../db';
-import { UserDataSchema, UserData } from './schemas';
-import { TransactionQueue } from './queue';
-import { DB } from './db';
+import { UserData } from './schemas.js';
+import { TransactionQueue } from './queue.js';
+import { DB } from './db.js';
 import {
   decryptString,
   deriveKey,
   encryptString,
   generateUUID,
   getTextHash,
-  maskSensitiveInfo,
   createLogger,
   constants,
   Env,
   verifyHash,
   validateConfig,
-  formatZodError,
-} from '../utils';
+  applyMigrations,
+} from '../utils/index.js';
 
 const APIError = constants.APIError;
 const logger = createLogger('users');
@@ -46,7 +44,14 @@ export class UserRepository {
       try {
         // don't skip errors, but don't decrypt credentials
         // as we need to store the encrypted version
-        validatedConfig = await validateConfig(config, false, false);
+        validatedConfig = await validateConfig(config, {
+          skipErrorsFromAddonsOrProxies: false,
+          decryptValues: false,
+          // when creating a user, time isnt a concern
+          increasedManifestTimeout: true,
+          // ensure we cache the latest manifest
+          bypassManifestCache: true,
+        });
       } catch (error: any) {
         logger.error(`Invalid config for new user: ${error.message}`);
         return Promise.reject(
@@ -186,7 +191,7 @@ export class UserRepository {
         Env.TRUSTED_UUIDS?.split(',').some((u) => new RegExp(u).test(uuid)) ??
         false;
       logger.info(`Retrieved configuration for user ${uuid}`);
-      return decryptedConfig;
+      return applyMigrations(decryptedConfig);
     } catch (error) {
       logger.error(
         `Error retrieving user ${uuid}: ${error instanceof Error ? error.message : String(error)}`
@@ -229,7 +234,14 @@ export class UserRepository {
           false;
         let validatedConfig: UserData;
         try {
-          validatedConfig = await validateConfig(config, false, false);
+          validatedConfig = await validateConfig(config, {
+            skipErrorsFromAddonsOrProxies: false,
+            decryptValues: false,
+            // when updating a user, time isnt a concern
+            increasedManifestTimeout: true,
+            // ensure we cache the latest manifest
+            bypassManifestCache: true,
+          });
         } catch (error: any) {
           throw new APIError(
             constants.ErrorCode.USER_INVALID_CONFIG,

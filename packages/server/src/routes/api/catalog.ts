@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { createResponse } from '../../utils/responses';
+import { createResponse } from '../../utils/responses.js';
+import { catalogApiRateLimiter } from '../../middlewares/ratelimit.js';
 import {
   createLogger,
   UserData,
@@ -9,8 +10,8 @@ import {
   APIError,
   constants,
 } from '@aiostreams/core';
-import { catalogApiRateLimiter } from '../../middlewares/ratelimit';
-const router = Router();
+
+const router: Router = Router();
 
 const logger = createLogger('server');
 router.use(catalogApiRateLimiter);
@@ -20,7 +21,12 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     let validatedUserData: UserData;
     try {
-      validatedUserData = await validateConfig(userData, false, true);
+      validatedUserData = await validateConfig(userData, {
+        skipErrorsFromAddonsOrProxies: false,
+        decryptValues: true,
+        increasedManifestTimeout: true,
+        bypassManifestCache: true,
+      });
     } catch (error) {
       if (
         error instanceof Error &&

@@ -3,13 +3,12 @@ import {
   createLogger,
   APIError,
   constants,
-  Env,
   decryptString,
   validateConfig,
   Resource,
+  StremioTransformer,
+  UserRepository,
 } from '@aiostreams/core';
-import { UserDataSchema, UserRepository, UserData } from '@aiostreams/core';
-import { StremioTransformer } from '@aiostreams/core';
 
 const logger = createLogger('server');
 
@@ -104,7 +103,10 @@ export const userDataMiddleware = async (
 
     if (resource !== 'configure') {
       try {
-        userData = await validateConfig(userData, true, true);
+        userData = await validateConfig(userData, {
+          skipErrorsFromAddonsOrProxies: true,
+          decryptValues: true,
+        });
       } catch (error: any) {
         if (constants.RESOURCES.includes(resource as Resource)) {
           res.status(200).json(

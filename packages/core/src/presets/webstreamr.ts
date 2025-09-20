@@ -8,11 +8,11 @@ import {
   PresetMinimalMetadata,
   PresetMetadata,
   ParsedFile,
-} from '../db';
-import { Preset, baseOptions } from './preset';
-import { Env, SERVICE_DETAILS } from '../utils';
-import { constants, ServiceId } from '../utils';
-import { FileParser, StreamParser } from '../parser';
+} from '../db/index.js';
+import { Preset, baseOptions } from './preset.js';
+import { Env, SERVICE_DETAILS } from '../utils/index.js';
+import { constants, ServiceId } from '../utils/index.js';
+import { FileParser, StreamParser } from '../parser/index.js';
 
 class WebStreamrStreamParser extends StreamParser {
   protected get indexerEmojis(): string[] {
@@ -118,15 +118,16 @@ export class WebStreamrPreset extends Preset {
 
     const providers = [
       {
-        label: '🌐 Multi (VixSrc)',
+        label: '🌐 Multi (4KHDHub, VixSrc)',
         value: 'multi',
       },
       {
-        label: '🇺🇸 English (PrimeWire, VidSrc, VixSrc, XPrime)',
+        label: '🇺🇸 English (PrimeWire, Soaper, VidSrc, XPrime)',
         value: 'en',
       },
       {
-        label: '🇩🇪 German (KinoGer, MegaKino, MeineCloud, StreamKiste)',
+        label:
+          '🇩🇪 German (Einschalten, KinoGer, MegaKino, MeineCloud, StreamKiste)',
         value: 'de',
       },
       {
@@ -160,7 +161,7 @@ export class WebStreamrPreset extends Preset {
         description: 'Select the providers to use',
         type: 'multi-select',
         options: providers,
-        default: ['en'],
+        default: ['multi', 'en'],
       },
       {
         id: 'includeExternalUrls',

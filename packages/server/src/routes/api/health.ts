@@ -1,12 +1,12 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { createResponse } from '../../utils/responses';
+import { createResponse } from '../../utils/responses.js';
 import {
   APIError,
   constants,
   createLogger,
   UserRepository,
 } from '@aiostreams/core';
-const router = Router();
+const router: Router = Router();
 const logger = createLogger('server');
 
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {

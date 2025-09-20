@@ -1,12 +1,8 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { AIOStreams, AIOStreamResponse, GDriveAddon } from '@aiostreams/core';
-import { stremioStreamRateLimiter } from '../../middlewares/ratelimit';
-import { createLogger } from '@aiostreams/core';
-const router = Router();
+import { createLogger, GDriveAddon } from '@aiostreams/core';
+const router: Router = Router();
 
 const logger = createLogger('server');
-
-router.use(stremioStreamRateLimiter);
 
 router.get(
   '{/:encodedConfig}/manifest.json',
