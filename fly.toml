@@ -2,7 +2,7 @@ app = "APP_NAME"
 primary_region = "bom"
 
 [build]
-  image = "ghcr.io/viren070/aiostreams:latest"
+  image = "ghcr.io/viren070/aiostreams:nightly"
 
 [http_service]
 internal_port = 3_000
