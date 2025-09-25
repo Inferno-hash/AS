@@ -11,7 +11,7 @@ export class ZileanPreset extends TorznabPreset {
       ...baseOptions(
         'Zilean',
         supportedResources,
-        Env.BUILTIN_ZILEAN_TIMEOUT || Env.DEFAULT_TIMEOUT
+        Env.BUILTIN_DEFAULT_ZILEAN_TIMEOUT || Env.DEFAULT_TIMEOUT
       ).filter((option) => option.id !== 'url' && option.id !== 'resources'),
       {
         id: 'url',
@@ -42,10 +42,11 @@ export class ZileanPreset extends TorznabPreset {
       NAME: 'Zilean',
       LOGO: '/assets/zilean_logo.jpg',
       URL: Env.BUILTIN_ZILEAN_URL,
-      TIMEOUT: Env.BUILTIN_ZILEAN_TIMEOUT || Env.DEFAULT_TIMEOUT,
+      TIMEOUT: Env.BUILTIN_DEFAULT_ZILEAN_TIMEOUT || Env.DEFAULT_TIMEOUT,
       USER_AGENT: Env.DEFAULT_USER_AGENT,
       SUPPORTED_SERVICES: StremThruPreset.supportedServices,
-      DESCRIPTION: 'Directly search a Zilean instance.',
+      DESCRIPTION:
+        'An addon to get debrid results from Zilean, a DMM hashlist scraper.',
       OPTIONS: options,
       SUPPORTED_STREAM_TYPES: [constants.DEBRID_STREAM_TYPE],
       SUPPORTED_RESOURCES: supportedResources,

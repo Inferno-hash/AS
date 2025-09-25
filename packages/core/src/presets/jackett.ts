@@ -21,7 +21,7 @@ export class JackettPreset extends TorznabPreset {
         description: 'The timeout for this addon',
         type: 'number',
         required: true,
-        default: Env.BUILTIN_JACKETT_TIMEOUT || Env.DEFAULT_TIMEOUT,
+        default: Env.BUILTIN_DEFAULT_JACKETT_TIMEOUT || Env.DEFAULT_TIMEOUT,
       },
       {
         id: 'services',
@@ -71,10 +71,10 @@ export class JackettPreset extends TorznabPreset {
       NAME: 'Jackett',
       LOGO: 'https://raw.githubusercontent.com/Jackett/Jackett/refs/heads/master/src/Jackett.Common/Content/jacket_medium.png',
       URL: `${Env.INTERNAL_URL}/builtins/torznab`,
-      TIMEOUT: Env.BUILTIN_JACKETT_TIMEOUT || Env.DEFAULT_TIMEOUT,
+      TIMEOUT: Env.BUILTIN_DEFAULT_JACKETT_TIMEOUT || Env.DEFAULT_TIMEOUT,
       USER_AGENT: Env.DEFAULT_USER_AGENT,
       SUPPORTED_SERVICES: StremThruPreset.supportedServices,
-      DESCRIPTION: 'Directly search a Jackett instance.',
+      DESCRIPTION: 'An addon to get debrid results from a Jackett instance.',
       OPTIONS: options,
       SUPPORTED_STREAM_TYPES: [constants.DEBRID_STREAM_TYPE],
       SUPPORTED_RESOURCES: supportedResources,
@@ -104,7 +104,7 @@ export class JackettPreset extends TorznabPreset {
 
     const config = {
       ...this.getBaseConfig(userData, services),
-      url: `${jackettUrl.replace(/\/$/, '')}/api/v2.0/results/all/torznab`,
+      url: `${jackettUrl.replace(/\/$/, '')}/api/v2.0/indexers/all/results/torznab`,
       apiPath: '/api',
       apiKey: jackettApiKey,
       forceQuerySearch: true,

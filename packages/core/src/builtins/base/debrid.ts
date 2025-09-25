@@ -35,6 +35,7 @@ export interface SearchMetadata extends TitleMetadata {
   imdbId?: string | null;
   tmdbId?: number | null;
   tvdbId?: number | null;
+  isAnime?: boolean;
 }
 
 export const BaseDebridConfigSchema = z.object({
@@ -167,25 +168,22 @@ export abstract class BaseDebridAddon<T extends BaseDebridConfig> {
         `Fetching metadata for ${torrentsToDownload.length} torrents`
       );
       const start = Date.now();
-      const limit = pLimit(Env.BUILTIN_GET_TORRENT_CONCURRENCY);
-      const metadataPromises = torrentsToDownload.map((torrent) =>
-        limit(async () => {
-          try {
-            const metadata = await TorrentClient.getMetadata(torrent);
-            if (!metadata) {
-              return torrent.hash ? (torrent as Torrent) : null;
-            }
-            return {
-              ...torrent,
-              hash: metadata.hash,
-              sources: metadata.sources,
-              files: metadata.files,
-            } as Torrent;
-          } catch (error) {
+      const metadataPromises = torrentsToDownload.map(async (torrent) => {
+        try {
+          const metadata = await TorrentClient.getMetadata(torrent);
+          if (!metadata) {
             return torrent.hash ? (torrent as Torrent) : null;
           }
-        })
-      );
+          return {
+            ...torrent,
+            hash: metadata.hash,
+            sources: metadata.sources,
+            files: metadata.files,
+          } as Torrent;
+        } catch (error) {
+          return torrent.hash ? (torrent as Torrent) : null;
+        }
+      });
 
       const enrichedResults = (await Promise.all(metadataPromises)).filter(
         (r): r is Torrent => r !== null
@@ -240,6 +238,54 @@ export abstract class BaseDebridAddon<T extends BaseDebridConfig> {
     return [...resultStreams, ...searchErrors, ...processingErrors];
   }
 
+  protected buildQueries(
+    parsedId: ParsedId,
+    metadata: SearchMetadata,
+    options?: {
+      addYear?: boolean;
+      addSeasonEpisode?: boolean;
+    }
+  ): string[] {
+    const { addYear, addSeasonEpisode } = {
+      addYear: true,
+      addSeasonEpisode: true,
+      ...options,
+    };
+    let queries: string[] = [];
+    if (!metadata.primaryTitle) {
+      return [];
+    }
+    if (parsedId.mediaType === 'movie' || !addSeasonEpisode) {
+      queries.push(
+        `${metadata.primaryTitle}${metadata.year && addYear ? ` ${metadata.year}` : ''}`
+      );
+    } else {
+      if (
+        parsedId.season &&
+        (parsedId.episode ? Number(parsedId.episode) < 100 : true)
+      ) {
+        queries.push(
+          `${metadata.primaryTitle} S${parsedId.season.toString().padStart(2, '0')}`
+        );
+      }
+      if (metadata.absoluteEpisode) {
+        queries.push(
+          `${metadata.primaryTitle} ${metadata.absoluteEpisode.toString().padStart(2, '0')}`
+        );
+      } else if (parsedId.episode && !parsedId.season) {
+        queries.push(
+          `${metadata.primaryTitle} E${parsedId.episode.toString().padStart(2, '0')}`
+        );
+      }
+      if (parsedId.season && parsedId.episode) {
+        queries.push(
+          `${metadata.primaryTitle} S${parsedId.season.toString().padStart(2, '0')}E${parsedId.episode.toString().padStart(2, '0')}`
+        );
+      }
+    }
+    return queries;
+  }
+
   protected abstract _searchTorrents(
     parsedId: ParsedId,
     metadata: SearchMetadata
@@ -265,6 +311,18 @@ export abstract class BaseDebridAddon<T extends BaseDebridConfig> {
       parsedId.season =
         animeEntry.imdb?.fromImdbSeason?.toString() ??
         animeEntry.trakt?.season?.number?.toString();
+      if (
+        animeEntry.imdb?.fromImdbEpisode &&
+        animeEntry.imdb?.fromImdbEpisode !== 1 &&
+        parsedId.episode &&
+        ['malId', 'kitsuId'].includes(parsedId.type)
+      ) {
+        parsedId.episode = (
+          animeEntry.imdb.fromImdbEpisode +
+          Number(parsedId.episode) -
+          1
+        ).toString();
+      }
     }
 
     const metadata = await new MetadataService({
@@ -314,6 +372,7 @@ export abstract class BaseDebridAddon<T extends BaseDebridConfig> {
       imdbId,
       tmdbId: metadata.tmdbId ?? null,
       tvdbId: metadata.tvdbId ?? null,
+      isAnime: animeEntry ? true : false,
     };
 
     this.logger.debug(

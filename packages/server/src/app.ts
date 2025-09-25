@@ -27,6 +27,8 @@ import {
   torznab,
   newznab,
   prowlarr,
+  knaben,
+  torrentGalaxy,
 } from './routes/builtins/index.js';
 import {
   ipMiddleware,
@@ -130,6 +132,8 @@ builtinsRouter.use('/torbox-search', torboxSearch);
 builtinsRouter.use('/torznab', torznab);
 builtinsRouter.use('/newznab', newznab);
 builtinsRouter.use('/prowlarr', prowlarr);
+builtinsRouter.use('/knaben', knaben);
+builtinsRouter.use('/torrent-galaxy', torrentGalaxy);
 app.use('/builtins', builtinsRouter);
 
 app.get(

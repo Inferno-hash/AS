@@ -1,5 +1,9 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { AIOStreams, AIOStreamResponse, TorznabAddon } from '@aiostreams/core';
+import {
+  AIOStreams,
+  AIOStreamResponse,
+  TorrentGalaxyAddon,
+} from '@aiostreams/core';
 import { createLogger } from '@aiostreams/core';
 const router: Router = Router();
 
@@ -14,7 +18,7 @@ router.get(
       : undefined;
 
     try {
-      const manifest = new TorznabAddon(config, req.userIp).getManifest();
+      const manifest = new TorrentGalaxyAddon(config, req.userIp).getManifest();
       res.json(manifest);
     } catch (error) {
       next(error);
@@ -31,7 +35,7 @@ router.get(
     );
 
     try {
-      const addon = new TorznabAddon(config, req.userIp);
+      const addon = new TorrentGalaxyAddon(config, req.userIp);
       const streams = await addon.getStreams(type, id);
       res.json({
         streams: streams,

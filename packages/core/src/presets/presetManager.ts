@@ -61,7 +61,10 @@ import { NewznabPreset } from './newznab.js';
 import { ProwlarrPreset } from './prowlarr.js';
 import { JackettPreset } from './jackett.js';
 import { NZBHydraPreset } from './nzbhydra.js';
-
+import { KnabenPreset } from './knaben.js';
+import { BitmagnetPreset } from './bitmagnet.js';
+import { SootioPreset } from './sootio.js';
+import { TorrentGalaxyPreset } from './torrentGalaxy.js';
 let PRESET_LIST: string[] = [
   'custom',
   'torznab',
@@ -72,8 +75,12 @@ let PRESET_LIST: string[] = [
   'mediafusion',
   'stremthruTorz',
   'stremthruStore',
-  'animetosho',
+  'sootio',
   'zilean',
+  'knaben',
+  'torrent-galaxy',
+  Env.BUILTIN_BITMAGNET_URL ? 'bitmagnet' : '',
+  'animetosho',
   'prowlarr',
   'jackett',
   'nzbhydra',
@@ -264,6 +271,14 @@ export class PresetManager {
         return JackettPreset;
       case 'nzbhydra':
         return NZBHydraPreset;
+      case 'knaben':
+        return KnabenPreset;
+      case 'bitmagnet':
+        return BitmagnetPreset;
+      case 'sootio':
+        return SootioPreset;
+      case 'torrent-galaxy':
+        return TorrentGalaxyPreset;
       default:
         throw new Error(`Preset ${id} not found`);
     }

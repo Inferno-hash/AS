@@ -1,18 +1,28 @@
 import { Option, UserData } from '../db/index.js';
 import { Env, constants } from '../utils/index.js';
-import { baseOptions } from './preset.js';
 import { StremThruPreset } from './stremthru.js';
 import { TorznabPreset } from './torznab.js';
 
-export class AnimeToshoPreset extends TorznabPreset {
+export class KnabenPreset extends TorznabPreset {
   static override get METADATA() {
     const supportedResources = [constants.STREAM_RESOURCE];
     const options: Option[] = [
-      ...baseOptions(
-        'AnimeTosho',
-        supportedResources,
-        Env.BUILTIN_DEFAULT_ANIMETOSHO_TIMEOUT || Env.DEFAULT_TIMEOUT
-      ).filter((option) => option.id !== 'url' && option.id !== 'resources'),
+      {
+        id: 'name',
+        name: 'Name',
+        description: 'What to call this addon',
+        type: 'string',
+        required: true,
+        default: 'Knaben',
+      },
+      {
+        id: 'timeout',
+        name: 'Timeout',
+        description: 'The timeout for this addon',
+        type: 'number',
+        required: true,
+        default: Env.BUILTIN_DEFAULT_KNABEN_TIMEOUT || Env.DEFAULT_TIMEOUT,
+      },
       {
         id: 'services',
         name: 'Services',
@@ -31,15 +41,15 @@ export class AnimeToshoPreset extends TorznabPreset {
     ];
 
     return {
-      ID: 'animetosho',
-      NAME: 'AnimeTosho',
-      LOGO: '/assets/animetosho_logo.png',
-      URL: Env.BUILTIN_ANIMETOSHO_URL,
-      TIMEOUT: Env.BUILTIN_DEFAULT_ANIMETOSHO_TIMEOUT || Env.DEFAULT_TIMEOUT,
+      ID: 'knaben',
+      NAME: 'Knaben',
+      LOGO: '/assets/knaben_logo.png',
+      URL: `${Env.INTERNAL_URL}/builtins/knaben`,
+      TIMEOUT: Env.BUILTIN_DEFAULT_KNABEN_TIMEOUT || Env.DEFAULT_TIMEOUT,
       USER_AGENT: Env.DEFAULT_USER_AGENT,
       SUPPORTED_SERVICES: StremThruPreset.supportedServices,
       DESCRIPTION:
-        'An addon to get debrid results from AnimeTosho which mirrors most results from Nyaa.si and TokyoTosho.',
+        'An addon to get debrid results from Knaben, an indexer proxy for several indexers, including The Pirate Bay, 1337x, RARBG, YTS, Nyaa.si and more.',
       OPTIONS: options,
       SUPPORTED_STREAM_TYPES: [constants.DEBRID_STREAM_TYPE],
       SUPPORTED_RESOURCES: supportedResources,
@@ -52,15 +62,8 @@ export class AnimeToshoPreset extends TorznabPreset {
     services: constants.ServiceId[],
     options: Record<string, any>
   ): string {
-    const animetoshoUrl = this.METADATA.URL;
-
-    const config = {
-      ...this.getBaseConfig(userData, services),
-      url: animetoshoUrl,
-      apiPath: '/api',
-    };
-
-    const configString = this.base64EncodeJSON(config);
-    return `${Env.INTERNAL_URL}/builtins/torznab/${configString}/manifest.json`;
+    return `${Env.INTERNAL_URL}/builtins/knaben/${this.base64EncodeJSON(
+      this.getBaseConfig(userData, services)
+    )}/manifest.json`;
   }
 }

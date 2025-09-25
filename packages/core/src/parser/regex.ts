@@ -59,10 +59,9 @@ export const PARSE_REGEX: PARSE_REGEX = {
     '144p': createRegex('(bd|hd|m)?(144(p|i)?)'),
   },
   qualities: {
-    'BluRay REMUX':
-      /(remux.*blu[\s.\-_]?ray|blu[\s.\-_]?ray.*remux|(bd|br|b|uhd)[\s.\-_]?remux)/i,
+    'BluRay REMUX': createRegex('(bd|br|b|uhd)?remux'),
     BluRay: createRegex(
-      'blu[ .\\-_]?ray|((bd|br|b)[ .\\-_]?(rip|r)?)(?![ .\\-_]?remux)'
+      '(?<!remux.*)(blu[ .\\-_]?ray|((bd|br)[ .\\-_]?rip))(?!.*remux)'
     ),
     'WEB-DL': createRegex('web[ .\\-_]?(dl)?(?![ .\\-_]?(DLRip|cam))'),
     WEBRip: createRegex('web[ .\\-_]?rip'),
@@ -87,6 +86,8 @@ export const PARSE_REGEX: PARSE_REGEX = {
     IMAX: createRegex('imax'),
     AI: createRegex('ai[ .\\-_]?(upscale|enhanced|remaster)?'),
     SDR: createRegex('sdr'),
+    'H-OU': createRegex('h?(alf)?[ .\\-_]?(ou|over[ .\\-_]?under)'),
+    'H-SBS': createRegex('h?(alf)?[ .\\-_]?(sbs|side[ .\\-_]?by[ .\\-_]?side)'),
   },
   audioTags: {
     Atmos: createRegex('atmos'),
@@ -123,8 +124,6 @@ export const PARSE_REGEX: PARSE_REGEX = {
     AV1: createRegex('av1'),
     XviD: createRegex('xvid'),
     DivX: createRegex('divx|dvix'),
-    'H-OU': createRegex('h?(alf)?[ .\\-_]?(ou|over[ .\\-_]?under)'),
-    'H-SBS': createRegex('h?(alf)?[ .\\-_]?(sbs|side[ .\\-_]?by[ .\\-_]?side)'),
   },
   languages: {
     Multi: createLanguageRegex('multi'),

@@ -1,15 +1,17 @@
 import { Torrent, UnprocessedTorrent, DebridFile } from '../debrid/index.js';
 import {
   extractInfoHashFromMagnet,
+  validateInfoHash,
   extractTrackersFromMagnet,
 } from '../builtins/utils/debrid.js';
 import { createLogger } from './logger.js';
 import { Cache } from './cache.js';
 // import { makeRequest } from './http.js';
 import { fetch } from 'undici';
-import parseTorrent from 'parse-torrent';
+import parseTorrent, { Instance } from 'parse-torrent';
 import { Env } from './env.js';
 import { getTimeTakenSincePoint } from './index.js';
+import pLimit from 'p-limit';
 
 const logger = createLogger('torrent');
 
@@ -23,6 +25,15 @@ export class TorrentClient {
   static readonly #metadataCache = Cache.getInstance<string, TorrentMetadata>(
     'torrent-metadata'
   );
+
+  // Track in-progress fetches to avoid duplicate requests
+  static readonly #inProgressFetches = new Map<
+    string,
+    Promise<TorrentMetadata | undefined>
+  >();
+
+  // Limit concurrent requests
+  static readonly #fetchLimit = pLimit(Env.BUILTIN_GET_TORRENT_CONCURRENCY);
 
   private constructor() {}
 
@@ -47,16 +58,50 @@ export class TorrentClient {
     }
 
     // Try to get from cache if we have a download URL
-    if (torrent.downloadUrl) {
-      const cachedMetadata = await this.#metadataCache.get(torrent.downloadUrl);
-      if (cachedMetadata) {
-        return cachedMetadata;
-      }
+
+    const cachedMetadata = await this.#metadataCache.get(torrent.downloadUrl);
+    if (cachedMetadata) {
+      return cachedMetadata;
     }
 
+    // Check if there's already a fetch in progress for this URL
+    const inProgressFetch = this.#inProgressFetches.get(torrent.downloadUrl);
+    if (inProgressFetch) {
+      if (Env.BUILTIN_GET_TORRENT_LAZILY) {
+        return undefined;
+      }
+      return inProgressFetch;
+    }
+
+    const fetchTask = async () => {
+      try {
+        const metadata = await this.#fetchMetadata(torrent);
+        // On success, clean up the in-progress fetch.
+        return metadata;
+      } catch (error: any) {
+        // On failure, log the error and clean up.
+        logger.warn(
+          `Failed to fetch metadata for ${torrent.downloadUrl}: ${error.message}`
+        );
+        return undefined;
+      } finally {
+        this.#inProgressFetches.delete(torrent.downloadUrl!);
+      }
+    };
+
+    // Create a new fetch promise with concurrency limit
+    const fetchPromise = this.#fetchLimit(fetchTask);
+    this.#inProgressFetches.set(torrent.downloadUrl!, fetchPromise);
+
+    if (Env.BUILTIN_GET_TORRENT_LAZILY) {
+      // Queue the fetch but don't wait for it
+      fetchPromise.catch(() => {});
+      return undefined;
+    }
+
+    // Wait for the fetch if not lazy loading
     try {
-      const metadata = await this.#fetchMetadata(torrent);
-      return metadata;
+      return await fetchPromise;
     } catch (error) {
       if (torrent.hash) {
         // If we have a hash but metadata fetch failed, return basic info
@@ -73,89 +118,83 @@ export class TorrentClient {
   static async #fetchMetadata(
     torrent: UnprocessedTorrent
   ): Promise<TorrentMetadata> {
-    if (!torrent.downloadUrl) {
-      throw new Error('Download URL must be provided');
-    }
+    const { downloadUrl } = torrent;
+    if (!downloadUrl) throw new Error('Download URL must be provided.');
 
-    try {
-      const start = Date.now();
-      const response = await fetch(torrent.downloadUrl!, {
-        signal: AbortSignal.timeout(Env.BUILTIN_GET_TORRENT_TIMEOUT),
-        redirect: 'manual',
-      });
+    const timeout = Env.BUILTIN_GET_TORRENT_LAZILY
+      ? 30000
+      : Env.BUILTIN_GET_TORRENT_TIMEOUT;
+    const start = Date.now();
 
-      let metadata: TorrentMetadata;
+    const response = await fetch(downloadUrl, {
+      signal: AbortSignal.timeout(timeout),
+      redirect: 'manual',
+    });
 
-      // Handle redirects
-      if (response.status === 302 || response.status === 301) {
-        const redirectUrl = response.headers.get('Location');
-        if (!redirectUrl) {
-          throw new Error('Redirect location not found');
-        }
+    let metadata: TorrentMetadata;
 
-        const hash = extractInfoHashFromMagnet(redirectUrl);
-        const sources = extractTrackersFromMagnet(redirectUrl);
-        if (!hash) throw new Error('Invalid magnet URL');
+    if (response.status >= 300 && response.status < 400) {
+      const redirectUrl = response.headers.get('Location');
+      if (!redirectUrl) throw new Error('Redirect location not found');
 
-        logger.debug(`Got info from magnet redirect`, {
+      const hash = validateInfoHash(extractInfoHashFromMagnet(redirectUrl));
+      if (!hash) throw new Error('Invalid magnet URL in redirect');
+
+      const sources = extractTrackersFromMagnet(redirectUrl);
+      logger.debug(
+        `Got info for ${downloadUrl} from magnet redirect in ${getTimeTakenSincePoint(start)}`,
+        {
           hash,
-          sources,
-          time: getTimeTakenSincePoint(start),
-        });
-        metadata = {
-          hash,
-          files: [],
-          sources,
-        };
-      } else {
-        if (!response.ok) {
-          throw new Error(
-            `Failed to fetch metadata for torrent: ${response.status} ${response.statusText}`
-          );
         }
+      );
+      metadata = { hash, files: [], sources };
+    } else if (response.ok) {
+      const bytes = await response.arrayBuffer();
 
-        const bytes = await response.arrayBuffer();
-        const parsedTorrent = parseTorrent(new Uint8Array(bytes));
-        const sources = Array.from(
-          new Set([
-            ...(parsedTorrent.announce || []),
-            ...(torrent.sources || []),
-          ])
+      const parsedTorrent = await (parseTorrent(
+        new Uint8Array(bytes)
+      ) as unknown as Promise<Instance>);
+
+      const sources = Array.from(
+        new Set([...(parsedTorrent.announce || []), ...(torrent.sources || [])])
+      );
+
+      if (!validateInfoHash(parsedTorrent.infoHash)) {
+        logger.debug(
+          `No info hash found in torrent: ${JSON.stringify(parsedTorrent)}`
         );
+        metadata = { hash: downloadUrl, files: [], sources };
+        throw new Error('No info hash found in torrent');
+      }
 
-        logger.debug(`Got info from downloaded torrent.`, {
+      logger.debug(
+        `Got info for ${downloadUrl} from downloaded torrent in ${getTimeTakenSincePoint(start)}`,
+        {
           hash: parsedTorrent.infoHash,
-          sources,
-          time: getTimeTakenSincePoint(start),
-        });
-
-        metadata = {
-          hash: parsedTorrent.infoHash,
-          files: (parsedTorrent.files || []).map((file, index) => ({
+        }
+      );
+      metadata = {
+        hash: parsedTorrent.infoHash,
+        files: ('files' in parsedTorrent ? parsedTorrent.files || [] : []).map(
+          (file, index) => ({
             size: file.length,
             id: index,
             name: file.name,
-          })),
-          sources,
-        };
-      }
-
-      // Cache the result
-      if (torrent.downloadUrl) {
-        await this.#metadataCache.set(
-          torrent.downloadUrl,
-          metadata,
-          Env.BUILTIN_TORRENT_METADATA_CACHE_TTL
-        );
-      }
-
-      return metadata;
-    } catch (error) {
-      // if (error instanceof Error && error.name === 'TimeoutError') {
-      //   throw new Error('Timeout fetching metadata for torrent');
-      // }
-      logger.warn(`Failed to get magnet from ${torrent.downloadUrl}: ${error}`);
-      throw error;
+          })
+        ),
+        sources,
+      };
+    } else {
+      throw new Error(
+        `Failed to fetch metadata: ${response.status} ${response.statusText}`
+      );
     }
+
+    await this.#metadataCache.set(
+      downloadUrl,
+      metadata,
+      Env.BUILTIN_TORRENT_METADATA_CACHE_TTL
+    );
+    return metadata;
   }
 }

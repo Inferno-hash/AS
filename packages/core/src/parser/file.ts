@@ -24,7 +24,13 @@ class FileParser {
   static parse(filename: string): ParsedFile {
     const parsed = ptt.parse(filename);
     if (
-      ['vinland'].includes(parsed.title?.toLowerCase() || '') &&
+      ['vinland', 'furiosaamadmax', 'horizonanamerican'].includes(
+        (parsed.title || '')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^\p{L}\p{N}+]/gu, '')
+          .toLowerCase()
+      ) &&
       parsed.complete
     ) {
       parsed.title += ' Saga';

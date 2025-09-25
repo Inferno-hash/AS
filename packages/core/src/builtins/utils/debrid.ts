@@ -14,6 +14,7 @@ import {
   NZB,
   isSeasonWrong,
   isEpisodeWrong,
+  isTitleWrong,
 } from '../../debrid/index.js';
 import { PTT } from '../../parser/index.js';
 import { ParseResult } from 'go-ptt';
@@ -32,6 +33,12 @@ interface Metadata {
   season?: number;
   episode?: number;
   absoluteEpisode?: number;
+}
+
+export function validateInfoHash(
+  infoHash: string | undefined
+): string | undefined {
+  return infoHash && /^[a-f0-9]{40}$/i.test(infoHash) ? infoHash : undefined;
 }
 
 export function extractTrackersFromMagnet(magnet: string): string[] {
@@ -151,6 +158,9 @@ async function processTorrentsForDebridService(
 
     const parsedTorrent = parsedFiles.get(torrent.title ?? '');
     if (metadata && parsedTorrent) {
+      if (isTitleWrong(parsedTorrent, metadata)) {
+        continue;
+      }
       if (isSeasonWrong(parsedTorrent, metadata)) {
         continue;
       }

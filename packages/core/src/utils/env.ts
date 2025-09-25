@@ -1089,7 +1089,7 @@ export const Env = cleanEnv(process.env, {
   }),
 
   DEBRIDIO_TV_URL: url({
-    default: 'https://tv-addon.debridio.com',
+    default: 'https://tv.lb.debridio.com',
     desc: 'Debridio TV URL',
   }),
   DEFAULT_DEBRIDIO_TV_TIMEOUT: num({
@@ -1183,6 +1183,19 @@ export const Env = cleanEnv(process.env, {
   DEFAULT_STREAMFUSION_STREMTHRU_URL: url({
     default: 'https://stremthru.13377001.xyz',
     desc: 'Default StreamFusion StremThru URL',
+  }),
+
+  SOOTIO_URL: urlOrUrlList({
+    default: ['https://sootio.elfhosted.com'],
+    desc: 'Sootio URL',
+  }),
+  DEFAULT_SOOTIO_TIMEOUT: num({
+    default: undefined,
+    desc: 'Default Sootio timeout',
+  }),
+  DEFAULT_SOOTIO_USER_AGENT: userAgent({
+    default: undefined,
+    desc: 'Default Sootio user agent',
   }),
 
   // DMM Cast settings
@@ -1593,6 +1606,10 @@ export const Env = cleanEnv(process.env, {
     default: 100,
     desc: 'Builtin Get Torrent concurrency limit',
   }),
+  BUILTIN_GET_TORRENT_LAZILY: bool({
+    default: true,
+    desc: 'Get the torrent links lazily (in the background). First search will return only the available results while torrent fetches happen in the background.',
+  }),
   BUILTIN_TORRENT_METADATA_CACHE_TTL: num({
     default: 7 * 24 * 60 * 60, // 7 days
     desc: 'Builtin Torrent metadata cache TTL',
@@ -1661,7 +1678,7 @@ export const Env = cleanEnv(process.env, {
     default: 'https://zilean.elfhosted.com',
     desc: 'Builtin Zilean URL',
   }),
-  BUILTIN_ZILEAN_TIMEOUT: num({
+  BUILTIN_DEFAULT_ZILEAN_TIMEOUT: num({
     default: undefined,
     desc: 'Builtin Zilean timeout',
   }),
@@ -1670,9 +1687,18 @@ export const Env = cleanEnv(process.env, {
     default: 'https://feed.animetosho.org',
     desc: 'Builtin AnimeTosho URL',
   }),
-  BUILTIN_ANIMETOSHO_TIMEOUT: num({
+  BUILTIN_DEFAULT_ANIMETOSHO_TIMEOUT: num({
     default: undefined,
     desc: 'Builtin AnimeTosho timeout',
+  }),
+
+  BUILTIN_BITMAGNET_URL: url({
+    default: undefined,
+    desc: 'Builtin Bitmagnet URL',
+  }),
+  BUILTIN_DEFAULT_BITMAGNET_TIMEOUT: num({
+    default: undefined,
+    desc: 'Builtin Bitmagnet timeout',
   }),
 
   BUILTIN_JACKETT_URL: url({
@@ -1683,7 +1709,7 @@ export const Env = cleanEnv(process.env, {
     default: undefined,
     desc: 'Builtin Jackett API Key',
   }),
-  BUILTIN_JACKETT_TIMEOUT: num({
+  BUILTIN_DEFAULT_JACKETT_TIMEOUT: num({
     default: undefined,
     desc: 'Builtin Jackett timeout',
   }),
@@ -1696,7 +1722,7 @@ export const Env = cleanEnv(process.env, {
     default: undefined,
     desc: 'Builtin NZBHydra API Key',
   }),
-  BUILTIN_NZBHYDRA_TIMEOUT: num({
+  BUILTIN_DEFAULT_NZBHYDRA_TIMEOUT: num({
     default: undefined,
     desc: 'Builtin NZBHydra timeout',
   }),
@@ -1713,6 +1739,10 @@ export const Env = cleanEnv(process.env, {
     default: undefined,
     desc: 'Comma separated list of prowlarr indexers to use.',
   }),
+  BUILTIN_DEFAULT_PROWLARR_TIMEOUT: num({
+    default: undefined,
+    desc: 'Default timeout for the builtin Prowlarr addon.',
+  }),
   BUILTIN_PROWLARR_SEARCH_TIMEOUT: num({
     default: 30000, // 30 seconds
     desc: 'Builtin Prowlarr Search timeout',
@@ -1726,6 +1756,39 @@ export const Env = cleanEnv(process.env, {
     desc: 'Builtin Prowlarr Indexers cache TTL',
   }),
 
+  BUILTIN_DEFAULT_KNABEN_TIMEOUT: num({
+    default: undefined,
+    desc: 'Builtin Knaben timeout',
+  }),
+  BUILTIN_KNABEN_SEARCH_TIMEOUT: num({
+    default: 30000, // 30 seconds
+    desc: 'Builtin Knaben Search timeout',
+  }),
+  BUILTIN_KNABEN_SEARCH_CACHE_TTL: num({
+    default: 7 * 24 * 60 * 60, // 7 days
+    desc: 'Builtin Knaben Search cache TTL',
+  }),
+
+  BUILTIN_TORRENT_GALAXY_URL: url({
+    default: 'https://torrentgalaxy.space',
+    desc: 'Builtin Torrent Galaxy URL',
+  }),
+  BUILTIN_DEFAULT_TORRENT_GALAXY_TIMEOUT: num({
+    default: undefined,
+    desc: 'Builtin Torrent Galaxy timeout',
+  }),
+  BUILTIN_TORRENT_GALAXY_SEARCH_TIMEOUT: num({
+    default: 30000, // 30 seconds
+    desc: 'Builtin Torrent Galaxy Search timeout',
+  }),
+  BUILTIN_TORRENT_GALAXY_SEARCH_CACHE_TTL: num({
+    default: 7 * 24 * 60 * 60, // 7 days
+    desc: 'Builtin Torrent Galaxy Search cache TTL',
+  }),
+  BUILTIN_TORRENT_GALAXY_PAGE_LIMIT: num({
+    default: 5,
+    desc: 'The maximum number of pages to fetch.',
+  }),
   // Rate limiting settings
   DISABLE_RATE_LIMITS: bool({
     default: false,
