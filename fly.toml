@@ -1,5 +1,5 @@
 app = "APP_NAME"
-primary_region = "bom"
+primary_region = "sin"
 
 [build]
   image = "ghcr.io/viren070/aiostreams:nightly"
