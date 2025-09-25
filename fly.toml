@@ -7,10 +7,6 @@ primary_region = "sin"
 [http_service]
   internal_port = 3000
 
-[[mounts]]
-  destination = "/app/data"
-  source = "data_volume"
-
 [[vm]]
   size = "shared-cpu-1x"
   memory = "256mb"
