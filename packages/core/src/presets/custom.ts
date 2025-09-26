@@ -1,6 +1,7 @@
 import { Addon, Option, UserData } from '../db/index.js';
 import { Preset, baseOptions } from './preset.js';
 import { Env, RESOURCES } from '../utils/index.js';
+import { constants } from '../utils/index.js';
 
 export class CustomPreset extends Preset {
   static override get METADATA() {
@@ -63,6 +64,7 @@ export class CustomPreset extends Preset {
         constraints: {
           min: Env.MIN_TIMEOUT,
           max: Env.MAX_TIMEOUT,
+          forceInUi: false,
         },
       },
       {
@@ -75,7 +77,7 @@ export class CustomPreset extends Preset {
         showInNoobMode: false,
         default: undefined,
         options: RESOURCES.map((resource) => ({
-          label: resource,
+          label: constants.RESOURCE_LABELS[resource],
           value: resource,
         })),
       },

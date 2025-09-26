@@ -47,12 +47,11 @@ const manifest = async (config?: UserData): Promise<Manifest> => {
         typeof resource === 'string' ? [resource] : resource.types;
       return [...new Set([...types, ...resourceTypes])];
     }, [] as string[]),
-    background:
-      config?.addonBackground ||
-      'https://raw.githubusercontent.com/Viren070/AIOStreams/refs/heads/main/packages/frontend/public/assets/background.png',
     logo:
       config?.addonLogo ||
-      'https://raw.githubusercontent.com/Viren070/AIOStreams/refs/heads/main/packages/frontend/public/assets/logo.png',
+      `https://raw.githubusercontent.com/Viren070/AIOStreams/refs/heads/main/packages/frontend/public/logo${
+        Env.ALTERNATE_DESIGN ? '_alt' : ''
+      }.png`,
     behaviorHints: {
       configurable: true,
       configurationRequired: config ? false : true,

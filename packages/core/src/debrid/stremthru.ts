@@ -68,7 +68,7 @@ export class StremThruInterface implements DebridService {
     const cachedResults: DebridDownload[] = [];
     const magnetsToCheck: string[] = [];
     for (const magnet of magnets) {
-      const cacheKey = getSimpleTextHash(magnet);
+      const cacheKey = `${this.serviceName}:${getSimpleTextHash(magnet)}`;
       const cached = await StremThruInterface.checkCache.get(cacheKey);
       if (cached) {
         cachedResults.push(cached);
@@ -94,6 +94,19 @@ export class StremThruInterface implements DebridService {
               magnet: batch,
               sid,
             });
+
+            if (!result.data) {
+              logger.warn(
+                `StremThru checkMagnets returned no data: ${JSON.stringify(result)}`
+              );
+              throw new DebridError('No data returned from StremThru', {
+                statusCode: result.meta.statusCode,
+                statusText: result.meta.statusText,
+                code: 'UNKNOWN',
+                headers: result.meta.headers,
+                body: result.data,
+              });
+            }
             return result.data.items;
           })
         );
@@ -115,7 +128,7 @@ export class StremThruInterface implements DebridService {
           };
           newResults.push(download);
           StremThruInterface.checkCache.set(
-            getSimpleTextHash(item.hash),
+            `${this.serviceName}:${getSimpleTextHash(item.hash)}`,
             download,
             Env.BUILTIN_DEBRID_INSTANT_AVAILABILITY_CACHE_TTL
           );
