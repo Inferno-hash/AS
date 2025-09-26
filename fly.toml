@@ -14,3 +14,6 @@ source = "data_volume"
 [[vm]]
 memory = "256mb"
 size = "shared-cpu-1x"
+
+[deploy]
+  command = ["node", "--max-old-space-size=128", "packages/server/dist/server"]
