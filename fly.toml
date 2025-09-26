@@ -17,4 +17,4 @@ memory = "256mb"
 size = "shared-cpu-1x"
 
 [processes]
-  app = "node --max-old-space-size=128 packages/server/dist/server"
+app = "node --max-old-space-size=128 packages/server/dist/server"
