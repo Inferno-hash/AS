@@ -2,11 +2,15 @@ app = "APP_NAME"
 primary_region = "sin"
 
 [build]
-  image = "ghcr.io/viren070/aiostreams:latest"
+image = "ghcr.io/viren070/aiostreams:latest"
 
 [http_service]
-  internal_port = 3000
+internal_port = 3_000
+
+[[mounts]]
+destination = "/app/data"
+source = "data_volume"
 
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "256mb"
+memory = "256mb"
+size = "shared-cpu-1x"
