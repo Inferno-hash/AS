@@ -76,6 +76,39 @@ export class ProwlarrPreset extends BuiltinAddonPreset {
           'Optionally provide a comma separated list of tags here to limit the indexers to be used. Only indexers with these tags will be used.',
         type: 'string',
       },
+      {
+        id: 'mediaTypes',
+        name: 'Media Types',
+        description:
+          'Limits this addon to the selected media types for streams. For example, selecting "Movie" means this addon will only be used for movie streams (if the addon supports them). Leave empty to allow all.',
+        type: 'multi-select',
+        required: false,
+        showInNoobMode: false,
+        default: [],
+        options: [
+          {
+            label: 'Movie',
+            value: 'movie',
+          },
+          {
+            label: 'Series',
+            value: 'series',
+          },
+          {
+            label: 'Anime',
+            value: 'anime',
+          },
+        ],
+      },
+      {
+        id: 'useMultipleInstances',
+        name: 'Use Multiple Instances',
+        description:
+          'Prowlarr supports multiple services in one instance of the addon - which is used by default. If this is enabled, then the addon will be created for each service.',
+        type: 'boolean',
+        default: false,
+        showInNoobMode: false,
+      },
     ];
 
     return {
@@ -99,21 +132,23 @@ export class ProwlarrPreset extends BuiltinAddonPreset {
     options: Record<string, any>
   ): Promise<Addon[]> {
     const usableServices = this.getUsableServices(userData, options.services);
-    if (
-      (!usableServices || usableServices.length === 0) &&
-      !options.enableP2P
-    ) {
+    if (!usableServices || usableServices.length === 0) {
       throw new Error(
         `${this.METADATA.NAME} requires at least one usable service, but none were found. Please enable at least one of the following services: ${this.METADATA.SUPPORTED_SERVICES.join(
           ', '
         )}`
       );
     }
+    if (options.useMultipleInstances) {
+      return usableServices.map((service) =>
+        this.generateAddon(userData, options, [service.id])
+      );
+    }
     return [
       this.generateAddon(
         userData,
         options,
-        usableServices?.map((service) => service.id) || []
+        usableServices.map((service) => service.id)
       ),
     ];
   }
@@ -129,6 +164,7 @@ export class ProwlarrPreset extends BuiltinAddonPreset {
       enabled: true,
       library: options.libraryAddon ?? false,
       resources: options.resources || undefined,
+      mediaTypes: options.mediaTypes || [],
       timeout: options.timeout || this.METADATA.TIMEOUT,
       preset: {
         id: '',
@@ -173,7 +209,7 @@ export class ProwlarrPreset extends BuiltinAddonPreset {
       tags: typeof options.tags === 'string' ? options.tags.split(',') : [],
     };
 
-    const configString = this.base64EncodeJSON(config);
+    const configString = this.base64EncodeJSON(config, 'urlSafe');
     return `${this.METADATA.URL}/${configString}/manifest.json`;
   }
 }

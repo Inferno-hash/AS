@@ -28,6 +28,39 @@ export class AnimeToshoPreset extends TorznabPreset {
         default: undefined,
         emptyIsUndefined: true,
       },
+      {
+        id: 'mediaTypes',
+        name: 'Media Types',
+        description:
+          'Limits this addon to the selected media types for streams. For example, selecting "Movie" means this addon will only be used for movie streams (if the addon supports them). Leave empty to allow all.',
+        type: 'multi-select',
+        required: false,
+        showInNoobMode: false,
+        default: [],
+        options: [
+          {
+            label: 'Movie',
+            value: 'movie',
+          },
+          {
+            label: 'Series',
+            value: 'series',
+          },
+          {
+            label: 'Anime',
+            value: 'anime',
+          },
+        ],
+      },
+      {
+        id: 'useMultipleInstances',
+        name: 'Use Multiple Instances',
+        description:
+          'AnimeTosho supports multiple services in one instance of the addon - which is used by default. If this is enabled, then the addon will be created for each service.',
+        type: 'boolean',
+        default: false,
+        showInNoobMode: false,
+      },
     ];
 
     return {
@@ -60,7 +93,7 @@ export class AnimeToshoPreset extends TorznabPreset {
       apiPath: '/api',
     };
 
-    const configString = this.base64EncodeJSON(config);
+    const configString = this.base64EncodeJSON(config, 'urlSafe');
     return `${Env.INTERNAL_URL}/builtins/torznab/${configString}/manifest.json`;
   }
 }

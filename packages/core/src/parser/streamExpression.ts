@@ -48,7 +48,7 @@ export abstract class StreamExpressionEngine {
         trunc: false,
         exp: false,
         length: false,
-        in: false,
+        in: true,
         random: false,
         min: true,
         max: true,
@@ -524,6 +524,9 @@ export abstract class StreamExpressionEngine {
         resolve(result);
       } catch (error) {
         clearTimeout(timeout);
+        if (error instanceof Error) {
+          error.message = `Expression could not be evaluated: ${error.message}`;
+        }
         reject(error);
       }
     });
@@ -604,6 +607,38 @@ export abstract class StreamExpressionEngine {
     };
 
     return { ...defaultStream, ...overrides };
+  }
+}
+
+export class ExitConditionEvaluator extends StreamExpressionEngine {
+  constructor(
+    private totalStreams: ParsedStream[],
+    private totalTimeTaken: number,
+    private queryType: string,
+    private queriedAddons: string[],
+    private allAddons: string[]
+  ) {
+    super();
+    this.parser.consts.totalStreams = this.totalStreams;
+    this.parser.consts.totalTimeTaken = this.totalTimeTaken;
+    this.parser.consts.queryType = this.queryType;
+    this.parser.consts.queriedAddons = this.queriedAddons;
+    this.parser.consts.allAddons = this.allAddons;
+  }
+
+  async evaluate(condition: string) {
+    return await this.evaluateCondition(condition);
+  }
+
+  static async testEvaluate(condition: string) {
+    const parser = new ExitConditionEvaluator(
+      [],
+      200,
+      'movie',
+      ['Test Addon'],
+      ['Test Addon']
+    );
+    return await parser.evaluate(condition);
   }
 }
 

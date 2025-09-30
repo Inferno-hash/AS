@@ -1601,6 +1601,18 @@ export const Env = cleanEnv(process.env, {
     default: 60 * 60, // 1 hour
     desc: 'Builtin Debrid playback link cache TTL',
   }),
+  BUILTIN_SCRAPE_WITH_ALL_TITLES: boolOrList({
+    default: false,
+    desc: 'Whether to use alternative titles during scraping for built-in addons. Set to true, false, or a comma separated list of hostnames',
+  }),
+  BUILTIN_SCRAPE_TITLE_LIMIT: num({
+    default: 3,
+    desc: 'Builtin Scrape title limit',
+  }),
+  BUILTIN_SCRAPE_QUERY_CONCURRENCY: num({
+    default: 5,
+    desc: 'Builtin Scrape query concurrency limit',
+  }),
 
   BUILTIN_GET_TORRENT_TIMEOUT: num({
     default: 5000,
@@ -1798,7 +1810,11 @@ export const Env = cleanEnv(process.env, {
     default: false,
     desc: 'Disable rate limiting',
   }),
-
+  RATE_LIMIT_STORE: str({
+    choices: ['memory', 'redis'],
+    default: 'memory',
+    desc: 'The store to use for rate limiting',
+  }),
   STATIC_RATE_LIMIT_WINDOW: num({
     default: 5, // 1 minute
     desc: 'Time window for static file serving rate limiting in seconds',
