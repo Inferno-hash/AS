@@ -12,5 +12,5 @@ destination = "/app/data"
 source = "data_volume"
 
 [[vm]]
-memory = "256mb"
+memory = "512mb"
 size = "shared-cpu-1x"
