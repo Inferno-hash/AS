@@ -14,9 +14,9 @@ import {
   port,
   EnvMissingError,
 } from 'envalid';
-import { ResourceManager } from './resources.js';
 import * as constants from './constants.js';
 import { randomBytes } from 'crypto';
+import fs from 'fs';
 
 // Get __dirname equivalent in ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -29,7 +29,19 @@ try {
 }
 let metadata: any = undefined;
 try {
-  metadata = ResourceManager.getResource('metadata.json') || {};
+  function getResource(resourceName: string) {
+    const filePath = path.join(
+      __dirname,
+      '../../../../',
+      'resources',
+      resourceName
+    );
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Resource ${resourceName} not found at ${filePath}`);
+    }
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  }
+  metadata = getResource('metadata.json') || {};
 } catch (error) {
   console.error('Error loading metadata.json file', error);
 }
@@ -200,6 +212,24 @@ const readonly = makeValidator((x) => {
   return x;
 });
 
+const proxyAuth = makeValidator((x) => {
+  if (typeof x !== 'string') {
+    throw new EnvError('Proxy auth must be a string');
+  }
+  // comma separated list of username:password
+  const userMap: Map<string, string> = new Map();
+  x.split(',').forEach((x) => {
+    const [username, password] = x.split(':');
+    if (!username || !password) {
+      throw new EnvError(
+        'Proxy auth must be a comma separated list of username:password pairs'
+      );
+    }
+    userMap.set(username, password);
+  });
+  return userMap;
+});
+
 const boolOrList = makeValidator((x) => {
   if (typeof x !== 'string') {
     return undefined;
@@ -347,7 +377,7 @@ export const Env = cleanEnv(process.env, {
     desc: 'Redis URI for the addon',
   }),
   REDIS_TIMEOUT: num({
-    default: 500,
+    default: 5000,
     desc: 'Redis timeout for the addon',
   }),
   ADDON_PROXY: urlOrUrlList({
@@ -601,7 +631,7 @@ export const Env = cleanEnv(process.env, {
   }),
 
   DEFAULT_TIMEOUT: num({
-    default: 10000,
+    default: 7000,
     desc: 'Default timeout for the addon',
   }),
   CATALOG_TIMEOUT: num({
@@ -1589,6 +1619,15 @@ export const Env = cleanEnv(process.env, {
     desc: 'Default AStream user agent',
   }),
 
+  AIOSTREAMS_AUTH: proxyAuth({
+    default: undefined,
+    desc: 'Authorisation credentials for this AIOStreams instance',
+  }),
+  AIOSTREAMS_AUTH_ADMINS: commaSeparated({
+    default: undefined,
+    desc: 'Comma separated list of admin usernames. If not set, all users are admins.',
+  }),
+
   BUILTIN_STREMTHRU_URL: url({
     default: 'https://stremthru.13377001.xyz',
     desc: 'Builtin StremThru URL',
@@ -1600,6 +1639,15 @@ export const Env = cleanEnv(process.env, {
   BUILTIN_DEBRID_PLAYBACK_LINK_CACHE_TTL: num({
     default: 60 * 60, // 1 hour
     desc: 'Builtin Debrid playback link cache TTL',
+  }),
+  BUILTIN_DEBRID_METADATA_STORE: str({
+    choices: ['redis', 'sql', 'memory'],
+    default: undefined,
+    desc: 'Builtin Debrid metadata store',
+  }),
+  BUILTIN_PLAYBACK_LINK_VALIDITY: num({
+    default: 1 * 24 * 60 * 60, // 1 day
+    desc: 'Builtin Debrid playback link validity',
   }),
   BUILTIN_SCRAPE_WITH_ALL_TITLES: boolOrList({
     default: false,

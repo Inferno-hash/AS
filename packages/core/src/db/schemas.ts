@@ -178,7 +178,7 @@ const OptionDefinition = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   description: z.string().min(1),
-  showInNoobMode: z.boolean().optional(),
+  showInSimpleMode: z.boolean().optional(),
   emptyIsUndefined: z.boolean().optional(),
   type: z.enum([
     'string',
@@ -284,11 +284,20 @@ const CatalogModification = z.object({
   addonName: z.string().min(1).optional(), // the name of the addon that provides the catalog
 });
 
+export const CacheAndPlaySchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    streamTypes: z.array(z.enum(['usenet', 'torrent'])).optional(),
+  })
+  .optional();
+
+export type CacheAndPlay = z.infer<typeof CacheAndPlaySchema>;
+
 export const UserDataSchema = z.object({
   uuid: z.string().uuid().optional(),
   encryptedPassword: z.string().min(1).optional(),
   trusted: z.boolean().optional(),
-  addonPassword: z.string().min(1).optional(),
+  addonPassword: z.string().optional(),
   ip: z.union([z.union([z.ipv4(), z.ipv6()])]).optional(),
   addonName: z.string().min(1).max(300).optional(),
   addonLogo: z.string().url().optional(),
@@ -347,6 +356,8 @@ export const UserDataSchema = z.object({
     .tuple([z.number().min(0), z.number().min(0)])
     .optional(),
   seederRangeTypes: z.array(z.enum(['p2p', 'cached', 'uncached'])).optional(),
+  digitalReleaseFilter: z.boolean().optional(),
+  excludeSeasonPacks: z.boolean().optional(),
   excludeCached: z.boolean().optional(),
   excludeCachedFromAddons: z.array(z.string().min(1)).optional(),
   excludeCachedFromServices: z.array(z.string().min(1)).optional(),
@@ -442,6 +453,7 @@ export const UserDataSchema = z.object({
       mode: z.enum(['exact', 'contains']).optional(),
       matchYear: z.boolean().optional(),
       yearTolerance: z.number().min(0).max(100).optional(),
+      similarityThreshold: z.number().min(0).max(1).optional(),
       enabled: z.boolean().optional(),
       requestTypes: z.array(z.string()).optional(),
       addons: z.array(z.string()).optional(),
@@ -462,12 +474,20 @@ export const UserDataSchema = z.object({
       attributes: z.array(z.enum(constants.AUTO_PLAY_ATTRIBUTES)).optional(),
     })
     .optional(),
+  areYouStillThere: z
+    .object({
+      enabled: z.boolean().optional(),
+      episodesBeforeCheck: z.number().min(1).optional(),
+      cooldownMinutes: z.number().min(1).optional(),
+    })
+    .optional(),
   precacheNextEpisode: z.boolean().optional(),
   alwaysPrecache: z.boolean().optional(),
   services: ServiceList.optional(),
   presets: PresetList,
   catalogModifications: z.array(CatalogModification).optional(),
   externalDownloads: z.boolean().optional(),
+  cacheAndPlay: CacheAndPlaySchema.optional(),
 });
 
 export type UserData = z.infer<typeof UserDataSchema>;
@@ -881,27 +901,6 @@ const AIOStreamResponseSchema = z.object({
 });
 export type AIOStreamResponse = z.infer<typeof AIOStreamResponseSchema>;
 
-const PresetMetadataSchema = z.object({
-  ID: z.string(),
-  NAME: z.string(),
-  DISABLED: z
-    .object({
-      reason: z.string(),
-      disabled: z.boolean(),
-    })
-    .optional(),
-  LOGO: z.string().optional(),
-  DESCRIPTION: z.string(),
-  URL: z.string(),
-  TIMEOUT: z.number(),
-  BUILTIN: z.boolean().optional(),
-  USER_AGENT: z.string(),
-  SUPPORTED_SERVICES: z.array(z.string()),
-  OPTIONS: z.array(OptionDefinition),
-  SUPPORTED_STREAM_TYPES: z.array(StreamTypes),
-  SUPPORTED_RESOURCES: z.array(ResourceSchema),
-});
-
 const PresetMinimalMetadataSchema = z.object({
   ID: z.string(),
   NAME: z.string(),
@@ -919,6 +918,11 @@ const PresetMinimalMetadataSchema = z.object({
   SUPPORTED_SERVICES: z.array(z.string()),
   OPTIONS: z.array(OptionDefinition),
   BUILTIN: z.boolean().optional(),
+});
+
+const PresetMetadataSchema = PresetMinimalMetadataSchema.extend({
+  TIMEOUT: z.number(),
+  USER_AGENT: z.string(),
 });
 
 const StatusResponseSchema = z.object({
@@ -991,3 +995,32 @@ export const RPDBIsValidResponse = z.object({
   valid: z.boolean(),
 });
 export type RPDBIsValidResponse = z.infer<typeof RPDBIsValidResponse>;
+
+export const TemplateSchema = z.object({
+  metadata: z.object({
+    id: z
+      .string()
+      .min(1)
+      .max(100)
+      .optional()
+      .transform((val) => val ?? crypto.randomUUID()),
+    name: z.string().min(1).max(100), // name of the template
+    description: z.string().min(1).max(1000), // description of the template
+    author: z.string().min(1).max(20), // author of the template
+    source: z
+      .enum(['builtin', 'custom', 'external'])
+      .optional()
+      .default('builtin'),
+    version: z
+      .stringFormat('semver', /^[0-9]+\.[0-9]+\.[0-9]+$/)
+      .optional()
+      .default('1.0.0'),
+    category: z.string().min(1).max(20), // category of the template
+    services: z.array(ServiceIds).optional(),
+    serviceRequired: z.boolean().optional(), // whether a service is required for this template or not.
+    setToSaveInstallMenu: z.boolean().optional().default(true), // whether to set the menu to save-install after importing the template
+  }),
+  config: UserDataSchema, // config of the template
+});
+
+export type Template = z.infer<typeof TemplateSchema>;

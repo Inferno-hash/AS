@@ -5,6 +5,7 @@ import {
   createLogger,
   getSimpleTextHash,
   Cache,
+  DistributedLock,
 } from '../utils/index.js';
 import { selectFileInTorrentOrNZB, Torrent } from './utils.js';
 import {
@@ -17,6 +18,7 @@ import {
 import { StremThruServiceId } from '../presets/stremthru.js';
 import { PTT } from '../parser/index.js';
 import { ParseResult } from 'go-ptt';
+import assert from 'assert';
 
 const logger = createLogger('debrid:stremthru');
 
@@ -61,6 +63,11 @@ export class StremThruInterface implements DebridService {
     });
   }
 
+  public async listMagnets(): Promise<DebridDownload[]> {
+    const result = await this.stremthru.store.listMagnets({});
+    return result.data.items;
+  }
+
   public async checkMagnets(
     magnets: string[],
     sid?: string
@@ -95,44 +102,43 @@ export class StremThruInterface implements DebridService {
               sid,
             });
 
-            if (!result.data) {
-              logger.warn(
-                `StremThru checkMagnets returned no data: ${JSON.stringify(result)}`
-              );
-              throw new DebridError('No data returned from StremThru', {
-                statusCode: result.meta.statusCode,
-                statusText: result.meta.statusText,
-                code: 'UNKNOWN',
-                headers: result.meta.headers,
-                body: result.data,
-              });
-            }
+            assert.ok(
+              result?.data,
+              `StremThru checkMagnets returned no data: ${JSON.stringify(result)}`
+            );
+
             return result.data.items;
           })
         );
 
-        // Flatten all items from all batches
         const allItems = batchResults.flat();
 
-        for (const item of allItems) {
-          const download: DebridDownload = {
-            id: -1,
-            hash: item.hash,
-            status: item.status,
-            size: item.files.reduce((acc, file) => acc + file.size, 0),
-            files: item.files.map((file) => ({
-              name: file.name,
-              size: file.size,
-              index: file.index,
-            })),
-          };
-          newResults.push(download);
-          StremThruInterface.checkCache.set(
-            `${this.serviceName}:${getSimpleTextHash(item.hash)}`,
-            download,
-            Env.BUILTIN_DEBRID_INSTANT_AVAILABILITY_CACHE_TTL
-          );
-        }
+        newResults = allItems.map((item) => ({
+          id: -1,
+          hash: item.hash,
+          status: item.status,
+          size: item.files.reduce((acc, file) => acc + file.size, 0),
+          files: item.files.map((file) => ({
+            name: file.name,
+            size: file.size,
+            index: file.index,
+          })),
+        }));
+
+        newResults.forEach((item) => {
+          StremThruInterface.checkCache
+            .set(
+              `${this.serviceName}:${getSimpleTextHash(item.hash!)}`,
+              item,
+              Env.BUILTIN_DEBRID_INSTANT_AVAILABILITY_CACHE_TTL
+            )
+            .catch((err) => {
+              logger.error(
+                `Failed to cache item ${item.hash} in the background:`,
+                err
+              );
+            });
+        });
       } catch (error) {
         if (error instanceof StremThruError) {
           throw convertStremThruError(error);
@@ -149,6 +155,10 @@ export class StremThruInterface implements DebridService {
       const result = await this.stremthru.store.addMagnet({
         magnet,
       });
+      assert.ok(
+        result?.data,
+        `Missing data from StremThru addMagnet: ${JSON.stringify(result)}`
+      );
 
       return {
         id: result.data.id,
@@ -179,6 +189,10 @@ export class StremThruInterface implements DebridService {
         link,
         clientIp,
       });
+      assert.ok(
+        result?.data,
+        `Missing data from StremThru generateTorrentLink: ${JSON.stringify(result)}`
+      );
       return result.data.link;
     } catch (error) {
       throw error instanceof StremThruError
@@ -189,7 +203,24 @@ export class StremThruInterface implements DebridService {
 
   public async resolve(
     playbackInfo: PlaybackInfo,
-    filename: string
+    filename: string,
+    cacheAndPlay: boolean
+  ): Promise<string | undefined> {
+    const { result } = await DistributedLock.getInstance().withLock(
+      `stremthru:resolve:${playbackInfo.hash}:${playbackInfo.metadata?.season}:${playbackInfo.metadata?.episode}:${playbackInfo.metadata?.absoluteEpisode}:${filename}:${cacheAndPlay}:${this.config.clientIp}:${this.config.serviceName}:${this.config.token}`,
+      () => this._resolve(playbackInfo, filename, cacheAndPlay),
+      {
+        timeout: playbackInfo.cacheAndPlay ? 120000 : 30000,
+        ttl: 10000,
+      }
+    );
+    return result;
+  }
+
+  private async _resolve(
+    playbackInfo: PlaybackInfo,
+    filename: string,
+    cacheAndPlay: boolean
   ): Promise<string | undefined> {
     if (playbackInfo.type === 'usenet') {
       throw new DebridError('StremThru does not support usenet operations', {
@@ -201,7 +232,7 @@ export class StremThruInterface implements DebridService {
       });
     }
 
-    const { hash, file: chosenFile, metadata } = playbackInfo;
+    const { hash, metadata } = playbackInfo;
     const cacheKey = `${this.serviceName}:${this.config.token}:${this.config.clientIp}:${playbackInfo.hash}:${playbackInfo.metadata?.season}:${playbackInfo.metadata?.episode}:${playbackInfo.metadata?.absoluteEpisode}`;
     const cachedLink = await StremThruInterface.playbackLinkCache.get(cacheKey);
 
@@ -212,12 +243,18 @@ export class StremThruInterface implements DebridService {
 
     if (cachedLink !== undefined) {
       logger.debug(`Using cached link for ${hash}`);
-      return cachedLink ?? undefined;
+      if (cachedLink === null) {
+        if (!cacheAndPlay) {
+          return undefined;
+        }
+      } else {
+        return cachedLink;
+      }
     }
 
     logger.debug(`Adding magnet to ${this.serviceName} for ${magnet}`);
 
-    const magnetDownload = await this.addMagnet(magnet);
+    let magnetDownload = await this.addMagnet(magnet);
 
     logger.debug(`Magnet download added for ${magnet}`, {
       status: magnetDownload.status,
@@ -227,7 +264,32 @@ export class StremThruInterface implements DebridService {
     if (magnetDownload.status !== 'downloaded') {
       // temporarily cache the null value for 1m
       StremThruInterface.playbackLinkCache.set(cacheKey, null, 60);
-      return undefined;
+      if (!cacheAndPlay) {
+        return undefined;
+      }
+      // poll status when cacheAndPlay is true, max wait time is 110s
+      for (let i = 0; i < 10; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 11000));
+        const list = await this.listMagnets();
+        const magnetDownloadInList = list.find(
+          (magnet) => magnet.hash === hash
+        );
+        if (!magnetDownloadInList) {
+          logger.warn(`Failed to find ${hash} in list`);
+        } else {
+          logger.debug(`Polled status for ${hash}`, {
+            attempt: i + 1,
+            status: magnetDownloadInList.status,
+          });
+          if (magnetDownloadInList.status === 'downloaded') {
+            magnetDownload = magnetDownloadInList;
+            break;
+          }
+        }
+      }
+      if (magnetDownload.status !== 'downloaded') {
+        return undefined;
+      }
     }
 
     if (!magnetDownload.files?.length) {
@@ -241,7 +303,7 @@ export class StremThruInterface implements DebridService {
     }
 
     const torrent: Torrent = {
-      title: magnetDownload.name || playbackInfo.title || '',
+      title: magnetDownload.name || '',
       hash: hash,
       size: magnetDownload.size || 0,
       type: 'torrent',
@@ -265,15 +327,15 @@ export class StremThruInterface implements DebridService {
       parsedFiles,
       metadata,
       {
-        chosenFilename: chosenFile?.name,
-        chosenIndex: chosenFile?.index,
+        chosenFilename: playbackInfo.filename,
+        chosenIndex: playbackInfo.index,
       }
     );
 
     if (!file?.link) {
-      throw new DebridError('No matching file found', {
+      throw new DebridError('Selected file was missing a link', {
         statusCode: 400,
-        statusText: 'No matching file found',
+        statusText: 'Selected file was missing a link',
         code: 'NO_MATCHING_FILE',
         headers: {},
         body: file,

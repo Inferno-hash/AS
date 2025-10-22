@@ -39,8 +39,16 @@ export class NewznabPreset extends BuiltinAddonPreset {
         default: '/api',
       },
       {
+        id: 'proxyAuth',
+        name: 'AIOStreams Proxy Auth',
+        description:
+          'If you want to proxy the NZBs through AIOStreams, provide a username:password pair from the `AIOSTREAMS_AUTH` environment variable.',
+        type: 'password',
+        required: false,
+      },
+      {
         id: 'timeout',
-        name: 'Timeout',
+        name: 'Timeout (ms)',
         description: 'The timeout for this addon',
         type: 'number',
         default: Env.DEFAULT_TIMEOUT,
@@ -49,6 +57,30 @@ export class NewznabPreset extends BuiltinAddonPreset {
           max: Env.MAX_TIMEOUT,
           forceInUi: false,
         },
+      },
+      {
+        id: 'mediaTypes',
+        name: 'Media Types',
+        description:
+          'Limits this addon to the selected media types for streams. For example, selecting "Movie" means this addon will only be used for movie streams (if the addon supports them). Leave empty to allow all.',
+        type: 'multi-select',
+        required: false,
+        showInSimpleMode: false,
+        default: [],
+        options: [
+          {
+            label: 'Movie',
+            value: 'movie',
+          },
+          {
+            label: 'Series',
+            value: 'series',
+          },
+          {
+            label: 'Anime',
+            value: 'anime',
+          },
+        ],
       },
       {
         id: 'forceQuerySearch',
@@ -108,6 +140,7 @@ export class NewznabPreset extends BuiltinAddonPreset {
       enabled: true,
       library: options.libraryAddon ?? false,
       resources: options.resources || undefined,
+      mediaTypes: options.mediaTypes || [],
       timeout: options.timeout || this.METADATA.TIMEOUT,
       preset: {
         id: '',
@@ -134,6 +167,7 @@ export class NewznabPreset extends BuiltinAddonPreset {
       url: options.newznabUrl,
       apiPath: options.apiPath,
       apiKey: options.apiKey,
+      proxyAuth: options.proxyAuth,
       forceQuerySearch: options.forceQuerySearch ?? false,
     };
 

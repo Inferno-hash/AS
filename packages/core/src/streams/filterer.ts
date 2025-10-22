@@ -19,6 +19,7 @@ import { titleMatch } from '../parser/utils.js';
 import { partial_ratio } from 'fuzzball';
 import { calculateAbsoluteEpisode } from '../builtins/utils/general.js';
 import { formatBytes } from '../formatters/utils.js';
+import { ReleaseDate, TMDBMetadata } from '../metadata/tmdb.js';
 
 const logger = createLogger('filterer');
 
@@ -32,6 +33,8 @@ export interface FilterStatistics {
     titleMatching: Reason;
     yearMatching: Reason;
     seasonEpisodeMatching: Reason;
+    excludeSeasonPacks: Reason;
+    noDigitalRelease: Reason;
     excludedStreamType: Reason;
     requiredStreamType: Reason;
     excludedResolution: Reason;
@@ -89,6 +92,8 @@ class StreamFilterer {
         titleMatching: { total: 0, details: {} },
         yearMatching: { total: 0, details: {} },
         seasonEpisodeMatching: { total: 0, details: {} },
+        excludeSeasonPacks: { total: 0, details: {} },
+        noDigitalRelease: { total: 0, details: {} },
         excludedStreamType: { total: 0, details: {} },
         requiredStreamType: { total: 0, details: {} },
         excludedResolution: { total: 0, details: {} },
@@ -162,6 +167,38 @@ class StreamFilterer {
     return this.filterStatistics;
   }
 
+  private generateFilterSummary(
+    streams: ParsedStream[],
+    finalStreams: ParsedStream[],
+    start: number
+  ): void {
+    const totalFiltered = streams.length - finalStreams.length;
+    const summary = [
+      '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      `  🔍 Filter Summary`,
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      `  📊 Total Streams : ${streams.length}`,
+      `  ✔️ Kept         : ${finalStreams.length}`,
+      `  ❌ Filtered     : ${totalFiltered}`,
+    ];
+
+    // Add filter details if any streams were filtered
+    const { filterDetails, includedDetails } = this.getFormattedFilterDetails();
+
+    if (filterDetails.length > 0) {
+      summary.push('\n  🔎 Filter Details:');
+      summary.push(...filterDetails);
+    }
+    if (includedDetails.length > 0) {
+      summary.push('\n  🔎 Included Details:');
+      summary.push(...includedDetails);
+    }
+    summary.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    logger.info(summary.join('\n'));
+
+    logger.info(`Applied filters in ${getTimeTakenSincePoint(start)}`);
+  }
+
   public getFormattedFilterDetails(): {
     filterDetails: string[];
     includedDetails: string[];
@@ -225,8 +262,10 @@ class StreamFilterer {
       | undefined;
     let yearWithinTitle: string | undefined;
     let yearWithinTitleRegex: RegExp | undefined;
+    let releaseDates: ReleaseDate[] | undefined;
     if (
       (this.userData.titleMatching?.enabled ||
+        (this.userData.digitalReleaseFilter && type === 'movie') ||
         this.userData.yearMatching?.enabled ||
         this.userData.seasonEpisodeMatching?.enabled) &&
       constants.TYPES.includes(type as any)
@@ -291,6 +330,23 @@ class StreamFilterer {
           requestedMetadata.absoluteEpisode = absoluteEpisode;
         }
 
+        if (
+          this.userData.digitalReleaseFilter &&
+          requestedMetadata.tmdbId &&
+          type === 'movie'
+        ) {
+          try {
+            releaseDates = await new TMDBMetadata({
+              accessToken: this.userData.tmdbAccessToken,
+              apiKey: this.userData.tmdbApiKey,
+            }).getReleaseDates(requestedMetadata.tmdbId);
+          } catch (error) {
+            logger.warn(
+              `Error fetching release dates for ${id} (tmdb: ${requestedMetadata.tmdbId}): ${error}`
+            );
+          }
+        }
+
         yearWithinTitle = requestedMetadata.title.match(
           /\b(19\d{2}|20[012]\d{1})\b/
         )?.[0];
@@ -313,9 +369,87 @@ class StreamFilterer {
         .toLowerCase();
     };
 
+    const applyDigitalReleaseFilter = () => {
+      logger.debug(`Applying digital release filter for ${id}`, {
+        releaseDate: requestedMetadata?.releaseDate,
+        type,
+        tmdbId: requestedMetadata?.tmdbId,
+        digitalReleaseFilter: this.userData.digitalReleaseFilter,
+        releaseDates: releaseDates?.length,
+      });
+      if (!this.userData.digitalReleaseFilter) {
+        return true;
+      }
+
+      if (type !== 'movie') {
+        // only appply digital release filter to movies
+        return true;
+      }
+
+      if (!requestedMetadata?.releaseDate) {
+        // if no release date is present, keep due to lack of data
+        return true;
+      }
+
+      const releaseDate = new Date(requestedMetadata.releaseDate);
+      if (isNaN(releaseDate.getTime())) {
+        // if the release date is invalid, keep due to lack of data
+        return true;
+      }
+      const today = new Date();
+
+      const daysSinceRelease = Math.floor(
+        (today.getTime() - releaseDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      if (daysSinceRelease < 0) {
+        // a movie released in the future is not digitaly released yet.
+        logger.debug(
+          `Filtering out all results as movie is not digitally released yet`,
+          {
+            title: requestedMetadata?.title,
+            daysSinceRelease,
+          }
+        );
+        return false;
+      }
+
+      if (daysSinceRelease > 365) {
+        // a movie released more than a year ago is likely to have a digital release.
+        return true;
+      }
+
+      if (!releaseDates || releaseDates.length === 0) {
+        // if release dates couldn't be fetched for a recent movie, keep due to lack of data
+        return true;
+      }
+
+      // check if at least one of the release dates is in the past and return true if so
+      const hasDigitalRelease = releaseDates.some(
+        (releaseDate) =>
+          releaseDate.type >= 4 &&
+          releaseDate.type <= 6 &&
+          new Date(releaseDate.release_date) <= today
+      );
+
+      if (hasDigitalRelease) {
+        return true;
+      }
+
+      logger.debug(
+        `Filtering out all results as no digital release was found`,
+        {
+          title: requestedMetadata?.title,
+          daysSinceRelease,
+        }
+      );
+      return false;
+    };
+
     const performTitleMatch = (stream: ParsedStream) => {
       const titleMatchingOptions = {
         mode: 'exact',
+        similarityThreshold: 0.85,
         ...(this.userData.titleMatching ?? {}),
       };
       if (!titleMatchingOptions || !titleMatchingOptions.enabled) {
@@ -364,7 +498,7 @@ class StreamFilterer {
           normaliseTitle(streamTitle),
           requestedMetadata.titles.map(normaliseTitle),
           {
-            threshold: 0.85,
+            threshold: titleMatchingOptions.similarityThreshold,
           }
         );
       } else {
@@ -372,7 +506,7 @@ class StreamFilterer {
           normaliseTitle(streamTitle),
           requestedMetadata.titles.map(normaliseTitle),
           {
-            threshold: 0.85,
+            threshold: titleMatchingOptions.similarityThreshold,
             scorer: partial_ratio,
           }
         );
@@ -517,6 +651,14 @@ class StreamFilterer {
         return true;
       }
 
+      // if the requested content is a movie and season/episode is present, filter out
+      if (
+        type === 'movie' &&
+        (stream.parsedFile?.season || stream.parsedFile?.episode)
+      ) {
+        return false;
+      }
+
       // is requested season present
       if (
         requestedSeason &&
@@ -552,6 +694,19 @@ class StreamFilterer {
 
       return true;
     };
+
+    // Early digital release filter check - if it returns false, filter out all streams
+    if (!applyDigitalReleaseFilter()) {
+      // Set the count to total streams since ALL streams are filtered out
+      this.filterStatistics.removed.noDigitalRelease.total = streams.length;
+      this.filterStatistics.removed.noDigitalRelease.details[
+        'No digital release available'
+      ] = streams.length;
+
+      const finalStreams: ParsedStream[] = [];
+      this.generateFilterSummary(streams, finalStreams, start);
+      return finalStreams;
+    }
 
     const excludedRegexPatterns =
       isRegexAllowed &&
@@ -889,7 +1044,7 @@ class StreamFilterer {
 
       if (
         includedSeederRange &&
-        (!this.userData.seederRangeTypes ||
+        (!this.userData.seederRangeTypes?.length ||
           (typeForSeederRange &&
             this.userData.seederRangeTypes.includes(typeForSeederRange)))
       ) {
@@ -1168,6 +1323,18 @@ class StreamFilterer {
       }
 
       if (
+        this.userData.excludeSeasonPacks &&
+        stream.parsedFile?.season &&
+        !stream.parsedFile?.episode
+      ) {
+        this.incrementRemovalReason(
+          'excludeSeasonPacks',
+          `${stream.parsedFile.title} - ${stream.parsedFile.season}`
+        );
+        return false;
+      }
+
+      if (
         excludedRegexPatterns &&
         (await testRegexes(stream, excludedRegexPatterns))
       ) {
@@ -1201,7 +1368,7 @@ class StreamFilterer {
 
       if (
         requiredSeederRange &&
-        (!this.userData.seederRangeTypes ||
+        (!this.userData.seederRangeTypes?.length ||
           (typeForSeederRange &&
             this.userData.seederRangeTypes.includes(typeForSeederRange)))
       ) {
@@ -1230,7 +1397,7 @@ class StreamFilterer {
 
       if (
         excludedSeederRange &&
-        (!this.userData.seederRangeTypes ||
+        (!this.userData.seederRangeTypes?.length ||
           (typeForSeederRange &&
             this.userData.seederRangeTypes.includes(typeForSeederRange)))
       ) {
@@ -1344,33 +1511,8 @@ class StreamFilterer {
       ...filteredStreams,
     ]);
 
-    // L// filter summary
-    const totalFiltered = streams.length - finalStreams.length;
-
-    const summary = [
-      '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-      `  🔍 Filter Summary`,
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-      `  📊 Total Streams : ${streams.length}`,
-      `  ✔️ Kept         : ${finalStreams.length}`,
-      `  ❌ Filtered     : ${totalFiltered}`,
-    ];
-
-    // Add filter details if any streams were filtered
-    const { filterDetails, includedDetails } = this.getFormattedFilterDetails();
-
-    if (filterDetails.length > 0) {
-      summary.push('\n  🔎 Filter Details:');
-      summary.push(...filterDetails);
-    }
-    if (includedDetails.length > 0) {
-      summary.push('\n  🔎 Included Details:');
-      summary.push(...includedDetails);
-    }
-    summary.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    logger.info(summary.join('\n'));
-
-    logger.info(`Applied filters in ${getTimeTakenSincePoint(start)}`);
+    // Generate filter summary
+    this.generateFilterSummary(streams, finalStreams, start);
     return finalStreams;
   }
 

@@ -6,6 +6,7 @@ import {
   Option,
   StreamProxyConfig,
   Group,
+  PresetMetadata,
 } from '../db/schemas.js';
 import { AIOStreams } from '../main.js';
 import { Preset, PresetManager } from '../presets/index.js';
@@ -22,7 +23,7 @@ import {
   compileRegex,
   constants,
 } from './index.js';
-import { ZodError } from 'zod';
+import { z, ZodError } from 'zod';
 import {
   ExitConditionEvaluator,
   GroupConditionEvaluator,
@@ -34,19 +35,7 @@ import { TVDBMetadata } from '../metadata/tvdb.js';
 const logger = createLogger('core');
 
 export const formatZodError = (error: ZodError) => {
-  let errs = [];
-  for (const issue of error.issues) {
-    errs.push(
-      `Invalid value for ${issue.path.join('.')}: ${issue.message}${
-        (issue as any).unionErrors
-          ? `. Union checks performed:\n${(issue as any).unionErrors
-              .map((issue: any) => `- ${formatZodError(issue)}`)
-              .join('\n')}`
-          : ''
-      }`
-    );
-  }
-  return errs.join(' | ');
+  return z.prettifyError(error);
 };
 
 function getServiceCredentialDefault(
@@ -700,9 +689,16 @@ function validateService(
 }
 
 function validatePreset(preset: PresetObject) {
-  const presetMeta = PresetManager.fromId(preset.type).METADATA;
+  const presetMeta = PresetManager.fromId(preset.type)
+    .METADATA as PresetMetadata;
 
   const optionMetas = presetMeta.OPTIONS;
+
+  if (presetMeta.DISABLED) {
+    throw new Error(
+      `Addon '${presetMeta.NAME}' is disabled: ${presetMeta.DISABLED.reason}`
+    );
+  }
 
   for (const optionMeta of optionMetas) {
     const optionValue = preset.options[optionMeta.id];
@@ -901,6 +897,9 @@ async function validateProxy(
   if (proxy.enabled) {
     if (!proxy.id) {
       throw new Error('Proxy ID is required');
+    }
+    if (proxy.id === constants.BUILTIN_SERVICE) {
+      proxy.url = Env.BASE_URL;
     }
     if (!proxy.url) {
       throw new Error('Proxy URL is required');

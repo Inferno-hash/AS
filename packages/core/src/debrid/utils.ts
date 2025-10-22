@@ -7,14 +7,18 @@ import {
   Cache,
   getSimpleTextHash,
   encryptString,
+  toUrlSafeBase64,
 } from '../utils/index.js';
 import {
   DebridFile,
   DebridDownload,
   PlaybackInfo,
   ServiceAuth,
+  FileInfo,
+  TitleMetadata,
 } from './base.js';
 import { normaliseTitle, titleMatch } from '../parser/utils.js';
+import { partial_ratio } from 'fuzzball';
 
 const logger = createLogger('debrid');
 
@@ -28,6 +32,7 @@ export const BuiltinDebridServices = z.array(
 export type BuiltinDebridServices = z.infer<typeof BuiltinDebridServices>;
 
 interface BaseFile {
+  confirmed?: boolean; // whether the file has been confirmed to be the correct file for the media
   title?: string;
   size: number;
   index?: number;
@@ -127,7 +132,7 @@ export const isTitleWrong = (
     !titleMatch(
       normaliseTitle(parsed.title),
       metadata.titles.map(normaliseTitle),
-      { threshold: 0.8 }
+      { threshold: 0.8, scorer: partial_ratio }
     )
   ) {
     return true;
@@ -144,11 +149,13 @@ export async function selectFileInTorrentOrNZB(
       title?: string;
       seasons?: number[];
       episodes?: number[];
+      year?: string;
     }
   >,
 
   metadata?: {
     titles: string[];
+    year?: number;
     season?: number;
     episode?: number;
     absoluteEpisode?: number;
@@ -182,12 +189,32 @@ export async function selectFileInTorrentOrNZB(
       score += 1000;
     }
 
+    if (
+      !(metadata?.season && metadata?.episode && metadata?.absoluteEpisode) &&
+      metadata?.year &&
+      parsed?.year
+    ) {
+      if (metadata.year === Number(parsed.year)) {
+        score += 500;
+      }
+    }
+
     // Season/Episode matching (second highest priority)
     if (parsed && !isSeasonWrong(parsed, metadata)) {
       score += 500;
     }
+    if (!parsed?.seasons?.length && metadata?.season) {
+      score -= 500;
+    }
+
     if (parsed && !isEpisodeWrong(parsed, metadata)) {
       score += 500;
+    }
+    if (
+      !parsed?.episodes?.length &&
+      (metadata?.episode || metadata?.absoluteEpisode)
+    ) {
+      score -= 500;
     }
 
     // Title matching (third priority)
@@ -214,7 +241,7 @@ export async function selectFileInTorrentOrNZB(
     }
     return {
       file,
-      score,
+      score: Math.max(score, 0),
       index,
     };
   });
@@ -257,7 +284,6 @@ export async function selectFileInTorrentOrNZB(
     //   return undefined;
     // }
   }
-
   return bestMatch.file;
 }
 
@@ -310,28 +336,33 @@ export function isVideoFile(file: DebridFile): boolean {
   );
 }
 
-export const pbiCache = () => {
-  const prefix = 'pbi';
-  if (Env.REDIS_URI) {
-    return Cache.getInstance<string, PlaybackInfo>(
-      prefix,
-      1_000_000_000,
-      'redis'
-    );
-  }
-  return Cache.getInstance<string, PlaybackInfo>(prefix, 1_000_000_000, 'sql');
+export const metadataStore = () => {
+  const prefix = 'mds';
+  const store: 'redis' | 'sql' | 'memory' =
+    Env.BUILTIN_DEBRID_METADATA_STORE || (Env.REDIS_URI ? 'redis' : 'sql');
+  return Cache.getInstance<string, TitleMetadata>(prefix, 1_000_000_000, store);
 };
 
+// export function generatePlaybackUrl(
+//   storeAuth: ServiceAuth,
+//   playbackInfo: MinimisedPlaybackInfo,
+//   filename: string
+// ) {
+//   const encryptedStoreAuth = encryptString(JSON.stringify(storeAuth));
+//   if (!encryptedStoreAuth.success) {
+//     throw new Error('Failed to encrypt store auth');
+//   }
+//   const playbackId = getSimpleTextHash(JSON.stringify(playbackInfo));
+//   pbiCache().set(playbackId, playbackInfo, Env.BUILTIN_PLAYBACK_LINK_VALIDITY);
+//   return `${Env.BASE_URL}/api/v1/debrid/playback/${encryptedStoreAuth.data}/${playbackId}/${encodeURIComponent(filename)}`;
+// }
+
 export function generatePlaybackUrl(
-  storeAuth: ServiceAuth,
-  playbackInfo: PlaybackInfo,
-  filename: string
-) {
-  const encryptedStoreAuth = encryptString(JSON.stringify(storeAuth));
-  if (!encryptedStoreAuth.success) {
-    throw new Error('Failed to encrypt store auth');
-  }
-  const playbackId = getSimpleTextHash(JSON.stringify(playbackInfo));
-  pbiCache().set(playbackId, playbackInfo, 2 * 24 * 60 * 60);
-  return `${Env.BASE_URL}/api/v1/debrid/playback/${encryptedStoreAuth.data}/${playbackId}/${encodeURIComponent(filename)}`;
+  encryptedStoreAuth: string,
+  metadataId: string,
+  fileInfo: FileInfo,
+  title?: string,
+  filename?: string
+): string {
+  return `${Env.BASE_URL}/api/v1/debrid/playback/${encryptedStoreAuth}/${toUrlSafeBase64(JSON.stringify(fileInfo))}/${metadataId}/${encodeURIComponent(filename ?? title ?? 'unknown')}`;
 }

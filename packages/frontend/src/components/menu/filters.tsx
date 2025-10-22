@@ -28,6 +28,7 @@ import {
   MdSurroundSound,
   MdTextFields,
   MdVideoLibrary,
+  MdMiscellaneousServices,
 } from 'react-icons/md';
 import { BiSolidCameraMovie } from 'react-icons/bi';
 import { SiDolby } from 'react-icons/si';
@@ -340,6 +341,10 @@ function Content() {
               <TabsTrigger value="deduplicator">
                 <MdCleaningServices className="text-lg mr-3" />
                 Deduplicator
+              </TabsTrigger>
+              <TabsTrigger value="miscellaneous">
+                <MdMiscellaneousServices className="text-lg mr-3" />
+                Miscellaneous
               </TabsTrigger>
             </div>
           </SettingsNavCard>
@@ -1232,6 +1237,56 @@ function Content() {
                       }));
                     }}
                   />
+
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <Slider
+                        label="Similarity Threshold"
+                        help="The minimum similarity threshold required for a title to be considered a match. Lower values allow more leniency whereas higher values are more strict."
+                        moreHelp="The similarity is calculated using the Levenshtein distance algorithm."
+                        disabled={!userData.titleMatching?.enabled}
+                        value={[
+                          userData.titleMatching?.similarityThreshold ?? 0.85,
+                        ]}
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        defaultValue={[0.85]}
+                        onValueChange={(value) => {
+                          setUserData((prev) => ({
+                            ...prev,
+                            titleMatching: {
+                              ...prev.titleMatching,
+                              similarityThreshold: value[0],
+                            },
+                          }));
+                        }}
+                      />
+                    </div>
+                    <div className="w-24">
+                      <NumberInput
+                        label="Value"
+                        step={0.01}
+                        value={
+                          userData.titleMatching?.similarityThreshold ?? 0.85
+                        }
+                        min={0}
+                        max={1}
+                        disabled={!userData.titleMatching?.enabled}
+                        onValueChange={(newValue) => {
+                          if (newValue !== undefined) {
+                            setUserData((prev) => ({
+                              ...prev,
+                              titleMatching: {
+                                ...prev.titleMatching,
+                                similarityThreshold: newValue,
+                              },
+                            }));
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
 
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2390,6 +2445,59 @@ function Content() {
                       />
                     </SettingsCard>
                   </>
+                )}
+              </div>
+            </>
+          </TabsContent>
+          <TabsContent value="miscellaneous" className="space-y-4">
+            <>
+              <HeadingWithPageControls heading="Miscellaneous" />
+              <div className="mb-4">
+                <p className="text-sm text-[--muted]">
+                  Additional miscellaneous filters.
+                </p>
+              </div>
+              <div className="space-y-4">
+                {/* <SettingsCard>
+                  <Switch
+                    label="Enable"
+                    side="right"
+                    value={userData.miscellaneous?.enabled ?? false}
+                  />
+                </SettingsCard> */}
+                <SettingsCard
+                  title="Digital Release Filter"
+                  description="This will filter out all results for movies that are determined to not have a digital release."
+                >
+                  <Switch
+                    label="Enable"
+                    side="right"
+                    value={userData.digitalReleaseFilter}
+                    onValueChange={(value) => {
+                      setUserData((prev) => ({
+                        ...prev,
+                        digitalReleaseFilter: value,
+                      }));
+                    }}
+                  />
+                </SettingsCard>
+                {mode === 'pro' && (
+                  <SettingsCard
+                    title="Exclude Season Packs"
+                    description="Whether to filter out results that contain entire seasons."
+                  >
+                    <Switch
+                      label="Enable"
+                      side="right"
+                      value={userData.excludeSeasonPacks}
+                      onValueChange={(value) => {
+                        setUserData((prev) => ({
+                          ...prev,
+                          excludeSeasonPacks: value,
+                        }));
+                      }}
+                    />
+                  </SettingsCard>
                 )}
               </div>
             </>

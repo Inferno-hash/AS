@@ -39,10 +39,17 @@ export class ProwlarrAddon extends BaseDebridAddon<ProwlarrAddonConfig> {
   readonly logger = logger;
   readonly api: ProwlarrApi;
 
+  public static preconfiguredIndexers: ProwlarrApiIndexer[] | undefined;
+
+  private readonly preconfiguredInstance: boolean;
   private readonly indexers: string[] = [];
   private readonly tags: string[] = [];
   constructor(config: ProwlarrAddonConfig, clientIp?: string) {
     super(config, ProwlarrAddonConfigSchema, clientIp);
+
+    this.preconfiguredInstance =
+      Env.BUILTIN_PROWLARR_URL === config.url &&
+      Env.BUILTIN_PROWLARR_API_KEY === config.apiKey;
     this.indexers = config.indexers.map((x) => x.toLowerCase());
     this.tags = config.tags.map((x) => x.toLowerCase());
     this.api = new ProwlarrApi({
@@ -52,6 +59,66 @@ export class ProwlarrAddon extends BaseDebridAddon<ProwlarrAddonConfig> {
     });
   }
 
+  public static async fetchpreconfiguredIndexers(): Promise<void> {
+    if (this.preconfiguredIndexers) return;
+    if (!Env.BUILTIN_PROWLARR_URL || !Env.BUILTIN_PROWLARR_API_KEY) return;
+    const api = new ProwlarrApi({
+      baseUrl: Env.BUILTIN_PROWLARR_URL,
+      apiKey: Env.BUILTIN_PROWLARR_API_KEY,
+      timeout: 5000,
+    });
+    const { data } = await api.indexers();
+    logger.debug(`Fetched ${data.length} preconfigured indexers`);
+    let filterReasons: Map<string, number> = new Map();
+
+    this.preconfiguredIndexers = data.filter((indexer) => {
+      if (!indexer.enable) {
+        filterReasons.set(
+          'not enabled',
+          (filterReasons.get('not enabled') ?? 0) + 1
+        );
+        return false;
+      }
+      if (indexer.protocol !== 'torrent') {
+        filterReasons.set(
+          'not torrent protocol',
+          (filterReasons.get('not torrent protocol') ?? 0) + 1
+        );
+        return false;
+      }
+      if (Env.BUILTIN_PROWLARR_INDEXERS?.length) {
+        if (
+          ![
+            indexer.name.toLowerCase(),
+            indexer.sortName.toLowerCase(),
+            indexer.definitionName.toLowerCase(),
+          ].some((x) =>
+            Env.BUILTIN_PROWLARR_INDEXERS?.map((x) => x.toLowerCase()).includes(
+              x
+            )
+          )
+        ) {
+          filterReasons.set(
+            'not in preconfigured indexers',
+            (filterReasons.get('not in preconfigured indexers') ?? 0) + 1
+          );
+          return false;
+        }
+      }
+      return true;
+    });
+    logger.debug(
+      `Set ${this.preconfiguredIndexers?.length} preconfigured indexers`
+    );
+    if (filterReasons.size > 0) {
+      logger.debug(
+        `Filter reasons: ${Array.from(filterReasons.entries())
+          .map(([key, value]) => `${key}: ${value}`)
+          .join(', ')}`
+      );
+    }
+  }
+
   protected async _searchTorrents(
     parsedId: ParsedId,
     metadata: SearchMetadata
@@ -59,17 +126,22 @@ export class ProwlarrAddon extends BaseDebridAddon<ProwlarrAddonConfig> {
     const queryLimit = createQueryLimit();
     let availableIndexers: ProwlarrApiIndexer[] = [];
     let chosenTags: number[] = [];
-    try {
-      const { data } = await this.api.indexers();
-      availableIndexers = data;
-    } catch (error) {
-      if (error instanceof ProwlarrApiError) {
-        throw new Error(
-          `Failed to get Prowlarr indexers: ${error.message}: ${error.status} - ${error.statusText}`
-        );
+    if (this.preconfiguredInstance && ProwlarrAddon.preconfiguredIndexers) {
+      availableIndexers = ProwlarrAddon.preconfiguredIndexers;
+    } else {
+      try {
+        const { data } = await this.api.indexers();
+        availableIndexers = data;
+      } catch (error) {
+        if (error instanceof ProwlarrApiError) {
+          throw new Error(
+            `Failed to get Prowlarr indexers: ${error.message}: ${error.status} - ${error.statusText}`
+          );
+        }
+        throw new Error(`Failed to get Prowlarr indexers: ${error}`);
       }
-      throw new Error(`Failed to get Prowlarr indexers: ${error}`);
     }
+
     try {
       const { data } = await this.api.tags();
       chosenTags = data
@@ -78,9 +150,11 @@ export class ProwlarrAddon extends BaseDebridAddon<ProwlarrAddonConfig> {
     } catch (error) {
       logger.warn(`Failed to get Prowlarr tags: ${error}`);
     }
+
     const chosenIndexers = availableIndexers.filter(
       (indexer) =>
         indexer.enable &&
+        indexer.protocol === 'torrent' &&
         ((!this.indexers.length && !chosenTags.length) ||
           (chosenTags.length &&
             indexer.tags.some((tag) => chosenTags.includes(tag))) ||
@@ -89,7 +163,7 @@ export class ProwlarrAddon extends BaseDebridAddon<ProwlarrAddonConfig> {
               this.indexers.includes(indexer.definitionName.toLowerCase()) ||
               this.indexers.includes(indexer.sortName.toLowerCase()))))
     );
-    // .map((indexer) => indexer.id);
+
     this.logger.info(
       `Chosen indexers: ${chosenIndexers.map((indexer) => indexer.name).join(', ')}`
     );
@@ -125,7 +199,7 @@ export class ProwlarrAddon extends BaseDebridAddon<ProwlarrAddonConfig> {
     const torrents: UnprocessedTorrent[] = [];
 
     for (const result of results) {
-      const magnetUrl = result.guid.includes('magnet:')
+      const magnetUrl = result.guid?.includes('magnet:')
         ? result.guid
         : undefined;
       const downloadUrl = result.magnetUrl?.startsWith('http')

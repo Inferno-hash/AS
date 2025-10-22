@@ -1,4 +1,6 @@
 import app from './app.js';
+import fs from 'fs/promises';
+import path from 'path';
 
 import {
   Env,
@@ -11,6 +13,8 @@ import {
   FeatureControl,
   PTT,
   AnimeDatabase,
+  ProwlarrAddon,
+  TemplateManager,
 } from '@aiostreams/core';
 
 const logger = createLogger('server');
@@ -57,14 +61,32 @@ async function initialiseAnimeDatabase() {
   }
 }
 
+async function initialiseProwlarr() {
+  try {
+    await ProwlarrAddon.fetchpreconfiguredIndexers();
+  } catch (error) {
+    logger.error('Failed to initialise Prowlarr:', error);
+  }
+}
+
+async function initialiseTemplates() {
+  try {
+    TemplateManager.loadTemplates();
+  } catch (error) {
+    logger.error('Failed to initialise templates:', error);
+  }
+}
+
 async function start() {
   try {
     logStartupInfo();
+    await initialiseTemplates();
     await initialiseDatabase();
     await initialiseRedis();
     await initialisePTT();
     initialiseAnimeDatabase();
     FeatureControl.initialise();
+    await initialiseProwlarr();
     if (Env.PRUNE_MAX_DAYS >= 0) {
       startAutoPrune();
     }

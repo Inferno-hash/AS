@@ -21,6 +21,7 @@ export enum ErrorCode {
   METHOD_NOT_ALLOWED = 'METHOD_NOT_ALLOWED',
   RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
   BAD_REQUEST = 'BAD_REQUEST',
+  UNAUTHORIZED = 'UNAUTHORIZED',
 }
 
 interface ErrorDetails {
@@ -88,6 +89,10 @@ export const ErrorMap: Record<ErrorCode, ErrorDetails> = {
   [ErrorCode.BAD_REQUEST]: {
     statusCode: 400,
     message: 'Bad request',
+  },
+  [ErrorCode.UNAUTHORIZED]: {
+    statusCode: 401,
+    message: 'Unauthorized',
   },
 };
 
@@ -231,8 +236,13 @@ export type BuiltinServiceId = (typeof BUILTIN_SUPPORTED_SERVICES)[number];
 
 export const MEDIAFLOW_SERVICE = 'mediaflow' as const;
 export const STREMTHRU_SERVICE = 'stremthru' as const;
+export const BUILTIN_SERVICE = 'builtin' as const;
 
-export const PROXY_SERVICES = [MEDIAFLOW_SERVICE, STREMTHRU_SERVICE] as const;
+export const PROXY_SERVICES = [
+  BUILTIN_SERVICE,
+  STREMTHRU_SERVICE,
+  MEDIAFLOW_SERVICE,
+] as const;
 export type ProxyServiceId = (typeof PROXY_SERVICES)[number];
 
 export const PROXY_SERVICE_DETAILS: Record<
@@ -244,13 +254,12 @@ export const PROXY_SERVICE_DETAILS: Record<
     credentialDescription: string;
   }
 > = {
-  [MEDIAFLOW_SERVICE]: {
-    id: MEDIAFLOW_SERVICE,
-    name: 'MediaFlow Proxy',
-    description:
-      '[MediaFlow Proxy](https://github.com/mhdzumair/mediaflow-proxy) is a high performance proxy server which supports HTTP, HLS, and more.',
+  [BUILTIN_SERVICE]: {
+    id: BUILTIN_SERVICE,
+    name: 'Builtin Proxy',
+    description: 'A proxy service that is built into the core of AIOStreams',
     credentialDescription:
-      'The value of your MediaFlow Proxy instance `API_PASSWORD` environment variable.',
+      'A valid username:password pair for this AIOStreams instance, defined in the `AIOSTREAMS_AUTH` environment variable.',
   },
   [STREMTHRU_SERVICE]: {
     id: STREMTHRU_SERVICE,
@@ -258,7 +267,15 @@ export const PROXY_SERVICE_DETAILS: Record<
     description:
       '[StremThru](https://github.com/MunifTanjim/stremthru) is a feature packed companion to Stremio which also offers a HTTP proxy, written in Go.',
     credentialDescription:
-      'A valid credential for your StremThru instance, defined in the `STREMTHRU_PROXY_AUTH` environment variable.',
+      'A valid username:password pair for your StremThru instance, defined in the `STREMTHRU_PROXY_AUTH` environment variable.',
+  },
+  [MEDIAFLOW_SERVICE]: {
+    id: MEDIAFLOW_SERVICE,
+    name: 'MediaFlow Proxy',
+    description:
+      '[MediaFlow Proxy](https://github.com/mhdzumair/mediaflow-proxy) is a high performance proxy server which supports HTTP, HLS, and more.',
+    credentialDescription:
+      'The value of your MediaFlow Proxy instance `API_PASSWORD` environment variable.',
   },
 };
 
@@ -522,6 +539,35 @@ const SERVICE_DETAILS: Record<
         required: true,
       },
     ],
+  },
+};
+
+const TOP_LEVEL_OPTION_DETAILS: Record<
+  'tmdbApiKey' | 'tmdbAccessToken' | 'rpdbApiKey' | 'tvdbApiKey',
+  {
+    name: string;
+    description: string;
+  }
+> = {
+  tmdbApiKey: {
+    name: 'TMDB API Key',
+    description:
+      'Get your free API key from [here](https://www.themoviedb.org/settings/api). Make sure to copy the 32 character API Key and not the Read Access Token.',
+  },
+  tmdbAccessToken: {
+    name: 'TMDB Access Token',
+    description:
+      'Get your free access token from [here](https://www.themoviedb.org/settings/api). Make sure to copy the Read Access Token and not the 32 character API Key.',
+  },
+  rpdbApiKey: {
+    name: 'RPDB API Key',
+    description:
+      'Get your free API key from [here](https://ratingposterdb.com/api-key/) for posters with ratings.',
+  },
+  tvdbApiKey: {
+    name: 'TVDB API Key',
+    description:
+      'Sign up for a free API Key at [TVDB](https://www.thetvdb.com/api-information) and then get it from your [dashboard](https://www.thetvdb.com/dashboard/account/apikeys).',
   },
 };
 
@@ -1025,5 +1071,6 @@ export {
   SEEDR_SERVICE,
   EASYNEWS_SERVICE,
   SERVICE_DETAILS,
+  TOP_LEVEL_OPTION_DETAILS,
   HEADERS_FOR_IP_FORWARDING,
 };
