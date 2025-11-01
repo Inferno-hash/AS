@@ -12,5 +12,10 @@ destination = "/app/data"
 source = "data_volume"
 
 [[vm]]
-memory = "512mb"
+memory = "256mb"
 size = "shared-cpu-1x"
+
+[deploy]
+  release_command = ""
+[experimental]
+  entrypoint = ["node", "packages/server/dist/index.js"]
